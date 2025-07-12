@@ -1,0 +1,2841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISX Analytics Platform - The Iraqi Investor</title>
+    <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Chart Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Advanced Highcharts Libraries - Same as NVIDIA Example -->
+    <link rel="stylesheet" type="text/css" href="https://code.highcharts.com/css/stocktools/gui.css">
+    <link rel="stylesheet" type="text/css" href="https://code.highcharts.com/css/annotations/popup.css">
+    <!-- Highcharts CSS for styled mode -->
+    <link rel="stylesheet" type="text/css" href="https://code.highcharts.com/css/highcharts.css">
+    <script src="https://code.highcharts.com/stock/highstock.js"></script>
+    <script src="https://code.highcharts.com/stock/indicators/indicators-all.js"></script>
+    <script src="https://code.highcharts.com/stock/modules/drag-panes.js"></script>
+    <script src="https://code.highcharts.com/modules/annotations-advanced.js"></script>
+    <script src="https://code.highcharts.com/modules/price-indicator.js"></script>
+    <script src="https://code.highcharts.com/modules/full-screen.js"></script>
+    <script src="https://code.highcharts.com/modules/stock-tools.js"></script>
+    <script src="https://code.highcharts.com/stock/modules/heikinashi.js"></script>
+    <script src="https://code.highcharts.com/stock/modules/hollowcandlestick.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+    <script src="https://code.highcharts.com/themes/adaptive.js"></script>
+    <style>
+        :root {
+            --primary-green: #2d5a3d;
+            --secondary-green: #4a7c59;
+            --light-green: #6b9b7a;
+            --accent-green: #8bc34a;
+            --dark-green: #1a3d2b;
+            --cream-bg: #f8f6f0;
+            --red-accent: #c53030;
+        }
+        
+        body {
+            background-color: var(--cream-bg);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            border-right: 3px solid var(--accent-green);
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.9);
+            transition: all 0.3s;
+            margin: 2px 0;
+            border-radius: 8px;
+        }
+        
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            color: white;
+            background-color: rgba(139, 195, 74, 0.2);
+            border-left: 4px solid var(--accent-green);
+            transform: translateX(4px);
+        }
+        
+        .logo-container {
+            text-align: center;
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+        }
+        
+                 .logo-container img {
+             max-width: 150px;
+             height: auto;
+             filter: brightness(1.1);
+             border-radius: 8px;
+             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+         }
+        
+        .logo-text {
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 10px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+        
+        .command-section {
+            display: none;
+        }
+        
+        .command-section.active {
+            display: block;
+        }
+        
+        .output-container {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Courier New', monospace;
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 8px;
+            border: 2px solid var(--light-green);
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-connected {
+            background-color: var(--accent-green);
+            box-shadow: 0 0 10px rgba(139, 195, 74, 0.5);
+        }
+        
+        .status-disconnected {
+            background-color: var(--red-accent);
+            box-shadow: 0 0 10px rgba(197, 48, 48, 0.5);
+        }
+        
+        .card {
+            border: 1px solid rgba(45, 90, 61, 0.1);
+            box-shadow: 0 0.125rem 0.25rem rgba(45, 90, 61, 0.1);
+            transition: all 0.3s;
+            background: white;
+        }
+        
+        .card:hover {
+            box-shadow: 0 0.5rem 1rem rgba(45, 90, 61, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--secondary-green) 100%);
+            color: white;
+            border-bottom: 2px solid var(--accent-green);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--secondary-green) 100%);
+            border: 2px solid var(--accent-green);
+            color: white;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--secondary-green) 0%, var(--light-green) 100%);
+            border-color: var(--accent-green);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(45, 90, 61, 0.3);
+        }
+        
+        .btn-outline-secondary {
+            border-color: var(--primary-green);
+            color: var(--primary-green);
+        }
+        
+        .btn-outline-secondary:hover {
+            background-color: var(--primary-green);
+            border-color: var(--primary-green);
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, var(--accent-green) 0%, var(--light-green) 100%);
+        }
+        
+        .border-primary { border-color: var(--primary-green) !important; }
+        .border-info { border-color: var(--secondary-green) !important; }
+        .border-success { border-color: var(--accent-green) !important; }
+        .border-warning { border-color: #ffc107 !important; }
+        
+        .text-primary { color: var(--primary-green) !important; }
+        .text-info { color: var(--secondary-green) !important; }
+        .text-success { color: var(--accent-green) !important; }
+        
+        .log-info { color: var(--secondary-green); }
+        .log-success { color: var(--accent-green); }
+        .log-error { color: var(--red-accent); }
+        .log-warning { color: #ffc107; }
+        
+        .main-header {
+            background: linear-gradient(135deg, var(--cream-bg) 0%, rgba(45, 90, 61, 0.05) 100%);
+            border-bottom: 3px solid var(--accent-green);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .main-header h2 {
+            color: var(--primary-green);
+            font-weight: 700;
+            margin: 0;
+        }
+        
+        .form-control:focus {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 0 0.2rem rgba(139, 195, 74, 0.25);
+        }
+        
+        /* Ticker Table Sorting and Search Styles */
+        .sort-icon {
+            font-size: 0.8em;
+            margin-left: 5px;
+            opacity: 0.5;
+            transition: opacity 0.3s;
+        }
+        
+        .sort-icon.active {
+            opacity: 1;
+            color: var(--accent-green);
+        }
+        
+        .ticker-row {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .ticker-row:hover {
+            background-color: rgba(139, 195, 74, 0.1);
+        }
+        
+        .ticker-row.selected {
+            background-color: rgba(139, 195, 74, 0.2);
+            border-left: 4px solid var(--accent-green);
+        }
+        
+        .price-change-positive {
+            color: var(--accent-green);
+            font-weight: 600;
+        }
+        
+        .price-change-negative {
+            color: var(--red-accent);
+            font-weight: 600;
+        }
+        
+        .price-change-neutral {
+            color: #6c757d;
+            font-weight: 600;
+        }
+        
+        .sparkline-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .table th {
+            border-top: none;
+            font-weight: 600;
+            color: var(--primary-green);
+        }
+        
+        .table th:hover {
+            background-color: rgba(139, 195, 74, 0.1);
+        }
+        
+        /* Highcharts Styled Mode CSS Variables and Classes */
+        :root {
+            /* ISX Color Palette */
+            --highcharts-color-0: #8bc34a;
+            --highcharts-color-1: #c53030;
+            --highcharts-color-2: #2d5a3d;
+            --highcharts-color-3: #4a7c59;
+            --highcharts-color-4: #6b9b7a;
+            --highcharts-color-5: #a02929;
+            --highcharts-color-6: #1a3d2b;
+            --highcharts-color-7: #f8f6f0;
+            --highcharts-color-8: #5a8069;
+            --highcharts-color-9: #8da98f;
+            
+            /* Neutral colors for UI elements */
+            --highcharts-neutral-color-100: #2d5a3d;
+            --highcharts-neutral-color-80: #4a7c59;
+            --highcharts-neutral-color-60: #6b9b7a;
+            --highcharts-neutral-color-40: #8da98f;
+            --highcharts-neutral-color-20: #b6c9bb;
+            --highcharts-neutral-color-10: #dae4dc;
+            --highcharts-neutral-color-5: #f0f4f1;
+            --highcharts-neutral-color-3: #f8f6f0;
+            
+            /* Highlight colors */
+            --highcharts-highlight-color-100: #8bc34a;
+            --highcharts-highlight-color-80: #a3d063;
+            --highcharts-highlight-color-60: #bbdc7c;
+            --highcharts-highlight-color-40: #d3e995;
+            --highcharts-highlight-color-20: #ebf5ae;
+            --highcharts-highlight-color-10: #f5fad7;
+        }
+        
+        /* Chart Background */
+        .highcharts-background {
+            fill: #ffffff;
+        }
+        
+        /* Chart Title */
+        .highcharts-title {
+            fill: var(--highcharts-neutral-color-100);
+            font-size: 18px;
+            font-weight: 600;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        /* Axis Labels */
+        .highcharts-axis-labels {
+            fill: var(--highcharts-neutral-color-80);
+            font-size: 12px;
+            font-weight: 500;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        /* Grid Lines */
+        .highcharts-grid-line {
+            stroke: var(--highcharts-neutral-color-10);
+            stroke-width: 1;
+        }
+        
+        /* Axis Lines */
+        .highcharts-axis-line {
+            stroke: var(--highcharts-neutral-color-80);
+            stroke-width: 1;
+        }
+        
+        /* Candlestick Specific Styling */
+        .highcharts-candlestick-series .highcharts-point-up {
+            fill: var(--highcharts-color-0);
+            stroke: var(--highcharts-color-2);
+            stroke-width: 1.5;
+        }
+        
+        .highcharts-candlestick-series .highcharts-point-down {
+            fill: var(--highcharts-color-1);
+            stroke: var(--highcharts-color-5);
+            stroke-width: 1.5;
+        }
+        
+        /* Volume Column Styling */
+        .highcharts-column-series .highcharts-point {
+            fill: rgba(139, 195, 74, 0.6);
+            stroke: var(--highcharts-color-0);
+            stroke-width: 0.5;
+        }
+        
+        .highcharts-column-series .highcharts-point:hover {
+            fill: var(--highcharts-color-0);
+        }
+        
+        /* Range Selector */
+        .highcharts-range-selector-buttons .highcharts-button {
+            fill: var(--highcharts-neutral-color-100);
+            stroke: var(--highcharts-highlight-color-100);
+            stroke-width: 1;
+        }
+        
+        .highcharts-range-selector-buttons .highcharts-button text {
+            fill: #ffffff;
+            font-weight: 600;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .highcharts-range-selector-buttons .highcharts-button:hover {
+            fill: var(--highcharts-neutral-color-80);
+        }
+        
+        .highcharts-range-selector-buttons .highcharts-button-pressed {
+            fill: var(--highcharts-highlight-color-100);
+            stroke: var(--highcharts-neutral-color-100);
+        }
+        
+        /* Tooltip */
+        .highcharts-tooltip .highcharts-tooltip-box {
+            fill: var(--highcharts-neutral-color-100);
+            stroke: var(--highcharts-highlight-color-100);
+            stroke-width: 1;
+            rx: 3;
+            ry: 3;
+        }
+        
+        .highcharts-tooltip text {
+            fill: #ffffff;
+            font-size: 13px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        /* Crosshair */
+        .highcharts-crosshair {
+            stroke: var(--highcharts-highlight-color-100);
+            stroke-width: 1;
+            stroke-dasharray: 5,5;
+        }
+        
+        /* Credits */
+        .highcharts-credits {
+            fill: var(--highcharts-neutral-color-80);
+            font-size: 11px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        /* Navigator */
+        .highcharts-navigator-mask-outside {
+            fill: rgba(139, 195, 74, 0.1);
+        }
+        
+        .highcharts-navigator-mask-inside {
+            fill: rgba(139, 195, 74, 0.05);
+        }
+        
+        .highcharts-navigator-outline {
+            stroke: var(--highcharts-highlight-color-100);
+            stroke-width: 1;
+        }
+        
+        .highcharts-navigator-handle {
+            fill: var(--highcharts-highlight-color-100);
+            stroke: var(--highcharts-neutral-color-100);
+            stroke-width: 1;
+        }
+        
+        .highcharts-navigator-series {
+            fill: var(--highcharts-neutral-color-60);
+            stroke: var(--highcharts-neutral-color-80);
+            stroke-width: 1;
+        }
+        
+        /* Scrollbar */
+        .highcharts-scrollbar-thumb {
+            fill: var(--highcharts-highlight-color-100);
+            stroke: var(--highcharts-neutral-color-100);
+            stroke-width: 1;
+        }
+        
+        .highcharts-scrollbar-track {
+            fill: var(--highcharts-neutral-color-5);
+            stroke: var(--highcharts-neutral-color-20);
+            stroke-width: 1;
+        }
+        
+        .highcharts-scrollbar-button {
+            fill: var(--highcharts-neutral-color-80);
+            stroke: var(--highcharts-neutral-color-100);
+            stroke-width: 1;
+        }
+        
+        .highcharts-scrollbar-arrow {
+            fill: #ffffff;
+        }
+        
+        /* ISX Chart Container */
+        .isx-chart-container {
+            background: #ffffff;
+            border: 1px solid var(--highcharts-neutral-color-20);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(45, 90, 61, 0.1);
+        }
+        
+        .form-select:focus {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 0 0.2rem rgba(139, 195, 74, 0.25);
+        }
+        
+                 .connection-status {
+             background: rgba(255, 255, 255, 0.1);
+             border-radius: 8px;
+             padding: 10px;
+             margin-bottom: 20px;
+         }
+         
+         .chart-container {
+             position: relative;
+             height: 400px;
+             margin: 20px 0;
+         }
+         
+         /* Candlestick Chart Styling */
+         .highcharts-candlestick-series .highcharts-point {
+             stroke-width: 1.5px;
+         }
+         
+         .highcharts-candlestick-series .highcharts-point-up {
+             fill: var(--accent-green) !important;
+             stroke: var(--primary-green) !important;
+         }
+         
+         .highcharts-candlestick-series .highcharts-point-down {
+             fill: var(--red-accent) !important;
+             stroke: #a02929 !important;
+         }
+         
+         .highcharts-volume-series .highcharts-point {
+             fill: rgba(139, 195, 74, 0.6) !important;
+             stroke: var(--accent-green) !important;
+             stroke-width: 0.5px;
+         }
+         
+         .highcharts-volume-series .highcharts-point:hover {
+             fill: var(--accent-green) !important;
+         }
+         
+         /* Chart Container Styling */
+         .highcharts-container {
+             border-radius: 8px;
+             background: white;
+             box-shadow: 0 2px 8px rgba(45, 90, 61, 0.1);
+         }
+         
+         /* Range Selector Styling */
+         .highcharts-range-selector-buttons .highcharts-button {
+             fill: var(--primary-green) !important;
+             stroke: var(--accent-green) !important;
+             stroke-width: 1px;
+         }
+         
+         .highcharts-range-selector-buttons .highcharts-button-pressed {
+             fill: var(--accent-green) !important;
+             stroke: var(--primary-green) !important;
+         }
+         
+         .highcharts-range-selector-buttons .highcharts-button text {
+             fill: white !important;
+             font-weight: 600;
+         }
+         
+         /* Tooltip Styling */
+         .highcharts-tooltip-box {
+             fill: var(--primary-green) !important;
+             stroke: var(--accent-green) !important;
+             stroke-width: 2px;
+         }
+         
+         .highcharts-tooltip text {
+             fill: white !important;
+         }
+         
+         /* Grid Lines */
+         .highcharts-grid-line {
+             stroke: rgba(45, 90, 61, 0.1) !important;
+         }
+         
+         .highcharts-minor-grid-line {
+             stroke: rgba(45, 90, 61, 0.05) !important;
+         }
+         
+         /* Axis Labels */
+         .highcharts-axis-labels text {
+             fill: var(--primary-green) !important;
+             font-weight: 500;
+         }
+         
+         /* Axis Lines */
+         .highcharts-axis-line {
+             stroke: var(--primary-green) !important;
+             stroke-width: 1px;
+         }
+         
+         /* Crosshair */
+         .highcharts-crosshair {
+             stroke: var(--accent-green) !important;
+             stroke-width: 1px;
+             stroke-dasharray: 5,5;
+         }
+         
+         /* Loading */
+         .highcharts-loading {
+             background-color: var(--cream-bg) !important;
+         }
+         
+         .highcharts-loading-inner {
+             background-color: var(--primary-green) !important;
+             color: white !important;
+         }
+         
+         .ticker-row {
+             cursor: pointer;
+             transition: all 0.2s ease;
+         }
+         
+         .ticker-row:hover {
+             background-color: rgba(45, 90, 61, 0.1);
+         }
+         
+         .ticker-row.selected {
+             background-color: rgba(45, 90, 61, 0.2);
+             border-left: 4px solid var(--accent-green);
+         }
+         
+         .sparkline-container {
+             width: 60px;
+             height: 30px;
+             display: inline-block;
+         }
+         
+         .price-change-positive {
+             color: var(--accent-green);
+         }
+         
+         .price-change-negative {
+             color: var(--red-accent);
+         }
+         
+         .price-change-neutral {
+             color: #6c757d;
+         }
+         
+         #indexChart {
+             background: white;
+             border-radius: 8px;
+             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+         }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 sidebar p-3">
+                <div class="logo-container">
+                    <img src="/static/images/TII Logo.jpg" alt="The Iraqi Investor" class="logo">
+                    <div class="logo-text">ISX Data Analytics</div>
+                </div>
+                
+                <div class="connection-status">
+                    <small class="text-white-50">Connection Status</small>
+                    <div class="mt-1">
+                        <span class="status-indicator status-disconnected" id="connectionStatus"></span>
+                        <span class="text-white-50" id="connectionText">Disconnected</span>
+                    </div>
+                </div>
+
+                <nav class="nav flex-column">
+                    <a class="nav-link active" href="#" onclick="showSection('scrape')">
+                        <i class="fas fa-cloud-download-alt me-2"></i>Data Collection
+                    </a>
+                    <a class="nav-link" href="#" onclick="showSection('process')">
+                        <i class="fas fa-database me-2"></i>Process Reports
+                    </a>
+                    <a class="nav-link" href="#" onclick="showSection('indexcsv')">
+                        <i class="fas fa-chart-line me-2"></i>Market Indices
+                    </a>
+                    <a class="nav-link" href="#" onclick="showSection('tickercharts')">
+                        <i class="fas fa-chart-bar me-2"></i>Ticker Charts
+                    </a>
+                    <a class="nav-link" href="#" onclick="showSection('files')">
+                        <i class="fas fa-archive me-2"></i>File Archive
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10 p-0">
+                <div class="main-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2><i class="fas fa-chart-line me-3"></i>ISX Daily Reports Analytics</h2>
+                            <p class="mb-0 text-muted">Iraq Stock Exchange Data Processing & Analysis Platform</p>
+                        </div>
+                        <button class="btn btn-outline-secondary" onclick="refreshFiles()">
+                            <i class="fas fa-sync-alt me-2"></i>Refresh
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="p-4">
+
+                <!-- Data Collection Section -->
+                <div id="scrape" class="command-section active">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-cloud-download-alt me-2"></i>ISX Data Collection</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="scrapeForm">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Mode</label>
+                                            <select class="form-select" name="mode">
+                                                <option value="initial">Initial (Fresh start)</option>
+                                                <option value="accumulative">Accumulative (Incremental)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Headless Browser</label>
+                                            <select class="form-select" name="headless">
+                                                <option value="true">Yes (Headless)</option>
+                                                <option value="false">No (Visible)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">From Date</label>
+                                            <input type="date" class="form-control" name="from" value="2025-01-01">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">To Date (Optional)</label>
+                                            <input type="date" class="form-control" name="to">
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-play me-2"></i>Start Scraping
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Process Reports Section -->
+                <div id="process" class="command-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-database me-2"></i>ISX Reports Processing</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="processForm">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Input Directory</label>
+                                            <input type="text" class="form-control" name="in" value="downloads" placeholder="downloads">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Processing Mode</label>
+                                            <select class="form-select" name="mode">
+                                                <option value="">Smart Mode (Incremental)</option>
+                                                <option value="full">Full Reprocessing</option>
+                                            </select>
+                                            <div class="form-text">
+                                <strong>Smart mode:</strong> Only processes new/changed files (recommended for daily updates).<br>
+                                <strong>Full mode:</strong> Reprocesses everything from scratch.<br>
+                                <em>Generates: Combined CSV, Daily CSV files, Individual ticker CSV files, and Forward-filled data.</em>
+                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary" id="processBtn">
+                                    <i class="fas fa-play me-2"></i>Process Files
+                                </button>
+                            </form>
+                            
+                            <!-- Progress Section -->
+                            <div id="processProgress" class="mt-4" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <strong>Processing Progress</strong>
+                                            <span id="progressPercentage">0%</span>
+                                        </div>
+                                        <div class="progress mb-3">
+                                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                                 role="progressbar" 
+                                                 id="progressBar" 
+                                                 style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="card border-primary">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-primary">Files Discovered</h6>
+                                                <h4 class="mb-0" id="filesDiscovered">-</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card border-info">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-info">Files Processed</h6>
+                                                <h4 class="mb-0" id="filesProcessed">-</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card border-success">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-success">Records Generated</h6>
+                                                <h4 class="mb-0" id="recordsGenerated">-</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card border-warning">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-warning">Current File</h6>
+                                                <small class="text-muted" id="currentFile">-</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-3">
+                                    <div class="col-md-12">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">Processing Details</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <small class="text-muted">Processing Mode:</small>
+                                                        <div id="processingMode">-</div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <small class="text-muted">Elapsed Time:</small>
+                                                        <div id="elapsedTime">-</div>
+                                                    </div>
+                                                </div>
+                                                <div class="row mt-2">
+                                                    <div class="col-md-4">
+                                                        <small class="text-muted">Active Trading Records:</small>
+                                                        <div id="activeRecords">-</div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <small class="text-muted">Forward-filled Records:</small>
+                                                        <div id="forwardFilledRecords">-</div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <small class="text-muted">Ticker Files Generated:</small>
+                                                        <div id="tickerFilesGenerated">-</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Market Indices Section -->
+                <div id="indexcsv" class="command-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>ISX Market Indices</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="indexcsvForm">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Processing Mode</label>
+                                            <select class="form-select" name="mode">
+                                                <option value="accumulative">Accumulative (Incremental)</option>
+                                                <option value="initial">Initial (Fresh start)</option>
+                                            </select>
+                                            <div class="form-text">
+                                                <strong>Accumulative:</strong> Only processes new files since last run (recommended for daily updates).<br>
+                                                <strong>Initial:</strong> Recreates the entire index CSV from scratch, processing all available files.
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Input Directory</label>
+                                            <input type="text" class="form-control" name="dir" value="downloads" placeholder="downloads">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Output File</label>
+                                            <input type="text" class="form-control" name="out" value="indexes.csv" placeholder="indexes.csv">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <button type="submit" class="btn btn-primary" id="indexcsvBtn">
+                                            <i class="fas fa-play me-2"></i>Extract Indices
+                                        </button>
+                                    </div>
+                                    <div class="col-md-6 text-end">
+                                        <button type="button" class="btn btn-outline-primary" onclick="loadIndexChart()">
+                                            <i class="fas fa-sync-alt me-2"></i>Refresh Chart
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                            
+                            <!-- Market Indices Progress Section -->
+                            <div id="indexProgress" class="mt-4" style="display: none;">
+                                <div class="card border-primary">
+                                    <div class="card-header bg-primary text-white">
+                                        <h6 class="mb-0"><i class="fas fa-chart-line me-2"></i>Index Extraction Progress</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="card">
+                                                    <div class="card-body text-center">
+                                                        <h6 class="card-title">Files Processed</h6>
+                                                        <h4 class="mb-0 text-primary" id="indexFilesProcessed">0</h4>
+                                                        <small class="text-muted">Excel files analyzed</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="card">
+                                                    <div class="card-body text-center">
+                                                        <h6 class="card-title">Processing Mode</h6>
+                                                        <h6 class="mb-0 text-success" id="indexProcessingMode">-</h6>
+                                                        <small class="text-muted">Current mode</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row mt-3">
+                                            <div class="col-md-12">
+                                                <div class="card">
+                                                    <div class="card-body">
+                                                        <div class="row">
+                                                            <div class="col-md-6">
+                                                                <small class="text-muted">Current Status:</small>
+                                                                <div id="indexCurrentStatus">Starting...</div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <small class="text-muted">Last Processed:</small>
+                                                                <div id="indexLastFile">-</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Market Indices Visualization -->
+                            <div id="indexVisualization" class="mt-4">
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6 class="mb-0"><i class="fas fa-chart-area me-2"></i>ISX Market Indices Performance</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row mb-3">
+                                                    <div class="col-md-3">
+                                                        <div class="card border-primary">
+                                                            <div class="card-body text-center">
+                                                                <h6 class="card-title text-primary">ISX60 Current</h6>
+                                                                <h4 class="mb-0" id="isx60Current">-</h4>
+                                                                <small class="text-muted" id="isx60Change">-</small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <div class="card border-success">
+                                                            <div class="card-body text-center">
+                                                                <h6 class="card-title text-success">ISX15 Current</h6>
+                                                                <h4 class="mb-0" id="isx15Current">-</h4>
+                                                                <small class="text-muted" id="isx15Change">-</small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <div class="card border-info">
+                                                            <div class="card-body text-center">
+                                                                <h6 class="card-title text-info">Data Points</h6>
+                                                                <h4 class="mb-0" id="dataPoints">-</h4>
+                                                                <small class="text-muted">Trading Days</small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <div class="card border-warning">
+                                                            <div class="card-body text-center">
+                                                                <h6 class="card-title text-warning">Date Range</h6>
+                                                                <small class="text-muted" id="dateRange">-</small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                                                <div class="chart-container" style="position: relative; height: 450px; overflow-x: auto; overflow-y: hidden; border: 1px solid #e0e0e0; border-radius: 8px; background: white;">
+                                    <canvas id="indexChart" style="height: 400px;"></canvas>
+                                </div>
+                                
+                                <!-- Chart Controls -->
+                                <div class="row mt-3">
+                                    <div class="col-md-8">
+                                        <div class="btn-group" role="group" aria-label="Time Range">
+                                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="setTimeRange('1M')">1M</button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="setTimeRange('3M')">3M</button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="setTimeRange('6M')">6M</button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="setTimeRange('1Y')">1Y</button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm active" onclick="setTimeRange('ALL')">All</button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <div class="btn-group" role="group" aria-label="Chart Controls">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetZoom()" title="Reset Zoom">
+                                                <i class="fas fa-search-minus"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="downloadChart()" title="Download Chart">
+                                                <i class="fas fa-download"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Chart Instructions -->
+                                <div class="row mt-2">
+                                    <div class="col-md-12">
+                                        <small class="text-muted">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            <strong>Chart Controls:</strong> Mouse wheel to zoom, Ctrl+drag to pan, hover for details
+                                        </small>
+                                    </div>
+                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+
+
+
+                <!-- Ticker Charts Section -->
+                <div id="tickercharts" class="command-section">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>ISX Ticker Candlestick Charts</h5>
+                            <div>
+                                <button class="btn btn-outline-secondary btn-sm" onclick="refreshTickers()">
+                                    <i class="fas fa-sync-alt me-1"></i>Refresh Tickers
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm" onclick="exportChart()">
+                                    <i class="fas fa-download me-1"></i>Export Chart
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <!-- Ticker List Panel -->
+                                <div class="col-md-4">
+                                    <div class="card h-100">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-list me-2"></i>Ticker List
+                                                <span class="badge bg-secondary ms-2" id="tickerCount">0</span>
+                                            </h6>
+                                        </div>
+                                        <div class="card-body p-0">
+                                            <!-- Search Bar -->
+                                            <div class="p-3 border-bottom">
+                                                <div class="input-group">
+                                                    <span class="input-group-text">
+                                                        <i class="fas fa-search"></i>
+                                                    </span>
+                                                    <input type="text" 
+                                                           class="form-control" 
+                                                           id="tickerSearch" 
+                                                           placeholder="Search tickers..."
+                                                           onkeyup="filterTickers()">
+                                                    <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="table-responsive" style="max-height: 550px; overflow-y: auto;">
+                                                <table class="table table-hover table-sm mb-0" id="tickerTable">
+                                                    <thead class="sticky-top bg-light">
+                                                        <tr>
+                                                            <th style="width: 20%; cursor: pointer;" onclick="sortTickerTable('ticker')">
+                                                                Ticker <i class="fas fa-sort sort-icon" id="sort-ticker"></i>
+                                                            </th>
+                                                            <th style="width: 25%; cursor: pointer;" onclick="sortTickerTable('price')">
+                                                                Last Price <i class="fas fa-sort sort-icon" id="sort-price"></i>
+                                                            </th>
+                                                            <th style="width: 20%; cursor: pointer;" onclick="sortTickerTable('change')">
+                                                                Change <i class="fas fa-sort sort-icon" id="sort-change"></i>
+                                                            </th>
+                                                            <th style="width: 20%; cursor: pointer;" onclick="sortTickerTable('date')">
+                                                                Date <i class="fas fa-sort sort-icon" id="sort-date"></i>
+                                                            </th>
+                                                            <th style="width: 15%;">Trend</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tickerTableBody">
+                                                        <tr>
+                                                            <td colspan="5" class="text-center text-muted py-4">
+                                                                <i class="fas fa-spinner fa-spin me-2"></i>Loading tickers...
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Chart Panel -->
+                                <div class="col-md-8">
+                                    <div class="card h-100">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-chart-candlestick me-2"></i>Candlestick Chart
+                                                <span class="ms-2" id="selectedTickerTitle">Select a ticker from the list</span>
+                                            </h6>
+                                        </div>
+                                        <div class="card-body p-0">
+                                            <!-- Chart Container -->
+                                            <div id="tickerChartContainer" class="isx-chart-container" style="height: 500px; width: 100%;">
+                                                <div class="d-flex align-items-center justify-content-center h-100 text-muted">
+                                                    <div class="text-center">
+                                                        <i class="fas fa-chart-bar fa-3x mb-3"></i>
+                                                        <p>Select a ticker from the list to view its candlestick chart</p>
+                                                        <small>Charts display OHLC data with volume from processed ticker CSV files</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Chart Info -->
+                            <div class="row mt-3">
+                                <div class="col-md-12">
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-3">
+                                                    <small class="text-muted">Selected Ticker:</small>
+                                                    <div id="selectedTicker">-</div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <small class="text-muted">Data Points:</small>
+                                                    <div id="dataPoints">-</div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <small class="text-muted">Date Range:</small>
+                                                    <div id="dateRange">-</div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <small class="text-muted">Last Price:</small>
+                                                    <div id="lastPrice">-</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- File Archive Section -->
+                <div id="files" class="command-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-archive me-2"></i>ISX File Archive</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Downloaded Files</h6>
+                                    <div id="downloadsList" class="list-group mb-3">
+                                        <!-- Files will be populated here -->
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Generated Files</h6>
+                                    <div id="generatedList" class="list-group mb-3">
+                                        <!-- Files will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Output Console -->
+                <div class="card mt-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="fas fa-terminal me-2"></i>Console Output</h6>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="clearOutput()">
+                            <i class="fas fa-trash me-1"></i>Clear
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="output" class="output-container p-3">
+                            <div class="text-muted">Ready to execute commands...</div>
+                        </div>
+                    </div>
+                </div>
+                
+                </div> <!-- Close p-4 div -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sparkline"></script>
+    <script>
+        let ws;
+        let isConnected = false;
+
+        // Initialize WebSocket connection
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+            
+            ws.onopen = function() {
+                isConnected = true;
+                updateConnectionStatus();
+                addOutput('Connected to server', 'info');
+            };
+            
+            ws.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                addOutput(message.message, message.type, message.command);
+            };
+            
+            ws.onclose = function() {
+                isConnected = false;
+                updateConnectionStatus();
+                addOutput('Disconnected from server', 'error');
+                
+                // Attempt to reconnect after 3 seconds
+                setTimeout(initWebSocket, 3000);
+            };
+            
+            ws.onerror = function(error) {
+                addOutput('WebSocket error: ' + error, 'error');
+            };
+        }
+
+        function updateConnectionStatus() {
+            const statusIndicator = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionText');
+            
+            if (isConnected) {
+                statusIndicator.className = 'status-indicator status-connected';
+                statusText.textContent = 'Connected';
+            } else {
+                statusIndicator.className = 'status-indicator status-disconnected';
+                statusText.textContent = 'Disconnected';
+            }
+        }
+
+        function addOutput(message, type = 'info', command = '') {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = `log-${type}`;
+            div.innerHTML = `[${timestamp}] ${command ? `[${command.toUpperCase()}] ` : ''}${message}`;
+            output.appendChild(div);
+            output.scrollTop = output.scrollHeight;
+            
+            // Parse progress information for process command
+            if (command === 'process') {
+                parseProcessProgress(message);
+            }
+            
+            // Parse progress information for indexcsv command
+            if (command === 'indexcsv') {
+                parseIndexProgress(message);
+            }
+        }
+
+        let processStartTime = null;
+        let processTimer = null;
+
+        function parseProcessProgress(message) {
+            // Show progress section when process starts
+            if (message.includes('Starting process command') || message.includes('Processing files')) {
+                document.getElementById('processProgress').style.display = 'block';
+                processStartTime = new Date();
+                startProcessTimer();
+                
+                // Determine processing mode
+                const mode = message.includes('-full') ? 'Full Reprocessing' : 'Smart Mode (Incremental)';
+                document.getElementById('processingMode').textContent = mode;
+            }
+            
+            // Parse file discovery information
+            const discoveredMatch = message.match(/(\d+) Excel files discovered/);
+            if (discoveredMatch) {
+                document.getElementById('filesDiscovered').textContent = discoveredMatch[1];
+            }
+            
+            // Parse processing progress
+            const processedMatch = message.match(/Processing file (\d+)\/(\d+)/);
+            if (processedMatch) {
+                const current = parseInt(processedMatch[1]);
+                const total = parseInt(processedMatch[2]);
+                const percentage = Math.round((current / total) * 100);
+                
+                document.getElementById('filesProcessed').textContent = `${current}/${total}`;
+                document.getElementById('progressBar').style.width = percentage + '%';
+                document.getElementById('progressPercentage').textContent = percentage + '%';
+            }
+            
+            // Parse current file being processed
+            const currentFileMatch = message.match(/Processing: (.+\.xlsx)/);
+            if (currentFileMatch) {
+                document.getElementById('currentFile').textContent = currentFileMatch[1];
+            }
+            
+            // Parse record counts
+            const recordsMatch = message.match(/(\d+) records processed/);
+            if (recordsMatch) {
+                document.getElementById('recordsGenerated').textContent = recordsMatch[1];
+            }
+            
+            // Parse active vs forward-filled records
+            const activeMatch = message.match(/(\d+) active trading records/);
+            if (activeMatch) {
+                document.getElementById('activeRecords').textContent = activeMatch[1];
+            }
+            
+            const forwardFilledMatch = message.match(/(\d+) forward-filled records/);
+            if (forwardFilledMatch) {
+                document.getElementById('forwardFilledRecords').textContent = forwardFilledMatch[1];
+            }
+            
+            // Parse ticker files generation
+            if (message.includes('Generating individual ticker CSV files')) {
+                document.getElementById('tickerFilesGenerated').textContent = 'Generating...';
+            }
+            
+            if (message.includes('Ticker files generated successfully')) {
+                // We need to count the ticker files or get count from previous messages
+                document.getElementById('tickerFilesGenerated').textContent = 'Completed';
+            }
+            
+            // Parse individual ticker generation messages
+            const tickerMatch = message.match(/Generating CSV for ticker: (\w+)/);
+            if (tickerMatch) {
+                document.getElementById('tickerFilesGenerated').textContent = `Generating: ${tickerMatch[1]}`;
+            }
+            
+            // Handle completion
+            if (message.includes('Command completed successfully') || message.includes('Processing complete')) {
+                stopProcessTimer();
+                document.getElementById('progressBar').classList.remove('progress-bar-animated');
+                document.getElementById('progressBar').classList.add('bg-success');
+                document.getElementById('processBtn').innerHTML = '<i class="fas fa-play me-2"></i>Process Files';
+                document.getElementById('processBtn').disabled = false;
+            }
+            
+            // Handle errors
+            if (message.includes('Command failed') || message.includes('Error')) {
+                stopProcessTimer();
+                document.getElementById('progressBar').classList.remove('progress-bar-animated');
+                document.getElementById('progressBar').classList.add('bg-danger');
+                document.getElementById('processBtn').innerHTML = '<i class="fas fa-play me-2"></i>Process Files';
+                document.getElementById('processBtn').disabled = false;
+            }
+        }
+
+        function startProcessTimer() {
+            if (processTimer) clearInterval(processTimer);
+            processTimer = setInterval(() => {
+                if (processStartTime) {
+                    const elapsed = new Date() - processStartTime;
+                    const seconds = Math.floor(elapsed / 1000);
+                    const minutes = Math.floor(seconds / 60);
+                    const hours = Math.floor(minutes / 60);
+                    
+                    let timeStr = '';
+                    if (hours > 0) timeStr += `${hours}h `;
+                    if (minutes > 0) timeStr += `${minutes % 60}m `;
+                    timeStr += `${seconds % 60}s`;
+                    
+                    document.getElementById('elapsedTime').textContent = timeStr;
+                }
+            }, 1000);
+        }
+
+        function stopProcessTimer() {
+            if (processTimer) {
+                clearInterval(processTimer);
+                processTimer = null;
+            }
+        }
+
+        // Index progress tracking
+        function parseIndexProgress(message) {
+            // Show progress section when indexcsv starts
+            if (message.includes('Starting index extraction')) {
+                document.getElementById('indexProgress').style.display = 'block';
+                
+                // Determine processing mode
+                const mode = message.includes('accumulative mode') ? 'Accumulative (Incremental)' : 
+                           message.includes('initial mode') ? 'Initial (Fresh start)' : 'Processing';
+                document.getElementById('indexProcessingMode').textContent = mode;
+                document.getElementById('indexCurrentStatus').textContent = 'Starting extraction...';
+            }
+            
+            // Parse mode-specific messages
+            if (message.includes('[accumulative]') || message.includes('[initial]')) {
+                const mode = message.includes('[accumulative]') ? 'Accumulative (Incremental)' : 'Initial (Fresh start)';
+                document.getElementById('indexProcessingMode').textContent = mode;
+                
+                if (message.includes('Created new CSV file')) {
+                    document.getElementById('indexCurrentStatus').textContent = 'Created new CSV file';
+                } else if (message.includes('Existing CSV last date')) {
+                    document.getElementById('indexCurrentStatus').textContent = 'Loaded existing data';
+                }
+            }
+            
+            // Parse file discovery
+            const foundMatch = message.match(/Found (\d+) Excel files to process/);
+            if (foundMatch) {
+                document.getElementById('indexCurrentStatus').textContent = `Found ${foundMatch[1]} files to process`;
+            }
+            
+            // Parse file processing information
+            const processingMatch = message.match(/Processing file (\d+)\/(\d+): (.+\.xlsx)/);
+            if (processingMatch) {
+                document.getElementById('indexLastFile').textContent = processingMatch[3];
+                document.getElementById('indexCurrentStatus').textContent = `Processing file ${processingMatch[1]}/${processingMatch[2]}`;
+                document.getElementById('indexFilesProcessed').textContent = processingMatch[1];
+            }
+            
+            // Parse completion messages
+            if (message.includes('No new files to process')) {
+                document.getElementById('indexCurrentStatus').textContent = 'All files up to date';
+                document.getElementById('indexFilesProcessed').textContent = '0 (no new files)';
+            }
+            
+            if (message.includes('Index extraction completed successfully')) {
+                document.getElementById('indexCurrentStatus').textContent = 'Extraction completed successfully';
+                
+                // Reset button
+                const button = document.getElementById('indexcsvBtn');
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-play me-2"></i>Extract Indices';
+            }
+            
+            // Parse processed count
+            const processedMatch = message.match(/Processed (\d+) files/);
+            if (processedMatch) {
+                document.getElementById('indexFilesProcessed').textContent = processedMatch[1];
+            }
+        }
+
+        function clearOutput() {
+            document.getElementById('output').innerHTML = '<div class="text-muted">Console cleared...</div>';
+        }
+
+        function showSection(sectionId) {
+            // Hide all sections
+            document.querySelectorAll('.command-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Remove active class from all nav links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Show selected section
+            document.getElementById(sectionId).classList.add('active');
+            
+            // Add active class to clicked nav link
+            event.target.classList.add('active');
+            
+            // Load files if file manager is selected
+            if (sectionId === 'files') {
+                loadFiles();
+            }
+            
+            // Auto-load chart if Market Indices section is selected
+            if (sectionId === 'indexcsv') {
+                // Check if chart is already loaded
+                if (!indexChart) {
+                    // Try to load chart automatically
+                    setTimeout(() => {
+                        loadIndexChart();
+                    }, 100);
+                }
+            }
+        }
+
+        function executeCommand(endpoint, formData) {
+            const args = {};
+            for (const [key, value] of formData.entries()) {
+                if (value.trim()) {
+                    args[key] = value.trim();
+                }
+            }
+            
+            // Special handling for process command
+            if (endpoint === 'process') {
+                const processBtn = document.getElementById('processBtn');
+                processBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+                processBtn.disabled = true;
+                
+                // Reset progress display
+                document.getElementById('filesDiscovered').textContent = '-';
+                document.getElementById('filesProcessed').textContent = '-';
+                document.getElementById('recordsGenerated').textContent = '-';
+                document.getElementById('currentFile').textContent = '-';
+                document.getElementById('activeRecords').textContent = '-';
+                document.getElementById('forwardFilledRecords').textContent = '-';
+                document.getElementById('tickerFilesGenerated').textContent = '-';
+                document.getElementById('progressBar').style.width = '0%';
+                document.getElementById('progressPercentage').textContent = '0%';
+                document.getElementById('progressBar').classList.remove('bg-success', 'bg-danger');
+                document.getElementById('progressBar').classList.add('progress-bar-animated');
+            }
+            
+            fetch(`/api/${endpoint}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ args: args })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addOutput('Command completed successfully', 'success', endpoint);
+                } else {
+                    addOutput(`Command failed: ${data.error}`, 'error', endpoint);
+                }
+            })
+            .catch(error => {
+                addOutput(`Request failed: ${error}`, 'error', endpoint);
+                
+                // Reset process button on error
+                if (endpoint === 'process') {
+                    const processBtn = document.getElementById('processBtn');
+                    processBtn.innerHTML = '<i class="fas fa-play me-2"></i>Process Files';
+                    processBtn.disabled = false;
+                }
+            });
+        }
+
+        function loadFiles() {
+            fetch('/api/files')
+            .then(response => response.json())
+            .then(data => {
+                const downloadsList = document.getElementById('downloadsList');
+                const generatedList = document.getElementById('generatedList');
+                
+                downloadsList.innerHTML = '';
+                generatedList.innerHTML = '';
+                
+                if (data.downloads) {
+                    data.downloads.forEach(file => {
+                        const item = createFileItem(file);
+                        downloadsList.appendChild(item);
+                    });
+                }
+                
+                if (data.generated) {
+                    data.generated.forEach(file => {
+                        const item = createFileItem(file);
+                        generatedList.appendChild(item);
+                    });
+                }
+            })
+            .catch(error => {
+                addOutput(`Failed to load files: ${error}`, 'error');
+            });
+        }
+
+        function createFileItem(filename) {
+            const item = document.createElement('div');
+            item.className = 'list-group-item d-flex justify-content-between align-items-center';
+            item.innerHTML = `
+                <span>${filename}</span>
+                <a href="/api/download/${filename}" class="btn btn-sm btn-outline-primary" download>
+                    <i class="fas fa-download"></i>
+                </a>
+            `;
+            return item;
+        }
+
+        function refreshFiles() {
+            if (document.getElementById('files').classList.contains('active')) {
+                loadFiles();
+            }
+            addOutput('Files refreshed', 'info');
+        }
+
+        // Form submissions
+        document.getElementById('scrapeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            executeCommand('scrape', formData);
+        });
+
+        document.getElementById('processForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            executeCommand('process', formData);
+        });
+
+        document.getElementById('indexcsvForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            
+            // Update button state
+            const button = document.getElementById('indexcsvBtn');
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+            
+            // Reset progress section
+            document.getElementById('indexProgress').style.display = 'none';
+            document.getElementById('indexFilesProcessed').textContent = '0';
+            document.getElementById('indexProcessingMode').textContent = '-';
+            document.getElementById('indexCurrentStatus').textContent = 'Starting...';
+            document.getElementById('indexLastFile').textContent = '-';
+            
+            executeCommand('indexcsv', formData);
+            
+            // Reset button after a delay (will be overridden by WebSocket completion)
+            setTimeout(() => {
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-play me-2"></i>Extract Indices';
+            }, 10000);
+        });
+
+
+
+
+
+
+
+        // Chart variables
+        let indexChart = null;
+        let zoomPluginRegistered = false;
+        
+        // Load and display index chart
+        function loadIndexChart() {
+            fetch('/api/download/indexes.csv')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('No indexes.csv file found. Please extract indices first.');
+                }
+                return response.text();
+            })
+            .then(csvData => {
+                const data = parseIndexCSV(csvData);
+                displayIndexChart(data);
+                addOutput('Market indices chart loaded successfully', 'success', 'indexcsv');
+            })
+            .catch(error => {
+                // Show placeholder chart when no data exists
+                displayPlaceholderChart();
+                console.log(`Chart data not available: ${error.message}`);
+            });
+        }
+        
+        // Parse CSV data
+        function parseIndexCSV(csvData) {
+            const lines = csvData.trim().split('\n');
+            const data = {
+                dates: [],
+                isx60: [],
+                isx15: []
+            };
+            
+            // Skip header row
+            for (let i = 1; i < lines.length; i++) {
+                const [date, isx60, isx15] = lines[i].split(',');
+                if (date && isx60) {
+                    data.dates.push(date);
+                    data.isx60.push(parseFloat(isx60));
+                    if (isx15 && isx15.trim() !== '') {
+                        data.isx15.push(parseFloat(isx15));
+                    } else {
+                        data.isx15.push(null);
+                    }
+                }
+            }
+            
+            return data;
+        }
+        
+        // Display chart
+        function displayIndexChart(data) {
+            const ctx = document.getElementById('indexChart').getContext('2d');
+            
+            // Destroy existing chart completely
+            if (indexChart) {
+                indexChart.destroy();
+                indexChart = null;
+            }
+            
+            // Update summary cards
+            updateIndexSummary(data);
+            
+            // Register zoom plugin (only once)
+            if (!zoomPluginRegistered && typeof ChartZoom !== 'undefined') {
+                Chart.register(ChartZoom);
+                zoomPluginRegistered = true;
+            }
+            
+                        // Calculate chart width based on data points for horizontal scrolling
+            const dataPoints = data.dates.length;
+            const pixelsPerPoint = 12; // Adjust this for spacing
+            const minWidth = 800;
+            const chartWidth = Math.max(minWidth, dataPoints * pixelsPerPoint);
+            
+            // Set canvas width for horizontal scrolling
+            const canvas = document.getElementById('indexChart');
+            canvas.width = chartWidth;
+            canvas.style.width = chartWidth + 'px';
+            
+            // Create new chart with enhanced features
+            indexChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.dates,
+                    datasets: [
+                    {
+                        label: 'ISX60 Index',
+                        data: data.isx60,
+                        borderColor: '#2d5a3d',
+                        backgroundColor: 'rgba(45, 90, 61, 0.1)',
+                        borderWidth: 3,
+                        fill: false,
+                        tension: 0.1,
+                        pointBackgroundColor: '#2d5a3d',
+                        pointBorderColor: '#1a3d2b',
+                        pointRadius: 1,
+                        pointHoverRadius: 8,
+                        pointHoverBorderWidth: 3
+                    },
+                    {
+                        label: 'ISX15 Index',
+                        data: data.isx15,
+                        borderColor: '#8bc34a',
+                        backgroundColor: 'rgba(139, 195, 74, 0.1)',
+                        borderWidth: 3,
+                        fill: false,
+                        tension: 0.1,
+                        pointBackgroundColor: '#8bc34a',
+                        pointBorderColor: '#6b9b7a',
+                        pointRadius: 1,
+                        pointHoverRadius: 8,
+                        pointHoverBorderWidth: 3,
+                        spanGaps: true
+                    }
+                ]
+            },
+            options: {
+                responsive: false,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Iraq Stock Exchange Market Indices Performance',
+                        font: {
+                            size: 18,
+                            weight: 'bold'
+                        },
+                        color: '#2d5a3d',
+                        padding: 20
+                    },
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20,
+                            font: {
+                                size: 13,
+                                weight: '600'
+                            }
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: 'rgba(45, 90, 61, 0.95)',
+                        titleColor: 'white',
+                        bodyColor: 'white',
+                        borderColor: '#8bc34a',
+                        borderWidth: 2,
+                        cornerRadius: 8,
+                        displayColors: true,
+                        callbacks: {
+                            title: function(context) {
+                                const date = new Date(context[0].label);
+                                return date.toLocaleDateString('en-US', { 
+                                    weekday: 'long', 
+                                    year: 'numeric', 
+                                    month: 'long', 
+                                    day: 'numeric' 
+                                });
+                            },
+                            label: function(context) {
+                                const value = context.parsed.y.toFixed(2);
+                                const prevValue = context.dataIndex > 0 ? 
+                                    context.dataset.data[context.dataIndex - 1] : context.parsed.y;
+                                const change = (context.parsed.y - prevValue).toFixed(2);
+                                const changePercent = ((change / prevValue) * 100).toFixed(2);
+                                
+                                return [
+                                    `${context.dataset.label}: ${value}`,
+                                    `Change: ${change >= 0 ? '+' : ''}${change} (${changePercent}%)`
+                                ];
+                            }
+                        }
+                    },
+                    zoom: {
+                        pan: {
+                            enabled: true,
+                            mode: 'x',
+                            modifierKey: 'ctrl',
+                            onPan: function({chart}) {
+                                updateChartDimensions(chart);
+                            }
+                        },
+                        zoom: {
+                            wheel: {
+                                enabled: true,
+                            },
+                            pinch: {
+                                enabled: true
+                            },
+                            mode: 'x',
+                            onZoom: function({chart}) {
+                                updateChartDimensions(chart);
+                            }
+                        }
+                    }
+                },
+                                    scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            parser: 'yyyy-MM-dd',
+                            tooltipFormat: 'MMM dd, yyyy',
+                            displayFormats: {
+                                day: 'MMM dd',
+                                week: 'MMM dd',
+                                month: 'MMM yyyy',
+                                quarter: 'MMM yyyy',
+                                year: 'yyyy'
+                            }
+                        },
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Trading Date',
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            color: '#2d5a3d'
+                        },
+                        ticks: {
+                            maxTicksLimit: 12,
+                            color: '#2d5a3d',
+                            font: {
+                                size: 11
+                            },
+                            autoSkip: true,
+                            maxRotation: 45,
+                            minRotation: 0
+                        },
+                        grid: {
+                            color: 'rgba(45, 90, 61, 0.1)',
+                            drawOnChartArea: true,
+                            drawTicks: true,
+                        }
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Index Value',
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            color: '#2d5a3d'
+                        },
+                        ticks: {
+                            color: '#2d5a3d',
+                            font: {
+                                size: 11
+                            },
+                            callback: function(value) {
+                                return value.toLocaleString('en-US', {
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 0
+                                });
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(45, 90, 61, 0.1)',
+                            drawOnChartArea: true,
+                        },
+                        beginAtZero: false,
+                        // Y-axis will be dynamically adjusted based on visible data range
+                    }
+                },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    },
+                    elements: {
+                        point: {
+                            hoverBorderWidth: 3
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Update summary cards
+        function updateIndexSummary(data) {
+            if (data.isx60.length > 0) {
+                const latestISX60 = data.isx60[data.isx60.length - 1];
+                const prevISX60 = data.isx60.length > 1 ? data.isx60[data.isx60.length - 2] : latestISX60;
+                const isx60Change = latestISX60 - prevISX60;
+                const isx60ChangePercent = ((isx60Change / prevISX60) * 100).toFixed(2);
+                
+                document.getElementById('isx60Current').textContent = latestISX60.toFixed(2);
+                document.getElementById('isx60Change').textContent = 
+                    `${isx60Change >= 0 ? '+' : ''}${isx60Change.toFixed(2)} (${isx60ChangePercent}%)`;
+                document.getElementById('isx60Change').className = 
+                    `text-${isx60Change >= 0 ? 'success' : 'danger'}`;
+            }
+            
+            if (data.isx15.length > 0) {
+                const validISX15 = data.isx15.filter(val => val !== null);
+                if (validISX15.length > 0) {
+                    const latestISX15 = validISX15[validISX15.length - 1];
+                    const prevISX15 = validISX15.length > 1 ? validISX15[validISX15.length - 2] : latestISX15;
+                    const isx15Change = latestISX15 - prevISX15;
+                    const isx15ChangePercent = ((isx15Change / prevISX15) * 100).toFixed(2);
+                    
+                    document.getElementById('isx15Current').textContent = latestISX15.toFixed(2);
+                    document.getElementById('isx15Change').textContent = 
+                        `${isx15Change >= 0 ? '+' : ''}${isx15Change.toFixed(2)} (${isx15ChangePercent}%)`;
+                    document.getElementById('isx15Change').className = 
+                        `text-${isx15Change >= 0 ? 'success' : 'danger'}`;
+                }
+            }
+            
+            document.getElementById('dataPoints').textContent = data.dates.length;
+            
+            if (data.dates.length > 0) {
+                const startDate = data.dates[0];
+                const endDate = data.dates[data.dates.length - 1];
+                document.getElementById('dateRange').innerHTML = 
+                    `${startDate}<br/>to<br/>${endDate}`;
+            }
+        }
+
+        // Display placeholder chart when no data is available
+        function displayPlaceholderChart() {
+            const ctx = document.getElementById('indexChart').getContext('2d');
+            
+            // Destroy existing chart completely
+            if (indexChart) {
+                indexChart.destroy();
+                indexChart = null;
+            }
+            
+            // Create placeholder chart
+            indexChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'ISX60 Index',
+                            data: [],
+                            borderColor: '#2d5a3d',
+                            backgroundColor: 'rgba(45, 90, 61, 0.1)',
+                            borderWidth: 3,
+                        },
+                        {
+                            label: 'ISX15 Index',
+                            data: [],
+                            borderColor: '#8bc34a',
+                            backgroundColor: 'rgba(139, 195, 74, 0.1)',
+                            borderWidth: 3,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'ISX Market Indices - No Data Available',
+                            font: {
+                                size: 18,
+                                weight: 'bold'
+                            },
+                            color: '#6c757d'
+                        },
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Please extract indices data first',
+                                font: {
+                                    size: 14,
+                                    style: 'italic'
+                                },
+                                color: '#6c757d'
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Index Value',
+                                font: {
+                                    size: 14
+                                },
+                                color: '#6c757d'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Update summary cards with placeholder data
+            document.getElementById('isx60Current').textContent = '-';
+            document.getElementById('isx60Change').textContent = 'No data';
+            document.getElementById('isx15Current').textContent = '-';
+            document.getElementById('isx15Change').textContent = 'No data';
+            document.getElementById('dataPoints').textContent = '0';
+            document.getElementById('dateRange').innerHTML = 'No data<br/>available';
+        }
+
+        // Update chart dimensions based on zoom level
+        function updateChartDimensions(chart) {
+            if (!chart || !chart.scales.x) return;
+            
+            const xScale = chart.scales.x;
+            const totalDataPoints = chart.data.labels.length;
+            
+            // Calculate the visible range
+            const min = xScale.min || new Date(chart.data.labels[0]).getTime();
+            const max = xScale.max || new Date(chart.data.labels[chart.data.labels.length - 1]).getTime();
+            
+            // Calculate how many data points are visible
+            const visibleDataPoints = chart.data.labels.filter(label => {
+                const labelTime = new Date(label).getTime();
+                return labelTime >= min && labelTime <= max;
+            }).length;
+            
+            // Calculate new width based on visible data points
+            const pixelsPerPoint = 12; // Base pixels per data point
+            const minWidth = 800;
+            const zoomFactor = totalDataPoints / Math.max(visibleDataPoints, 1);
+            const newWidth = Math.max(minWidth, totalDataPoints * pixelsPerPoint * zoomFactor);
+            
+            // Update canvas width
+            const canvas = chart.canvas;
+            if (canvas) {
+                canvas.style.width = newWidth + 'px';
+                canvas.width = newWidth;
+                
+                // Force chart container to update its scroll area
+                const container = canvas.parentElement;
+                if (container) {
+                    container.scrollLeft = container.scrollLeft; // Trigger scroll update
+                }
+            }
+            
+            // Update Y-axis scale based on visible data range
+            updateYAxisScale(chart, min, max);
+        }
+        
+        // Update Y-axis scale to show visible data range with 10% buffer
+        function updateYAxisScale(chart, minTime, maxTime) {
+            if (!chart || !chart.data || !chart.scales.y) return;
+            
+            let minValue = Infinity;
+            let maxValue = -Infinity;
+            
+            // Find min/max values in the visible time range
+            chart.data.datasets.forEach(dataset => {
+                dataset.data.forEach((value, index) => {
+                    if (value === null || value === undefined) return;
+                    
+                    const labelTime = new Date(chart.data.labels[index]).getTime();
+                    if (labelTime >= minTime && labelTime <= maxTime) {
+                        minValue = Math.min(minValue, value);
+                        maxValue = Math.max(maxValue, value);
+                    }
+                });
+            });
+            
+            // If we found valid values, update the Y-axis
+            if (minValue !== Infinity && maxValue !== -Infinity) {
+                const range = maxValue - minValue;
+                const buffer = range * 0.1; // 10% buffer
+                
+                const yMin = Math.max(0, minValue - buffer); // Don't go below 0
+                const yMax = maxValue + buffer;
+                
+                // Update the Y-axis scale
+                chart.scales.y.options.min = yMin;
+                chart.scales.y.options.max = yMax;
+                
+                // Update the chart
+                chart.update('none'); // Use 'none' for faster update without animation
+            }
+        }
+
+        // Chart control functions
+        function setTimeRange(range) {
+            if (!indexChart) return;
+            
+            // Remove active class from all buttons
+            document.querySelectorAll('.btn-group button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Add active class to clicked button
+            event.target.classList.add('active');
+            
+            if (range === 'ALL') {
+                indexChart.resetZoom();
+                return;
+            }
+            
+            const data = indexChart.data;
+            const dates = data.labels;
+            
+            if (dates.length === 0) return;
+            
+            // Get the latest date from the data
+            const latestDate = new Date(dates[dates.length - 1]);
+            let startDate;
+            
+            switch(range) {
+                case '1M':
+                    startDate = new Date(latestDate.getFullYear(), latestDate.getMonth() - 1, latestDate.getDate());
+                    break;
+                case '3M':
+                    startDate = new Date(latestDate.getFullYear(), latestDate.getMonth() - 3, latestDate.getDate());
+                    break;
+                case '6M':
+                    startDate = new Date(latestDate.getFullYear(), latestDate.getMonth() - 6, latestDate.getDate());
+                    break;
+                case '1Y':
+                    startDate = new Date(latestDate.getFullYear() - 1, latestDate.getMonth(), latestDate.getDate());
+                    break;
+            }
+            
+            // Use time-based zoom with the chart's time scale
+            if (indexChart.scales.x) {
+                indexChart.zoomScale('x', {
+                    min: startDate.getTime(),
+                    max: latestDate.getTime()
+                });
+                
+                // Update chart dimensions and Y-axis scale after zoom
+                setTimeout(() => {
+                    updateChartDimensions(indexChart);
+                }, 100);
+            }
+        }
+        
+        function resetZoom() {
+            if (indexChart) {
+                indexChart.resetZoom();
+                
+                // Reset chart dimensions to original size
+                const canvas = indexChart.canvas;
+                const totalDataPoints = indexChart.data.labels.length;
+                const pixelsPerPoint = 12;
+                const minWidth = 800;
+                const originalWidth = Math.max(minWidth, totalDataPoints * pixelsPerPoint);
+                
+                if (canvas) {
+                    canvas.style.width = originalWidth + 'px';
+                    canvas.width = originalWidth;
+                }
+                
+                // Reset Y-axis scale to show all data
+                if (indexChart.scales.y) {
+                    delete indexChart.scales.y.options.min;
+                    delete indexChart.scales.y.options.max;
+                    indexChart.update('none');
+                }
+                
+                // Reset active button to "All"
+                document.querySelectorAll('.btn-group button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.querySelector('button[onclick="setTimeRange(\'ALL\')"]').classList.add('active');
+            }
+        }
+        
+        function downloadChart() {
+            if (indexChart) {
+                const url = indexChart.toBase64Image();
+                const link = document.createElement('a');
+                link.download = 'isx-market-indices-chart.png';
+                link.href = url;
+                link.click();
+            }
+        }
+
+        // Ticker Chart Functions
+        let tickerChart = null;
+        let availableTickers = [];
+        let tickerData = new Map();
+        let selectedTicker = null;
+        
+        // Ticker table sorting and filtering variables
+        let tickerSummaries = [];
+        let filteredTickers = [];
+        let currentSort = { column: 'date', direction: 'desc' };
+        
+        // Apply default sorting: Date (desc), Change Percent (desc), then Ticker (asc)
+        function applyDefaultSorting() {
+            filteredTickers.sort((a, b) => {
+                // First sort by date (latest first)
+                const dateA = new Date(a.last_date);
+                const dateB = new Date(b.last_date);
+                if (dateA.getTime() !== dateB.getTime()) {
+                    return dateB.getTime() - dateA.getTime();
+                }
+                
+                // Then by change percent (positive to negative)
+                const changeA = getChangePercent(a);
+                const changeB = getChangePercent(b);
+                if (changeA !== changeB) {
+                    return changeB - changeA;
+                }
+                
+                // Finally by ticker (alphabetically)
+                return a.ticker.localeCompare(b.ticker);
+            });
+            
+            // Update sort indicators
+            updateSortIndicators('date', 'desc');
+        }
+        
+        // Get change percentage for a ticker
+        function getChangePercent(summary) {
+            const last10Days = summary.last_10_days || [];
+            if (last10Days.length >= 2) {
+                const currentPrice = last10Days[last10Days.length - 1];
+                const previousPrice = last10Days[last10Days.length - 2];
+                const change = currentPrice - previousPrice;
+                return (change / previousPrice) * 100;
+            }
+            return 0;
+        }
+        
+        // Sort ticker table
+        function sortTickerTable(column) {
+            const direction = (currentSort.column === column && currentSort.direction === 'asc') ? 'desc' : 'asc';
+            currentSort = { column, direction };
+            
+            filteredTickers.sort((a, b) => {
+                let valueA, valueB;
+                
+                switch (column) {
+                    case 'ticker':
+                        valueA = a.ticker;
+                        valueB = b.ticker;
+                        break;
+                    case 'price':
+                        valueA = a.last_price;
+                        valueB = b.last_price;
+                        break;
+                    case 'change':
+                        valueA = getChangePercent(a);
+                        valueB = getChangePercent(b);
+                        break;
+                    case 'date':
+                        valueA = new Date(a.last_date);
+                        valueB = new Date(b.last_date);
+                        break;
+                    default:
+                        return 0;
+                }
+                
+                if (valueA < valueB) return direction === 'asc' ? -1 : 1;
+                if (valueA > valueB) return direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+            
+            updateSortIndicators(column, direction);
+            updateTickerTable(filteredTickers);
+        }
+        
+        // Update sort indicators
+        function updateSortIndicators(column, direction) {
+            // Reset all sort icons
+            document.querySelectorAll('.sort-icon').forEach(icon => {
+                icon.className = 'fas fa-sort sort-icon';
+            });
+            
+            // Set active sort icon
+            const sortIcon = document.getElementById(`sort-${column}`);
+            if (sortIcon) {
+                sortIcon.className = `fas fa-sort-${direction === 'asc' ? 'up' : 'down'} sort-icon active`;
+            }
+        }
+        
+        // Filter tickers based on search input
+        function filterTickers() {
+            const searchTerm = document.getElementById('tickerSearch').value.toLowerCase();
+            
+            if (searchTerm === '') {
+                filteredTickers = [...tickerSummaries];
+            } else {
+                filteredTickers = tickerSummaries.filter(ticker => 
+                    ticker.ticker.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            // Re-apply current sorting
+            if (currentSort.column && currentSort.direction) {
+                sortTickerTable(currentSort.column);
+            } else {
+                updateTickerTable(filteredTickers);
+            }
+            
+            // Update ticker count
+            document.getElementById('tickerCount').textContent = filteredTickers.length;
+        }
+        
+        // Clear search input
+        function clearSearch() {
+            document.getElementById('tickerSearch').value = '';
+            filterTickers();
+        }
+        
+        // Load available tickers from ticker summary API
+        function refreshTickers() {
+            addOutput('Loading ticker data...', 'info');
+            
+            fetch('/api/tickers')
+            .then(response => response.json())
+            .then(data => {
+                availableTickers = data.tickers || [];
+                tickerSummaries = [...availableTickers];
+                filteredTickers = [...availableTickers];
+                
+                // Apply default sorting
+                applyDefaultSorting();
+                
+                // Update ticker count
+                document.getElementById('tickerCount').textContent = filteredTickers.length;
+                
+                // Update table display
+                updateTickerTable(filteredTickers);
+                addOutput(`Found ${tickerSummaries.length} tickers`, 'info');
+            })
+            .catch(error => {
+                addOutput(`Error loading tickers: ${error.message}`, 'error');
+                tickerSummaries = [];
+                filteredTickers = [];
+                updateTickerTable([]);
+            });
+        }
+        
+        // Update ticker table with summary data
+        function updateTickerTable(tickerSummaries) {
+            const tbody = document.getElementById('tickerTableBody');
+            
+            if (tickerSummaries.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            <i class="fas fa-exclamation-triangle me-2"></i>No ticker data available
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            
+            tickerSummaries.forEach(summary => {
+                if (!summary.ticker) return;
+                
+                // Calculate change from last 10 days
+                const last10Days = summary.last_10_days || [];
+                let change = 0;
+                let changePercent = 0;
+                
+                if (last10Days.length >= 2) {
+                    const currentPrice = last10Days[last10Days.length - 1];
+                    const previousPrice = last10Days[last10Days.length - 2];
+                    change = currentPrice - previousPrice;
+                    changePercent = ((change / previousPrice) * 100).toFixed(2);
+                }
+                
+                const changeClass = change > 0 ? 'price-change-positive' : 
+                                   change < 0 ? 'price-change-negative' : 'price-change-neutral';
+                
+                const changeIcon = change > 0 ? 'fa-arrow-up' : 
+                                  change < 0 ? 'fa-arrow-down' : 'fa-minus';
+                
+                const sparklineId = `sparkline-${summary.ticker}`;
+                
+                const row = document.createElement('tr');
+                row.className = 'ticker-row';
+                row.onclick = () => selectTicker(summary.ticker);
+                
+                row.innerHTML = `
+                    <td><strong>${summary.ticker}</strong></td>
+                    <td>${summary.last_price.toFixed(3)}</td>
+                    <td class="${changeClass}">
+                        <i class="fas ${changeIcon} me-1"></i>
+                        ${changePercent}%
+                    </td>
+                    <td><small>${new Date(summary.last_date).toLocaleDateString()}</small></td>
+                    <td>
+                        <div class="sparkline-container">
+                            <canvas id="${sparklineId}" width="60" height="30"></canvas>
+                        </div>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+                
+                // Create sparkline after DOM insertion
+                if (last10Days.length > 0) {
+                    setTimeout(() => createSparkline(sparklineId, last10Days), 0);
+                }
+            });
+        }
+        
+        // Create sparkline chart - filter non-trading days for display
+        function createSparkline(canvasId, data) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            
+            // Handle both array of prices and array of objects
+            let prices;
+            if (Array.isArray(data) && data.length > 0) {
+                if (typeof data[0] === 'number') {
+                    // Array of numbers (from summary data) - assume all are trading days
+                    prices = data;
+                } else {
+                    // Array of objects (from CSV data) - filter for trading days only
+                    prices = data.filter(d => d.tradingStatus === true)
+                                  .map(d => d.close);
+                }
+            } else {
+                prices = [];
+            }
+            
+            if (prices.length === 0) return;
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: prices.map((_, i) => i), // Simple index labels
+                    datasets: [{
+                        data: prices,
+                        borderColor: prices[prices.length - 1] > prices[0] ? '#8bc34a' : '#c53030',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: false,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    },
+                    scales: {
+                        x: { display: false },
+                        y: { display: false }
+                    },
+                    elements: {
+                        point: { radius: 0 }
+                    }
+                }
+            });
+        }
+        
+        // Select ticker from table
+        function selectTicker(ticker) {
+            // Remove previous selection
+            document.querySelectorAll('.ticker-row').forEach(row => {
+                row.classList.remove('selected');
+            });
+            
+            // Add selection to clicked row
+            event.target.closest('.ticker-row').classList.add('selected');
+            
+            selectedTicker = ticker;
+            document.getElementById('selectedTickerTitle').textContent = ticker;
+            
+            // Load the chart
+            loadTickerChart(ticker);
+        }
+        
+        // Load ticker chart data
+        function loadTickerChart(ticker) {
+            if (!ticker) {
+                clearTickerChart();
+                return;
+            }
+            
+            addOutput(`Loading chart for ticker: ${ticker}`, 'info');
+            
+            // Check if we already have the data
+            if (tickerData.has(ticker)) {
+                const data = tickerData.get(ticker);
+                displayTickerChart(ticker, data);
+                updateTickerInfo(ticker, data);
+                addOutput(`Chart loaded for ${ticker} with ${data.length} trading days`, 'success');
+                return;
+            }
+            
+            // Otherwise fetch the data
+            fetch(`/api/ticker/${ticker}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`No data found for ticker ${ticker}`);
+                }
+                return response.text();
+            })
+            .then(csvData => {
+                const data = parseTickerCSV(csvData);
+                tickerData.set(ticker, data);
+                displayTickerChart(ticker, data);
+                updateTickerInfo(ticker, data);
+                addOutput(`Chart loaded for ${ticker} with ${data.length} trading days`, 'success');
+            })
+            .catch(error => {
+                addOutput(`Error loading ticker chart: ${error.message}`, 'error');
+                clearTickerChart();
+            });
+        }
+        
+        // Parse ticker CSV data - Fixed for correct column mapping, filter non-trading days
+        function parseTickerCSV(csvData) {
+            const lines = csvData.trim().split('\n');
+            const data = [];
+            
+            // Skip header row - CSV format: Date,CompanyName,Symbol,OpenPrice,HighPrice,LowPrice,AveragePrice,PrevAveragePrice,ClosePrice,PrevClosePrice,Change,ChangePercent,NumTrades,Volume,Value,TradingStatus
+            for (let i = 1; i < lines.length; i++) {
+                const columns = lines[i].split(',');
+                
+                if (columns.length >= 16) {
+                    const date = columns[0];
+                    const openPrice = columns[3];  // OpenPrice
+                    const highPrice = columns[4];  // HighPrice
+                    const lowPrice = columns[5];   // LowPrice
+                    const closePrice = columns[8]; // ClosePrice
+                    const volume = columns[13];    // Volume
+                    const value = columns[14];     // Value
+                    const tradingStatus = columns[15]; // TradingStatus
+                    
+                    // Only include trading days (tradingStatus === 'true')
+                    if (date && openPrice && highPrice && lowPrice && closePrice && tradingStatus === 'true') {
+                        const timestamp = new Date(date).getTime();
+                        data.push({
+                            timestamp: timestamp,
+                            date: date,
+                            open: parseFloat(openPrice),
+                            high: parseFloat(highPrice),
+                            low: parseFloat(lowPrice),
+                            close: parseFloat(closePrice),
+                            volume: parseInt(volume) || 0,
+                            value: parseFloat(value) || 0,
+                            tradingStatus: true
+                        });
+                    }
+                }
+            }
+            
+            return data.sort((a, b) => a.timestamp - b.timestamp);
+        }
+        
+        // Display ticker candlestick chart - Filter non-trading days
+        function displayTickerChart(ticker, data) {
+            // Destroy existing chart
+            if (tickerChart) {
+                tickerChart.destroy();
+                tickerChart = null;
+            }
+            
+            // Process data exactly like NVIDIA example using async pattern
+            (async () => {
+                // Data is already filtered for trading days by parseTickerCSV
+                
+                // Extract data columns like NVIDIA example
+                const timestamps = data.map(item => item.timestamp);
+                const open = data.map(item => item.open);
+                const high = data.map(item => item.high);
+                const low = data.map(item => item.low);
+                const close = data.map(item => item.close);
+                const volume = data.map(item => item.volume);
+                
+                const ohlc = [];
+                const volumeSeriesData = [];
+                const dataLength = data.length;
+
+                for (let i = 0; i < dataLength; i += 1) {
+                    ohlc.push([
+                        timestamps[i],
+                        open[i],
+                        high[i],
+                        low[i],
+                        close[i]
+                    ]);
+
+                    volumeSeriesData.push([
+                        timestamps[i],
+                        volume[i]
+                    ]);
+                }
+
+                // Create Highcharts stock chart with styled mode and CSS styling
+                tickerChart = Highcharts.stockChart('tickerChartContainer', {
+                    chart: {
+                        styledMode: true,
+                        className: 'isx-chart-container'
+                    },
+                    title: {
+                        text: `${ticker} Stock Analysis`,
+                        align: 'left'
+                    },
+                    yAxis: [{
+                        labels: {
+                            align: 'left'
+                        },
+                        height: '80%',
+                        resize: {
+                            enabled: true
+                        }
+                    }, {
+                        labels: {
+                            align: 'left'
+                        },
+                        top: '80%',
+                        height: '20%',
+                        offset: 0
+                    }],
+                    xAxis: {
+                        crosshair: true
+                    },
+                    rangeSelector: {
+                        selected: 4,
+                        buttons: [{
+                            type: 'month',
+                            count: 1,
+                            text: '1M'
+                        }, {
+                            type: 'month',
+                            count: 3,
+                            text: '3M'
+                        }, {
+                            type: 'month',
+                            count: 6,
+                            text: '6M'
+                        }, {
+                            type: 'ytd',
+                            text: 'YTD'
+                        }, {
+                            type: 'all',
+                            text: 'All'
+                        }]
+                    },
+                    tooltip: {
+                        shape: 'square',
+                        headerShape: 'callout',
+                        borderWidth: 0,
+                        shadow: false,
+                        split: true,
+                        formatter: function() {
+                            let s = '<b>' + Highcharts.dateFormat('%A, %b %e, %Y', this.x) + '</b><br/>';
+                            
+                            this.points.forEach(function(point) {
+                                if (point.series.type === 'candlestick') {
+                                    const changeColor = point.point.close > point.point.open ? '#8bc34a' : '#c53030';
+                                    s += '<span style="color:' + changeColor + '">● </span>';
+                                    s += point.series.name + '<br/>';
+                                    s += 'Open: <b>' + point.point.open.toFixed(3) + '</b><br/>';
+                                    s += 'High: <b>' + point.point.high.toFixed(3) + '</b><br/>';
+                                    s += 'Low: <b>' + point.point.low.toFixed(3) + '</b><br/>';
+                                    s += 'Close: <b>' + point.point.close.toFixed(3) + '</b><br/>';
+                                    
+                                    const change = point.point.close - point.point.open;
+                                    const changePercent = ((change / point.point.open) * 100).toFixed(2);
+                                    s += 'Change: <b style="color:' + changeColor + '">';
+                                    s += (change > 0 ? '+' : '') + change.toFixed(3) + ' (' + changePercent + '%)</b><br/>';
+                                } else if (point.series.type === 'column') {
+                                    s += '<span style="color:#8bc34a">● </span>';
+                                    s += point.series.name + ': <b>' + Highcharts.numberFormat(point.y, 0) + '</b><br/>';
+                                }
+                            });
+                            
+                            return s;
+                        }
+                    },
+                    series: [{
+                        type: 'candlestick',
+                        id: `${ticker}-candlestick`,
+                        name: `${ticker} Stock Price`,
+                        data: ohlc,
+                        dataGrouping: {
+                            groupPixelWidth: 20
+                        }
+                    }, {
+                        type: 'column',
+                        id: `${ticker}-volume`,
+                        name: `${ticker} Volume`,
+                        data: volumeSeriesData,
+                        yAxis: 1
+                    }],
+                    responsive: {
+                        rules: [{
+                            condition: {
+                                maxWidth: 800
+                            },
+                            chartOptions: {
+                                rangeSelector: {
+                                    inputEnabled: false
+                                }
+                            }
+                        }]
+                    },
+                    credits: {
+                        text: 'ISX Analytics - The Iraqi Investor',
+                        href: '#'
+                    }
+                });
+            })();
+        }
+        
+        // Update ticker info panel - data already filtered for trading days
+        function updateTickerInfo(ticker, data) {
+            if (data.length === 0) return;
+            
+            const firstDate = new Date(data[0].date).toLocaleDateString();
+            const lastDate = new Date(data[data.length - 1].date).toLocaleDateString();
+            const lastPrice = data[data.length - 1].close;
+            
+            document.getElementById('selectedTicker').textContent = ticker;
+            document.getElementById('dataPoints').textContent = `${data.length} trading days`;
+            document.getElementById('dateRange').textContent = `${firstDate} - ${lastDate}`;
+            document.getElementById('lastPrice').textContent = `${lastPrice.toFixed(3)} IQD`;
+        }
+        
+        // Clear ticker chart
+        function clearTickerChart() {
+            if (tickerChart) {
+                tickerChart.destroy();
+                tickerChart = null;
+            }
+            
+            selectedTicker = null;
+            document.getElementById('selectedTickerTitle').textContent = 'Select a ticker from the list';
+            
+            // Reset chart container to placeholder
+            document.getElementById('tickerChartContainer').innerHTML = `
+                <div class="d-flex align-items-center justify-content-center h-100 text-muted">
+                    <div class="text-center">
+                        <i class="fas fa-chart-bar fa-3x mb-3"></i>
+                        <p>Select a ticker from the list to view its candlestick chart</p>
+                        <small>Charts display OHLC data with volume from processed ticker CSV files</small>
+                    </div>
+                </div>
+            `;
+            
+            // Reset info panel
+            document.getElementById('selectedTicker').textContent = '-';
+            document.getElementById('dataPoints').textContent = '-';
+            document.getElementById('dateRange').textContent = '-';
+            document.getElementById('lastPrice').textContent = '-';
+        }
+        
+        // Export chart function
+        function exportChart() {
+            if (tickerChart && selectedTicker) {
+                tickerChart.exportChart({
+                    type: 'image/png',
+                    filename: `${selectedTicker}-candlestick-chart`
+                });
+            } else {
+                addOutput('No chart to export. Please select a ticker first.', 'warning');
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initWebSocket();
+            loadFiles();
+            
+            // Auto-load chart on page load
+            setTimeout(() => {
+                loadIndexChart();
+                refreshTickers(); // Load available tickers
+            }, 500);
+        });
+    </script>
+</body>
+</html> 
