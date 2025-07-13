@@ -16,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	"isxcli/internal/license"
+
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
@@ -52,29 +54,55 @@ type TickerSummary struct {
 	Last10Days  []float64 `json:"last_10_days"`
 }
 
+type LicenseRequest struct {
+	LicenseKey string `json:"license_key"`
+}
+
+type LicenseStatus struct {
+	IsValid    bool      `json:"is_valid"`
+	ExpiryDate time.Time `json:"expiry_date,omitempty"`
+	DaysLeft   int       `json:"days_left,omitempty"`
+	Message    string    `json:"message"`
+}
+
 var (
-	clients   = make(map[*websocket.Conn]bool)
-	broadcast = make(chan WebSocketMessage)
-	mutex     = &sync.Mutex{}
+	clients        = make(map[*websocket.Conn]bool)
+	broadcast      = make(chan WebSocketMessage)
+	mutex          = &sync.Mutex{}
+	licenseManager *license.Manager
 )
 
 func main() {
+	// Initialize license manager
+	var err error
+	licenseManager, err = license.NewManager("license-config.json", "license.dat")
+	if err != nil {
+		log.Printf("Warning: Failed to initialize license manager: %v", err)
+	}
+
 	r := mux.NewRouter()
 
 	// Serve static files
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./web/static/"))))
 
-	// API endpoints
-	r.HandleFunc("/api/scrape", handleScrape).Methods("POST")
-	r.HandleFunc("/api/process", handleProcess).Methods("POST")
-	r.HandleFunc("/api/indexcsv", handleIndexCSV).Methods("POST")
-	r.HandleFunc("/api/tickers", handleListTickers).Methods("GET")
-	r.HandleFunc("/api/ticker/{ticker}", handleGetTicker).Methods("GET")
-	r.HandleFunc("/api/files", handleListFiles).Methods("GET")
-	r.HandleFunc("/api/download/{filename}", handleDownloadFile).Methods("GET")
-	r.HandleFunc("/api/status", handleStatus).Methods("GET")
+	// License endpoints (no middleware needed)
+	r.HandleFunc("/api/license/status", handleLicenseStatus).Methods("GET")
+	r.HandleFunc("/api/license/activate", handleLicenseActivate).Methods("POST")
+	r.HandleFunc("/api/license/heartbeat", handleLicenseHeartbeat).Methods("POST")
 
-	// WebSocket endpoint
+	// Protected API endpoints - require valid license
+	api := r.PathPrefix("/api").Subrouter()
+	api.Use(licenseMiddleware)
+	api.HandleFunc("/scrape", handleScrape).Methods("POST")
+	api.HandleFunc("/process", handleProcess).Methods("POST")
+	api.HandleFunc("/indexcsv", handleIndexCSV).Methods("POST")
+	api.HandleFunc("/tickers", handleListTickers).Methods("GET")
+	api.HandleFunc("/ticker/{ticker}", handleGetTicker).Methods("GET")
+	api.HandleFunc("/files", handleListFiles).Methods("GET")
+	api.HandleFunc("/download/{filename}", handleDownloadFile).Methods("GET")
+	api.HandleFunc("/status", handleStatus).Methods("GET")
+
+	// WebSocket endpoint (license check handled in handleWebSocket)
 	r.HandleFunc("/ws", handleWebSocket)
 
 	// Serve the main page
@@ -88,15 +116,191 @@ func main() {
 		log.Printf("Warning: Failed to generate ticker summary on startup: %v", err)
 	}
 
-	fmt.Println("ISX Web Interface starting on http://localhost:8080")
+	fmt.Println("🔐 ISX Web Interface (Licensed) starting on http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
 
+func licenseMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if licenseManager == nil {
+			http.Error(w, "License system unavailable", http.StatusServiceUnavailable)
+			return
+		}
+
+		valid, err := licenseManager.ValidateLicense()
+		if !valid {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"error":   "License invalid or expired",
+				"message": err.Error(),
+				"code":    "LICENSE_REQUIRED",
+			})
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func handleLicenseStatus(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if licenseManager == nil {
+		json.NewEncoder(w).Encode(LicenseStatus{
+			IsValid: false,
+			Message: "License system unavailable",
+		})
+		return
+	}
+
+	valid, err := licenseManager.ValidateLicense()
+	if !valid {
+		json.NewEncoder(w).Encode(LicenseStatus{
+			IsValid: false,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	// Get license info
+	info, err := licenseManager.GetLicenseInfo()
+	if err != nil {
+		json.NewEncoder(w).Encode(LicenseStatus{
+			IsValid: false,
+			Message: "Failed to get license info",
+		})
+		return
+	}
+
+	daysLeft := int(time.Until(info.ExpiryDate).Hours() / 24)
+
+	json.NewEncoder(w).Encode(LicenseStatus{
+		IsValid:    true,
+		ExpiryDate: info.ExpiryDate,
+		DaysLeft:   daysLeft,
+		Message:    fmt.Sprintf("License valid for %d days", daysLeft),
+	})
+}
+
+func handleLicenseActivate(w http.ResponseWriter, r *http.Request) {
+	var req LicenseRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if licenseManager == nil {
+		http.Error(w, "License system unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	if err := licenseManager.ActivateLicense(req.LicenseKey); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	// Get license info after activation
+	info, err := licenseManager.GetLicenseInfo()
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"message": "License activated successfully",
+		})
+		return
+	}
+
+	daysLeft := int(time.Until(info.ExpiryDate).Hours() / 24)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message":     "License activated successfully",
+		"days_left":   daysLeft,
+		"expiry_date": info.ExpiryDate.Format("2006-01-02"),
+		"duration":    info.Duration,
+	})
+}
+
+func handleLicenseHeartbeat(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if licenseManager == nil {
+		http.Error(w, "License system unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	// First check if license is valid
+	valid, err := licenseManager.ValidateLicense()
+	if !valid {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error":   "License invalid or expired",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	// Update last connected time in Google Sheets
+	if err := licenseManager.UpdateLastConnected(); err != nil {
+		// Don't fail the request if Google Sheets update fails
+		// Just log it and continue
+		log.Printf("Warning: Failed to update last connected time: %v", err)
+	}
+
+	// Return success response
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":   true,
+		"message":   "Heartbeat recorded",
+		"timestamp": time.Now().Format("2006-01-02 15:04:05"),
+	})
+}
+
 func serveIndex(w http.ResponseWriter, r *http.Request) {
+	// Check license status first
+	if licenseManager != nil {
+		valid, err := licenseManager.ValidateLicense()
+		if !valid {
+			// Log the reason for debugging
+			log.Printf("License invalid, serving license page. Error: %v", err)
+			// Serve license activation page
+			http.ServeFile(w, r, "./web/license.html")
+			return
+		}
+
+		// License is valid, get license info and log success
+		if info, err := licenseManager.GetLicenseInfo(); err == nil {
+			daysLeft := int(time.Until(info.ExpiryDate).Hours() / 24)
+			log.Printf("License valid, serving main application. License expires in %d days (%s)", daysLeft, info.ExpiryDate.Format("2006-01-02"))
+		} else {
+			log.Printf("License valid, serving main application")
+		}
+	} else {
+		// No license manager, serve license page
+		log.Printf("License manager not available, serving license page")
+		http.ServeFile(w, r, "./web/license.html")
+		return
+	}
+
+	// Serve main application
 	http.ServeFile(w, r, "./web/index.html")
 }
 
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
+	// Check license before allowing WebSocket connection
+	if licenseManager != nil {
+		if valid, _ := licenseManager.ValidateLicense(); !valid {
+			http.Error(w, "License required", http.StatusUnauthorized)
+			return
+		}
+	} else {
+		http.Error(w, "License system unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("WebSocket upgrade error: %v", err)
@@ -108,11 +312,21 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	clients[conn] = true
 	mutex.Unlock()
 
-	// Send welcome message
-	conn.WriteJSON(WebSocketMessage{
-		Type:    "info",
-		Message: "Connected to ISX CLI Web Interface",
-	})
+	// Send welcome message with license info
+	if licenseManager != nil {
+		if info, err := licenseManager.GetLicenseInfo(); err == nil {
+			daysLeft := int(time.Until(info.ExpiryDate).Hours() / 24)
+			conn.WriteJSON(WebSocketMessage{
+				Type:    "info",
+				Message: fmt.Sprintf("Connected to ISX CLI Web Interface (Licensed - %d days remaining)", daysLeft),
+			})
+		}
+	} else {
+		conn.WriteJSON(WebSocketMessage{
+			Type:    "info",
+			Message: "Connected to ISX CLI Web Interface",
+		})
+	}
 
 	// Keep connection alive
 	for {

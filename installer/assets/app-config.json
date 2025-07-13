@@ -1,0 +1,45 @@
+{
+  "application": {
+    "name": "ISX Daily Reports Scraper",
+    "version": "1.0.0",
+    "publisher": "The Iraqi Investor Group"
+  },
+  "web_interface": {
+    "port": 8080,
+    "host": "localhost",
+    "auto_open_browser": true,
+    "enable_cors": true
+  },
+  "scraper": {
+    "default_mode": "accumulative",
+    "default_output_dir": "downloads",
+    "headless": true,
+    "timeout_seconds": 60,
+    "delay_between_downloads": 500
+  },
+  "processing": {
+    "output_dir": "reports",
+    "enable_forward_fill": true,
+    "generate_ticker_files": true,
+    "generate_daily_files": true,
+    "generate_summary": true
+  },
+  "licensing": {
+    "enable_heartbeat": true,
+    "heartbeat_interval_minutes": 30,
+    "auto_update_sheets": true,
+    "strict_validation": true
+  },
+  "logging": {
+    "enable_file_logging": true,
+    "log_directory": "logs",
+    "log_level": "info",
+    "max_log_files": 10
+  },
+  "updates": {
+    "auto_check": true,
+    "check_interval_hours": 24,
+    "auto_download": false,
+    "auto_install": false
+  }
+} 

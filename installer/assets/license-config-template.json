@@ -1,0 +1,7 @@
+{
+  "sheet_id": "YOUR_GOOGLE_SHEET_ID_HERE",
+  "api_key": "YOUR_GOOGLE_SHEETS_API_KEY_HERE",
+  "sheet_name": "Licenses",
+  "use_service_account": false,
+  "service_account_file": ""
+} 

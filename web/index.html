@@ -42,6 +42,7 @@
         body {
             background-color: var(--cream-bg);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding-bottom: 60px;
         }
         
         .sidebar {
@@ -611,6 +612,65 @@
              border-radius: 8px;
              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
          }
+        
+        /* License Footer Styles */
+        .license-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(248, 246, 240, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 2px solid var(--accent-green);
+            z-index: 1000;
+            padding: 8px 0;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .license-status-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .license-footer .alert {
+            margin: 0;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid transparent;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .license-footer .alert-success {
+            background: rgba(139, 195, 74, 0.1);
+            border-color: var(--accent-green);
+            color: var(--dark-green);
+        }
+        
+        .license-footer .alert-warning {
+            background: rgba(255, 193, 7, 0.1);
+            border-color: #ffc107;
+            color: #856404;
+        }
+        
+        .license-footer .alert-danger {
+            background: rgba(197, 48, 48, 0.1);
+            border-color: var(--red-accent);
+            color: var(--red-accent);
+        }
+        
+        .license-footer .alert-info {
+            background: rgba(74, 124, 89, 0.1);
+            border-color: var(--secondary-green);
+            color: var(--secondary-green);
+        }
+        
+        .license-footer .alert-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -2829,6 +2889,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             initWebSocket();
             loadFiles();
+            loadLicenseStatus(); // Load license status
             
             // Auto-load chart on page load
             setTimeout(() => {
@@ -2836,6 +2897,101 @@
                 refreshTickers(); // Load available tickers
             }, 500);
         });
+
+        // License status functions
+        function loadLicenseStatus() {
+            fetch('/api/license/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.is_valid) {
+                        updateLicenseStatus(data);
+                    } else {
+                        // This shouldn't happen if we're viewing the main app
+                        document.getElementById('licenseStatus').innerHTML = `
+                            <div class="alert alert-danger alert-sm mb-0">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                License Error: ${data.message}
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Failed to load license status:', error);
+                    document.getElementById('licenseStatus').innerHTML = `
+                        <div class="alert alert-warning alert-sm mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Unable to load license status
+                        </div>
+                    `;
+                });
+        }
+
+        function updateLicenseStatus(licenseData) {
+            const statusElement = document.getElementById('licenseStatus');
+            const daysLeft = licenseData.days_left;
+            const expiryDate = new Date(licenseData.expiry_date).toLocaleDateString();
+            
+            let statusClass = 'alert-success';
+            let statusIcon = 'fas fa-check-circle';
+            
+            if (daysLeft <= 7) {
+                statusClass = 'alert-danger';
+                statusIcon = 'fas fa-exclamation-triangle';
+            } else if (daysLeft <= 30) {
+                statusClass = 'alert-warning';
+                statusIcon = 'fas fa-clock';
+            }
+            
+            statusElement.innerHTML = `
+                <div class="alert ${statusClass} alert-sm mb-0">
+                    <i class="${statusIcon} me-2"></i>
+                    <strong>License Status:</strong> Valid - ${daysLeft} days remaining
+                    <small class="ms-2">(Expires: ${expiryDate})</small>
+                </div>
+            `;
+        }
+
+        // Auto-refresh license status every hour
+        setInterval(loadLicenseStatus, 3600000); // 1 hour
+
+        // License heartbeat functions
+        function sendLicenseHeartbeat() {
+            fetch('/api/license/heartbeat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('License heartbeat sent:', data.timestamp);
+                } else {
+                    console.warn('License heartbeat failed:', data.message);
+                }
+            })
+            .catch(error => {
+                console.warn('Failed to send license heartbeat:', error);
+            });
+        }
+
+        // Send heartbeat every 30 minutes to track active usage
+        setInterval(sendLicenseHeartbeat, 1800000); // 30 minutes
+
+        // Send initial heartbeat after 5 minutes (to avoid startup congestion)
+        setTimeout(sendLicenseHeartbeat, 300000); // 5 minutes
     </script>
+    
+    <!-- License Status Footer -->
+    <footer class="license-footer">
+        <div class="container-fluid">
+            <div id="licenseStatus" class="license-status-container">
+                <div class="alert alert-info alert-sm mb-0">
+                    <i class="fas fa-spinner fa-spin me-2"></i>
+                    Loading license status...
+                </div>
+            </div>
+        </div>
+    </footer>
 </body>
 </html> 

@@ -1,0 +1,40 @@
+ISX Daily Reports Scraper - End User License Agreement (EULA)
+
+Copyright (c) 2024 The Iraqi Investor Group
+
+This End User License Agreement ("EULA") is a legal agreement between you and The Iraqi Investor Group for the ISX Daily Reports Scraper software.
+
+By installing, copying, or otherwise using the software, you agree to be bound by the terms of this EULA. If you do not agree to the terms of this EULA, do not install or use the software.
+
+1. GRANT OF LICENSE
+The Iraqi Investor Group grants you a non-exclusive, non-transferable license to use the ISX Daily Reports Scraper software subject to the terms and conditions of this EULA.
+
+2. RESTRICTIONS
+You may not:
+- Reverse engineer, decompile, or disassemble the software
+- Rent, lease, or lend the software
+- Use the software for any illegal purpose
+- Remove or alter any proprietary notices or labels on the software
+
+3. INTELLECTUAL PROPERTY
+The software and all intellectual property rights therein are owned by The Iraqi Investor Group. This EULA does not grant you any rights to trademarks or service marks.
+
+4. TERMINATION
+This EULA is effective until terminated. Your rights under this EULA will terminate automatically without notice if you fail to comply with any terms of this EULA.
+
+5. DISCLAIMER OF WARRANTY
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+6. LIMITATION OF LIABILITY
+IN NO EVENT SHALL THE IRAQI INVESTOR GROUP BE LIABLE FOR ANY SPECIAL, INCIDENTAL, INDIRECT, OR CONSEQUENTIAL DAMAGES WHATSOEVER ARISING OUT OF THE USE OF OR INABILITY TO USE THE SOFTWARE.
+
+7. GOVERNING LAW
+This EULA shall be governed by and construed in accordance with the laws of Iraq.
+
+8. ENTIRE AGREEMENT
+This EULA constitutes the entire agreement between you and The Iraqi Investor Group regarding the software.
+
+For questions regarding this EULA, please contact:
+The Iraqi Investor Group
+Email: support@iraqiinvestor.com
+Website: https://github.com/haideralmesaody/ISXDailyReportScrapper 

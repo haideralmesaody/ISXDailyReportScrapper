@@ -1,0 +1,67 @@
+ISX Daily Reports Scraper - Installation Complete!
+
+Congratulations! ISX Daily Reports Scraper has been successfully installed.
+
+WHAT'S NEXT?
+============
+
+1. LICENSE ACTIVATION
+   - The application requires a valid license key to operate
+   - If you don't have a license key, contact The Iraqi Investor Group
+   - You can configure your license using the "Configure License" shortcut
+
+2. GETTING STARTED
+   - Launch "ISX Daily Reports Scraper Web Interface" from your Start Menu
+   - The web interface will open in your default browser at http://localhost:8080
+   - If no license is configured, you'll be prompted to enter your license key
+
+3. FIRST-TIME SETUP
+   - Configure your Google Sheets integration (optional but recommended)
+   - Set up your preferred data directories
+   - Test the web scraping functionality with a sample date
+
+4. AVAILABLE SHORTCUTS
+   - ISX Daily Reports Scraper Web Interface - Main application
+   - ISX Daily Reports Scraper CLI - Command-line interface
+   - License Generator - Generate new license keys (admin only)
+   - Configure License - Set up your license configuration
+   - Documentation - Complete user guides and setup instructions
+   - Data Folder - Quick access to your scraped data
+
+5. IMPORTANT FILES LOCATIONS
+   - Application: C:\Program Files\ISX Daily Reports Scraper\
+   - Data Downloads: C:\Program Files\ISX Daily Reports Scraper\downloads\
+   - Processed Reports: C:\Program Files\ISX Daily Reports Scraper\reports\
+   - Configuration: C:\Program Files\ISX Daily Reports Scraper\license-config.json
+   - Documentation: C:\Program Files\ISX Daily Reports Scraper\docs\
+
+GETTING HELP:
+=============
+- Read the documentation in the docs folder
+- Visit our GitHub repository for updates and issues
+- Contact support@iraqiinvestor.com for license-related questions
+
+LICENSE INFORMATION:
+===================
+This software requires a valid license key to operate. License keys are available in the following durations:
+- 1 Month (ISX1M-...)
+- 3 Months (ISX3M-...)
+- 6 Months (ISX6M-...)
+- 1 Year (ISX1Y-...)
+
+Each license is tied to a specific machine and cannot be transferred.
+
+FIREWALL CONFIGURATION:
+======================
+The installer has automatically configured Windows Firewall to allow the web interface on port 8080. If you have additional security software, you may need to allow:
+- Incoming connections on port 8080
+- Outgoing connections for web scraping
+
+TROUBLESHOOTING:
+===============
+- If the web interface doesn't load, check that port 8080 is not in use by another application
+- If license activation fails, verify your internet connection and license key format
+- For Chrome automation issues, ensure Chrome is installed and up to date
+
+Thank you for using ISX Daily Reports Scraper!
+The Iraqi Investor Group 

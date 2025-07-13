@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
@@ -12,6 +13,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"isxcli/internal/license"
 
 	"github.com/chromedp/chromedp"
 )
@@ -28,6 +31,16 @@ func main() {
 	outDir := flag.String("out", "downloads", "directory to save reports")
 	headless := flag.Bool("headless", true, "run browser headless")
 	flag.Parse()
+
+	// Initialize license system
+	fmt.Println("🔐 ISX Daily Reports Scraper - Licensed Version")
+	fmt.Println("═══════════════════════════════════════════════")
+
+	if !checkLicense() {
+		fmt.Println("❌ License validation failed. Application will exit.")
+		fmt.Println("📞 Contact The Iraqi Investor Group to get a new license.")
+		os.Exit(1)
+	}
 
 	// Create output directory if it doesn't exist (but don't delete existing files)
 	if err := os.MkdirAll(*outDir, 0o755); err != nil {
@@ -269,4 +282,83 @@ func latestDownloadedDate(dir string) (time.Time, bool) {
 	}
 	sort.Slice(dates, func(i, j int) bool { return dates[i].Before(dates[j]) })
 	return dates[len(dates)-1], true
+}
+
+func checkLicense() bool {
+	// Initialize license manager
+	licenseManager, err := license.NewManager("license-config.json", "license.dat")
+	if err != nil {
+		fmt.Printf("⚠️  License system initialization failed: %v\n", err)
+		return false
+	}
+
+	// Check if license is valid
+	valid, err := licenseManager.ValidateLicense()
+	if valid {
+		// Get license info for display
+		info, infoErr := licenseManager.GetLicenseInfo()
+		if infoErr == nil {
+			daysLeft := int(time.Until(info.ExpiryDate).Hours() / 24)
+			fmt.Printf("✅ License Valid - %d days remaining\n", daysLeft)
+			if daysLeft <= 7 {
+				fmt.Printf("⚠️  License expires soon: %s\n", info.ExpiryDate.Format("2006-01-02"))
+				fmt.Println("📞 Contact The Iraqi Investor Group for license renewal.")
+			}
+		}
+		fmt.Println("═══════════════════════════════════════════════")
+		return true
+	}
+
+	// License is invalid or expired
+	fmt.Println("❌ Invalid or Expired License")
+	fmt.Println("═══════════════════════════════════════════════")
+
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+	}
+
+	// Prompt for license key activation
+	fmt.Println("\n🔑 Please enter your ISX license key to activate:")
+	fmt.Println("   (License keys look like: ISX3M-ABC123DEF456GHI789JKL)")
+	fmt.Print("License Key: ")
+
+	reader := bufio.NewReader(os.Stdin)
+	licenseKey, _ := reader.ReadString('\n')
+	licenseKey = strings.TrimSpace(licenseKey)
+
+	if licenseKey == "" {
+		fmt.Println("❌ No license key provided.")
+		return false
+	}
+
+	// Validate license key format
+	if !isValidLicenseFormat(licenseKey) {
+		fmt.Println("❌ Invalid license key format.")
+		fmt.Println("   License keys should start with ISX1M, ISX3M, ISX6M, or ISX1Y")
+		return false
+	}
+
+	// Activate license
+	fmt.Println("🔄 Activating license...")
+	if err := licenseManager.ActivateLicense(licenseKey); err != nil {
+		fmt.Printf("❌ License activation failed: %v\n", err)
+		fmt.Println("📞 Please contact The Iraqi Investor Group if you believe this is an error.")
+		return false
+	}
+
+	fmt.Println("✅ License activated successfully!")
+	fmt.Println("🎉 Welcome to ISX Daily Reports Scraper!")
+	fmt.Println("═══════════════════════════════════════════════")
+	return true
+}
+
+func isValidLicenseFormat(licenseKey string) bool {
+	// Check if license key starts with valid prefixes
+	validPrefixes := []string{"ISX1M", "ISX3M", "ISX6M", "ISX1Y"}
+	for _, prefix := range validPrefixes {
+		if strings.HasPrefix(licenseKey, prefix) {
+			return true
+		}
+	}
+	return false
 }
