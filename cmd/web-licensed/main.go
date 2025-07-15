@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -27,6 +28,9 @@ import (
 
 const VERSION = "enhanced-v2.0.0"
 const REPO_URL = "https://github.com/haideralmesaody/ISXDailyReportScrapper"
+
+// Global executable directory for relative paths
+var executableDir string
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
@@ -112,6 +116,88 @@ func getClientIP(r *http.Request) string {
 	return ip
 }
 
+// validateLicenseForWebAccess performs local-first license validation optimized for web access
+// Returns (isValid, isRecentActivation) to help with user experience
+func validateLicenseForWebAccess() (bool, bool) {
+	log.Printf("DEBUG: validateLicenseForWebAccess called")
+
+	if licenseManager == nil {
+		log.Printf("DEBUG: licenseManager is nil, returning false")
+		return false, false
+	}
+
+	// Try to load local license first
+	log.Printf("DEBUG: Attempting to get license info...")
+	info, err := licenseManager.GetLicenseInfo()
+	if err != nil {
+		log.Printf("DEBUG: No local license found: %v", err)
+		return false, false
+	}
+
+	log.Printf("DEBUG: License info loaded successfully, expiry: %v", info.ExpiryDate)
+
+	// Check basic local validation first
+	now := time.Now()
+
+	// Check if license has expired
+	if now.After(info.ExpiryDate) {
+		log.Printf("License expired on %s", info.ExpiryDate.Format("2006-01-02"))
+		return false, false
+	}
+
+	// Check if this is a recently activated license (within last 10 minutes)
+	// This gives time for the user experience to be smooth after activation
+	isRecentActivation := false
+	if info.LastChecked.IsZero() {
+		// If LastChecked is not set, check if license file was modified recently
+		licensePath := filepath.Join(executableDir, "license.dat")
+		if stat, err := os.Stat(licensePath); err == nil {
+			fileAge := now.Sub(stat.ModTime())
+			if fileAge < 10*time.Minute {
+				isRecentActivation = true
+				log.Printf("Recently activated license detected (file age: %v)", fileAge.Round(time.Second))
+			}
+		}
+	} else {
+		// Check based on LastChecked time
+		timeSinceLastCheck := now.Sub(info.LastChecked)
+		if timeSinceLastCheck < 10*time.Minute {
+			isRecentActivation = true
+			log.Printf("Recently validated license detected (last check: %v ago)", timeSinceLastCheck.Round(time.Second))
+		}
+	}
+
+	// For recently activated licenses, use more lenient validation
+	if isRecentActivation {
+		log.Printf("Using lenient validation for recently activated license")
+		// Just check local basics - don't require immediate remote validation
+		return true, true
+	}
+
+	// For older licenses, use standard validation but with timeout protection
+	// Set a shorter timeout for web requests to avoid hanging the page
+	validationDone := make(chan bool, 1)
+	var isValid bool
+
+	go func() {
+		valid, _ := licenseManager.ValidateLicense()
+		validationDone <- valid
+	}()
+
+	// Wait for validation with timeout
+	select {
+	case isValid = <-validationDone:
+		// Validation completed normally
+		log.Printf("Standard license validation completed: %v", isValid)
+		return isValid, false
+	case <-time.After(5 * time.Second):
+		// Validation timed out - fall back to local checks for better UX
+		log.Printf("License validation timed out, using local validation fallback")
+		// Just verify basic local requirements and allow access
+		return true, false
+	}
+}
+
 // securityMiddleware adds rate limiting and security checks
 func securityMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -153,9 +239,23 @@ func openBrowser(url string) error {
 }
 
 func main() {
-	// Initialize license manager with enhanced capabilities
-	var err error
-	licenseManager, err = license.NewManager("license.dat")
+	// Get executable directory for all relative paths
+	exePath, err := os.Executable()
+	if err != nil {
+		log.Printf("Warning: Could not get executable path: %v", err)
+		exePath = "." // fallback to current directory
+	}
+	exeDir := filepath.Dir(exePath)
+	executableDir = exeDir // Set global variable
+
+	// Change to executable directory to ensure all relative paths work correctly
+	if err := os.Chdir(exeDir); err != nil {
+		log.Printf("Warning: Could not change to executable directory: %v", err)
+	}
+
+	// Initialize license manager with path relative to executable
+	licensePath := filepath.Join(exeDir, "license.dat")
+	licenseManager, err = license.NewManager(licensePath)
 	if err != nil {
 		log.Printf("Warning: Failed to initialize license manager: %v", err)
 	}
@@ -189,8 +289,9 @@ func main() {
 	api := r.PathPrefix("/api").Subrouter()
 	api.Use(licenseMiddleware)
 
-	// Serve static files
-	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./web/static/"))))
+	// Serve static files (relative to executable)
+	staticDir := filepath.Join(executableDir, "web", "static")
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
 
 	// Public license endpoints (no license middleware needed)
 	r.HandleFunc("/api/license/status", handleLicenseStatus).Methods("GET")
@@ -228,9 +329,12 @@ func main() {
 	// Start WebSocket message broadcaster
 	go handleMessages()
 
-	// Generate ticker summary on startup
-	if err := generateTickerSummary(); err != nil {
-		log.Printf("Warning: Failed to generate ticker summary on startup: %v", err)
+	// Generate ticker summary on startup only if data exists
+	combinedDataPath := filepath.Join(executableDir, "reports", "isx_combined_data.csv")
+	if _, err := os.Stat(combinedDataPath); err == nil {
+		if err := generateTickerSummary(); err != nil {
+			log.Printf("Warning: Failed to generate ticker summary on startup: %v", err)
+		}
 	}
 
 	serverURL := "http://localhost:8080"
@@ -318,7 +422,8 @@ func licenseMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		valid, _ := licenseManager.ValidateLicense()
+		// Use the same smart validation as serveIndex for consistent behavior
+		valid, _ := validateLicenseForWebAccess()
 		if !valid {
 			// Get detailed validation state for better error messages
 			validationState, _ := licenseManager.GetValidationState()
@@ -605,27 +710,35 @@ func handleInstallUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 func serveIndex(w http.ResponseWriter, r *http.Request) {
-	// Check if user has a valid license
+	// Check if user has a valid license using local-first validation for better user experience
 	if licenseManager != nil {
-		valid, err := licenseManager.ValidateLicense()
+		log.Printf("DEBUG: Calling validateLicenseForWebAccess...")
+		valid, isRecentActivation := validateLicenseForWebAccess()
+		log.Printf("DEBUG: validateLicenseForWebAccess returned valid=%v, isRecentActivation=%v", valid, isRecentActivation)
+
 		if valid {
 			// License is valid, serve the main application
-			log.Printf("Valid license found, serving main application")
-			http.ServeFile(w, r, "./web/index.html")
+			if isRecentActivation {
+				log.Printf("Recently activated license found, serving main application")
+			} else {
+				log.Printf("Valid license found, serving main application")
+			}
+			indexPath := filepath.Join(executableDir, "web", "index.html")
+			log.Printf("DEBUG: Serving main application from: %s", indexPath)
+			http.ServeFile(w, r, indexPath)
 			return
 		} else {
 			// License is invalid or missing, serve license activation page
-			log.Printf("License manager not available, serving license page")
-			if err != nil {
-				log.Printf("License validation error: %v", err)
-			}
+			log.Printf("License validation failed, serving license page")
 		}
 	} else {
 		log.Printf("License manager not available, serving license page")
 	}
 
 	// Serve license activation page
-	http.ServeFile(w, r, "./web/license.html")
+	licensePath := filepath.Join(executableDir, "web", "license.html")
+	log.Printf("DEBUG: Serving license page from: %s", licensePath)
+	http.ServeFile(w, r, licensePath)
 }
 
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
@@ -693,22 +806,113 @@ func handleScrape(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build command arguments
-	args := []string{}
-	if mode := req.Args["mode"]; mode != "" {
-		args = append(args, "--mode="+mode)
-	}
-	if from := req.Args["from"]; from != "" {
-		args = append(args, "--from="+from)
-	}
-	if to := req.Args["to"]; to != "" {
-		args = append(args, "--to="+to)
-	}
-	if headless := req.Args["headless"]; headless != "" {
-		args = append(args, "--headless="+headless)
+	// Check if downloads directory has files for the requested date range
+	downloadsDir := filepath.Join(executableDir, "downloads")
+	needsDownload := true
+
+	// Get user-requested date range
+	fromDate := req.Args["from"]
+	toDate := req.Args["to"]
+
+	if entries, err := os.ReadDir(downloadsDir); err == nil {
+		excelCount := 0
+		existingFiles := make(map[string]bool)
+
+		// Build a map of existing Excel files
+		for _, entry := range entries {
+			if !entry.IsDir() && strings.HasSuffix(strings.ToLower(entry.Name()), ".xlsx") {
+				existingFiles[entry.Name()] = true
+				excelCount++
+			}
+		}
+
+		if excelCount > 0 {
+			broadcastMessage("info", fmt.Sprintf("Found %d existing Excel files in downloads directory", excelCount), "scrape")
+
+			// If user provided date range, check if we need to download missing files
+			if fromDate != "" && toDate != "" {
+				// Check if we have files for the requested date range
+				missingFiles := checkMissingDateRangeFiles(existingFiles, fromDate, toDate)
+				if len(missingFiles) > 0 {
+					broadcastMessage("info", fmt.Sprintf("Missing %d files for date range %s to %s - will download fresh data", len(missingFiles), fromDate, toDate), "scrape")
+					needsDownload = true
+				} else {
+					broadcastMessage("info", fmt.Sprintf("All files exist for date range %s to %s - skipping download", fromDate, toDate), "scrape")
+					needsDownload = false
+				}
+			} else {
+				// No specific date range - process existing files
+				broadcastMessage("info", "No date range specified - processing existing files", "scrape")
+				needsDownload = false
+			}
+		}
 	}
 
-	response := executeCommand("./isxcli.exe", args, "scrape")
+	var response CommandResponse
+
+	// Download fresh data if needed
+	if needsDownload {
+		broadcastMessage("info", "No Excel files found. Downloading fresh data from ISX website...", "scrape")
+
+		// Use the web scraper to download Excel files
+		scraperArgs := []string{"-mode=initial", "-out=downloads"}
+
+		// Use EXACTLY the dates selected by user in HTML form (no validation overrides)
+		fromDate := req.Args["from"]
+		toDate := req.Args["to"]
+
+		// Always use the dates selected by user - no modifications or validation
+		if fromDate != "" {
+			scraperArgs = append(scraperArgs, "-from="+fromDate)
+			broadcastMessage("info", fmt.Sprintf("Using FROM date from form: %s", fromDate), "scrape")
+		}
+		if toDate != "" {
+			scraperArgs = append(scraperArgs, "-to="+toDate)
+			broadcastMessage("info", fmt.Sprintf("Using TO date from form: %s", toDate), "scrape")
+		}
+
+		scraperPath := filepath.Join(executableDir, "bin", "isx-web-scraper.exe")
+		broadcastMessage("info", fmt.Sprintf("Starting scrape command: %s %s", scraperPath, strings.Join(scraperArgs, " ")), "scrape")
+
+		scraperResponse := executeCommandWithTimeout(scraperPath, scraperArgs, "scrape", 5*time.Minute)
+
+		if !scraperResponse.Success {
+			broadcastMessage("error", "Failed to download fresh data from ISX website", "scrape")
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(scraperResponse)
+			return
+		}
+
+		broadcastMessage("success", "✅ Fresh data downloaded successfully from ISX website", "scrape")
+	}
+
+	// Now process the Excel files
+	broadcastMessage("info", "Processing Excel files from downloads directory...", "scrape")
+
+	// Build command arguments for the processing tool
+	args := []string{}
+
+	// Set input directory (default: downloads)
+	if inDir := req.Args["in"]; inDir != "" {
+		args = append(args, "-in="+inDir)
+	} else {
+		args = append(args, "-in=downloads")
+	}
+
+	// Set output directory (default: reports)
+	if outDir := req.Args["out"]; outDir != "" {
+		args = append(args, "-out="+outDir)
+	} else {
+		args = append(args, "-out=reports")
+	}
+
+	// Enable full rework if requested
+	if mode := req.Args["mode"]; mode == "full" {
+		args = append(args, "-full")
+	}
+
+	processPath := filepath.Join(executableDir, "process.exe")
+	response = executeCommand(processPath, args, "scrape")
 
 	// If scraping was successful, automatically process the data
 	if response.Success {
@@ -716,14 +920,16 @@ func handleScrape(w http.ResponseWriter, r *http.Request) {
 
 		// Run processing automatically
 		processArgs := []string{"-in=downloads"}
-		processResponse := executeCommandWithStreaming("./cmd/process/process.exe", processArgs, "process")
+		processPath := filepath.Join(executableDir, "process.exe")
+		processResponse := executeCommandWithStreaming(processPath, processArgs, "process")
 
 		if processResponse.Success {
 			broadcastMessage("info", "Data processing completed. Extracting market indices...", "scrape")
 
 			// Run index extraction automatically
-			indexArgs := []string{"-dir=reports"}
-			indexResponse := executeCommand("./cmd/indexcsv/indexcsv.exe", indexArgs, "indexcsv")
+			indexArgs := []string{"-dir=downloads", "-out=reports/indexes.csv"}
+			indexcsvPath := filepath.Join(executableDir, "indexcsv.exe")
+			indexResponse := executeCommand(indexcsvPath, indexArgs, "indexcsv")
 
 			if indexResponse.Success {
 				broadcastMessage("info", "Index extraction completed. Generating ticker summary...", "scrape")
@@ -764,15 +970,17 @@ func handleProcess(w http.ResponseWriter, r *http.Request) {
 		args = append(args, "-full")
 	}
 
-	response := executeCommandWithStreaming("./cmd/process/process.exe", args, "process")
+	processPath := filepath.Join(executableDir, "process.exe")
+	response := executeCommandWithStreaming(processPath, args, "process")
 
 	// If processing was successful, run complete pipeline
 	if response.Success {
 		broadcastMessage("info", "Processing completed successfully. Extracting market indices...", "process")
 
 		// Run index extraction automatically
-		indexArgs := []string{"-dir=reports"}
-		indexResponse := executeCommand("./cmd/indexcsv/indexcsv.exe", indexArgs, "indexcsv")
+		indexArgs := []string{"-dir=downloads", "-out=reports/indexes.csv"}
+		indexcsvPath := filepath.Join(executableDir, "indexcsv.exe")
+		indexResponse := executeCommand(indexcsvPath, indexArgs, "indexcsv")
 
 		if indexResponse.Success {
 			broadcastMessage("info", "Index extraction completed. Generating ticker summary...", "process")
@@ -803,11 +1011,23 @@ func handleIndexCSV(w http.ResponseWriter, r *http.Request) {
 	}
 
 	args := []string{}
+
+	// Set input directory (default: downloads)
 	if dir := req.Args["dir"]; dir != "" {
 		args = append(args, "-dir="+dir)
+	} else {
+		args = append(args, "-dir=downloads")
 	}
 
-	response := executeCommand("./cmd/indexcsv/indexcsv.exe", args, "indexcsv")
+	// Set output file (default: reports/indexes.csv)
+	if out := req.Args["out"]; out != "" {
+		args = append(args, "-out="+out)
+	} else {
+		args = append(args, "-out=reports/indexes.csv")
+	}
+
+	indexcsvPath := filepath.Join(executableDir, "indexcsv.exe")
+	response := executeCommand(indexcsvPath, args, "indexcsv")
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
@@ -816,7 +1036,7 @@ func handleIndexCSV(w http.ResponseWriter, r *http.Request) {
 func handleListTickers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	summaryFile := "reports/ticker_summary.json"
+	summaryFile := filepath.Join(executableDir, "reports", "ticker_summary.json")
 
 	// Check if summary file exists
 	if _, err := os.Stat(summaryFile); os.IsNotExist(err) {
@@ -1164,6 +1384,73 @@ func executeCommandWithStreaming(command string, args []string, commandType stri
 	return response
 }
 
+func executeCommandWithTimeout(command string, args []string, commandType string, timeout time.Duration) CommandResponse {
+	broadcastMessage("info", fmt.Sprintf("Starting %s command with %v timeout: %s %s", commandType, timeout, command, strings.Join(args, " ")), commandType)
+
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, command, args...)
+	output, err := cmd.CombinedOutput()
+
+	response := CommandResponse{
+		Success: err == nil,
+		Output:  string(output),
+	}
+
+	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			response.Error = fmt.Sprintf("Command timed out after %v", timeout)
+			broadcastMessage("error", fmt.Sprintf("Command timed out after %v", timeout), commandType)
+		} else {
+			response.Error = err.Error()
+			broadcastMessage("error", fmt.Sprintf("Command failed: %s", err.Error()), commandType)
+		}
+	} else {
+		broadcastMessage("success", fmt.Sprintf("Command completed successfully"), commandType)
+	}
+
+	broadcastMessage("output", string(output), commandType)
+
+	return response
+}
+
+func checkMissingDateRangeFiles(existingFiles map[string]bool, fromDate, toDate string) []string {
+	// Parse the date range
+	from, err := time.Parse("2006-01-02", fromDate)
+	if err != nil {
+		log.Printf("Error parsing from date %s: %v", fromDate, err)
+		return []string{}
+	}
+
+	to, err := time.Parse("2006-01-02", toDate)
+	if err != nil {
+		log.Printf("Error parsing to date %s: %v", toDate, err)
+		return []string{}
+	}
+
+	var missingFiles []string
+
+	// Check each date in the range (excluding weekends)
+	for current := from; !current.After(to); current = current.AddDate(0, 0, 1) {
+		// Skip weekends (Saturday = 6, Sunday = 0)
+		if current.Weekday() == time.Saturday || current.Weekday() == time.Sunday {
+			continue
+		}
+
+		// Generate expected filename for this date
+		expectedFileName := fmt.Sprintf("%s ISX Daily Report.xlsx", current.Format("2006 01 02"))
+
+		// Check if file exists
+		if !existingFiles[expectedFileName] {
+			missingFiles = append(missingFiles, expectedFileName)
+		}
+	}
+
+	return missingFiles
+}
+
 func listDirectory(dir string) ([]string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -1279,9 +1566,9 @@ func getActualLast10TradingDays(ticker string) []float64 {
 }
 
 func generateTickerSummary() error {
-	combinedFile := "reports/isx_combined_data.csv"
-	summaryCSVFile := "reports/ticker_summary.csv"
-	summaryJSONFile := "reports/ticker_summary.json"
+	combinedFile := filepath.Join(executableDir, "reports", "isx_combined_data.csv")
+	summaryCSVFile := filepath.Join(executableDir, "reports", "ticker_summary.csv")
+	summaryJSONFile := filepath.Join(executableDir, "reports", "ticker_summary.json")
 
 	// Check if combined file exists
 	if _, err := os.Stat(combinedFile); os.IsNotExist(err) {

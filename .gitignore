@@ -67,6 +67,7 @@ node_modules/
 *.zip
 *.tar.gz
 *.rar
+*.7z
 
 # Test Output Files
 test_*
@@ -116,4 +117,36 @@ release/data/reports/
 # Google Service Account Credentials (SENSITIVE)
 **/isxportfolio-*.json
 **/service-account-*.json
-**/*-credentials.json 
+**/*-credentials.json
+
+# Temporary release directories
+release-*/
+*-v*/
+ISXDailyReportsScrapper-v*/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS specific files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Go build artifacts
+*.test
+*.prof
+go.work
+go.work.sum
+
+# License and configuration files (if sensitive)
+oauth-config.json
+service-account-key.json
+
+# Temporary installer files
+installer-*.ps1
+*-installer-*.exe
+*-Installer-*.exe 
