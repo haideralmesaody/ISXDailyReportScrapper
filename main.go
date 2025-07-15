@@ -286,7 +286,7 @@ func latestDownloadedDate(dir string) (time.Time, bool) {
 
 func checkLicense() bool {
 	// Initialize license manager
-	licenseManager, err := license.NewManager("license-config.json", "license.dat")
+	licenseManager, err := license.NewManager("license.dat")
 	if err != nil {
 		fmt.Printf("⚠️  License system initialization failed: %v\n", err)
 		return false

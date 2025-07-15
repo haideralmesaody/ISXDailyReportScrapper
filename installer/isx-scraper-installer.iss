@@ -7,7 +7,7 @@
 #define AppPublisher "The Iraqi Investor Group"
 #define AppURL "https://github.com/haideralmesaody/ISXDailyReportScrapper"
 #define AppExeName "isxcli.exe"
-#define WebExeName "web.exe"
+#define WebExeName "web-licensed.exe"
 #define AppSupportURL "https://github.com/haideralmesaody/ISXDailyReportScrapper/issues"
 #define AppUpdatesURL "https://github.com/haideralmesaody/ISXDailyReportScrapper/releases"
 
@@ -24,19 +24,19 @@ AppUpdatesURL={#AppUpdatesURL}
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 AllowNoIcons=yes
-LicenseFile=installer\assets\LICENSE.txt
-InfoBeforeFile=installer\assets\README.txt
-InfoAfterFile=installer\assets\AFTER_INSTALL.txt
-OutputDir=installer\output
+LicenseFile=assets\LICENSE.txt
+InfoBeforeFile=assets\README.txt
+InfoAfterFile=assets\AFTER_INSTALL.txt
+OutputDir=output
 OutputBaseFilename=ISX-Daily-Reports-Scraper-Setup-{#AppVersion}
-SetupIconFile=installer\assets\setup-icon.ico
+SetupIconFile=assets\setup-icon.ico
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-ArchitecturesAllowed=x64
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
-MinVersion=6.1sp1
+MinVersion=10.0.19041
 DisableDirPage=no
 DisableProgramGroupPage=no
 CreateAppDir=yes
@@ -44,7 +44,7 @@ UsePreviousAppDir=yes
 UsePreviousGroup=yes
 AppCopyright=Copyright (C) 2024 The Iraqi Investor Group
 AppModifyPath="{uninstallexe}"
-UninstallDisplayIcon={app}\{#AppExeName}
+UninstallDisplayIcon={app}\{#WebExeName}
 UninstallDisplayName={#AppName}
 ChangesAssociations=yes
 ChangesEnvironment=yes
@@ -64,7 +64,7 @@ ViewDocumentation=View Documentation
 OpenDataFolder=Open Data Folder
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 6.1
 Name: "associate"; Description: "Associate .xlsx files with ISX processor"; GroupDescription: "File associations"
 Name: "addtopath"; Description: "Add application directory to PATH"; GroupDescription: "System integration"
@@ -72,50 +72,52 @@ Name: "autostart"; Description: "Enable automatic startup with Windows"; GroupDe
 
 [Files]
 ; Main executables
-Source: "isxcli.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "web.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "cmd\process\process.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
-Source: "cmd\indexcsv\indexcsv.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
-Source: "cmd\web-licensed\web-licensed.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "cmd\license-generator\license-generator.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
-Source: "cmd\bulk-license-generator\bulk-license-generator.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "..\isxcli.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\cmd\web-licensed\web-licensed.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "web.exe"
+Source: "..\cmd\process\process.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "..\cmd\indexcsv\indexcsv.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "..\cmd\license-generator\license-generator.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "..\cmd\bulk-license-generator\bulk-license-generator.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
 
 ; Additional tools
-Source: "cmd\marketscan\marketscan.exe"; DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
-Source: "cmd\combine\combine.exe"; DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
-Source: "cmd\inspect\inspect.exe"; DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
-Source: "cmd\identifyformats\identifyformats.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
-Source: "cmd\sampleformats\sampleformats.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
-Source: "cmd\debugindices\debugindices.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "..\cmd\marketscan\marketscan.exe"; DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\cmd\combine\combine.exe"; DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\cmd\inspect\inspect.exe"; DestDir: "{app}\tools"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\cmd\identifyformats\identifyformats.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "..\cmd\sampleformats\sampleformats.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "..\cmd\debugindices\debugindices.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
 
 ; Web interface files
-Source: "web\*"; DestDir: "{app}\web"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\web\*"; DestDir: "{app}\web"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; License generator app
-Source: "license-generator-app\*"; DestDir: "{app}\license-generator"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\license-generator-app\*"; DestDir: "{app}\license-generator"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; Configuration files
-Source: "installer\assets\license-config-template.json"; DestDir: "{app}"; DestName: "license-config.json"; Flags: ignoreversion onlyifdoesntexist
-Source: "installer\assets\app-config.json"; DestDir: "{app}"; Flags: ignoreversion onlyifdoesntexist
+Source: "assets\license-config-template.json"; DestDir: "{app}"; DestName: "license-config.json"; Flags: ignoreversion onlyifdoesntexist
+Source: "assets\app-config.json"; DestDir: "{app}"; Flags: ignoreversion onlyifdoesntexist
+
+; Application icon
+Source: "assets\setup-icon.ico"; DestDir: "{app}"; DestName: "app-icon.ico"; Flags: ignoreversion
 
 ; Documentation
-Source: "README.md"; DestDir: "{app}\docs"; Flags: ignoreversion
-Source: "WEB_README.md"; DestDir: "{app}\docs"; Flags: ignoreversion
-Source: "WEB_INTERFACE_GUIDE.md"; DestDir: "{app}\docs"; Flags: ignoreversion
-Source: "LICENSING_SETUP.md"; DestDir: "{app}\docs"; Flags: ignoreversion
-Source: "EXPIRE_STATUS_SETUP.md"; DestDir: "{app}\docs"; Flags: ignoreversion
-Source: "GOOGLE_SHEETS_SETUP.md"; DestDir: "{app}\docs"; Flags: ignoreversion
-Source: "RECHARGE_CARD_SETUP.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "..\README.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "..\WEB_README.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "..\WEB_INTERFACE_GUIDE.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "..\LICENSING_SETUP.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "..\EXPIRE_STATUS_SETUP.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "..\GOOGLE_SHEETS_SETUP.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "..\RECHARGE_CARD_SETUP.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 
 ; Batch files and scripts
-Source: "build-web.bat"; DestDir: "{app}"; Flags: ignoreversion
-Source: "installer\assets\start-web-interface.bat"; DestDir: "{app}"; Flags: ignoreversion
-Source: "installer\assets\configure-license.bat"; DestDir: "{app}"; Flags: ignoreversion
-Source: "installer\assets\run-scraper.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\build-web.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "assets\start-web-interface.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "assets\configure-license.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "assets\run-scraper.bat"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Dependencies and runtime files
-Source: "go.mod"; DestDir: "{app}"; Flags: ignoreversion
-Source: "go.sum"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\go.mod"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\go.sum"; DestDir: "{app}"; Flags: ignoreversion
 
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
@@ -131,7 +133,7 @@ Name: "{app}\web"
 Name: "{app}\license-generator"
 
 [Icons]
-Name: "{group}\{#AppName} Web Interface"; Filename: "{app}\{#WebExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\web\static\images\favicon.ico"
+Name: "{group}\{#AppName} Web Interface"; Filename: "{app}\{#WebExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\app-icon.ico"
 Name: "{group}\{#AppName} CLI"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; Parameters: "--help"
 Name: "{group}\License Generator"; Filename: "{app}\tools\license-generator.exe"; WorkingDir: "{app}\tools"
 Name: "{group}\Configure License"; Filename: "{app}\configure-license.bat"; WorkingDir: "{app}"
@@ -139,9 +141,9 @@ Name: "{group}\Documentation"; Filename: "{app}\docs\README.md"
 Name: "{group}\Data Folder"; Filename: "{app}\reports"; WorkingDir: "{app}\reports"
 Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"
 
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#WebExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\web\static\images\favicon.ico"; Tasks: desktopicon
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#WebExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\app-icon.ico"; Tasks: desktopicon
 
-Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#AppName}"; Filename: "{app}\{#WebExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\web\static\images\favicon.ico"; Tasks: quicklaunchicon
+Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#AppName}"; Filename: "{app}\{#WebExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\app-icon.ico"; Tasks: quicklaunchicon
 
 [Run]
 ; Install Microsoft Visual C++ Redistributable if needed
@@ -212,7 +214,7 @@ procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssInstall then
   begin
-    SetProgress(0, 100);
+    // SetProgress(0, 100);  // Function not available in Inno Setup
     ExtractTemporaryFile('vc_redist.x64.exe');
   end;
 end;

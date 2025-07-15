@@ -2,20 +2,456 @@ package license
 
 import (
 	"context"
-	"crypto/md5"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 )
+
+// LogLevel represents different logging levels
+type LogLevel string
+
+const (
+	LogLevelDebug LogLevel = "DEBUG"
+	LogLevelInfo  LogLevel = "INFO"
+	LogLevelWarn  LogLevel = "WARN"
+	LogLevelError LogLevel = "ERROR"
+)
+
+// LogEntry represents a structured log entry
+type LogEntry struct {
+	Timestamp  time.Time `json:"timestamp"`
+	Level      LogLevel  `json:"level"`
+	Action     string    `json:"action"`
+	LicenseKey string    `json:"license_key,omitempty"`
+	MachineID  string    `json:"machine_id,omitempty"`
+	Result     string    `json:"result"`
+	Duration   int64     `json:"duration_ms,omitempty"`
+	Error      string    `json:"error,omitempty"`
+	Details    any       `json:"details,omitempty"`
+	UserAgent  string    `json:"user_agent,omitempty"`
+	IPAddress  string    `json:"ip_address,omitempty"`
+}
+
+// Logger handles structured logging for the license system
+type Logger struct {
+	logFile   *os.File
+	auditFile *os.File
+	mutex     sync.Mutex
+	level     LogLevel
+}
+
+// NewLogger creates a new structured logger
+func NewLogger(logLevel LogLevel) (*Logger, error) {
+	// Create logs directory if it doesn't exist
+	if err := os.MkdirAll("logs", 0755); err != nil {
+		return nil, fmt.Errorf("failed to create logs directory: %v", err)
+	}
+
+	// Open main log file
+	logFile, err := os.OpenFile(
+		filepath.Join("logs", "license.log"),
+		os.O_CREATE|os.O_WRONLY|os.O_APPEND,
+		0644,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open log file: %v", err)
+	}
+
+	// Open audit log file
+	auditFile, err := os.OpenFile(
+		filepath.Join("logs", "audit.log"),
+		os.O_CREATE|os.O_WRONLY|os.O_APPEND,
+		0644,
+	)
+	if err != nil {
+		logFile.Close()
+		return nil, fmt.Errorf("failed to open audit file: %v", err)
+	}
+
+	return &Logger{
+		logFile:   logFile,
+		auditFile: auditFile,
+		level:     logLevel,
+	}, nil
+}
+
+// Log writes a structured log entry
+func (l *Logger) Log(entry LogEntry) {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+
+	// Check if we should log this level
+	if !l.shouldLog(entry.Level) {
+		return
+	}
+
+	// Set timestamp if not provided
+	if entry.Timestamp.IsZero() {
+		entry.Timestamp = time.Now()
+	}
+
+	// Serialize to JSON
+	data, err := json.Marshal(entry)
+	if err != nil {
+		fmt.Printf("Failed to marshal log entry: %v\n", err)
+		return
+	}
+
+	// Write to main log
+	l.logFile.WriteString(string(data) + "\n")
+	l.logFile.Sync()
+
+	// Write security-related actions to audit log
+	if l.isAuditableAction(entry.Action) {
+		l.auditFile.WriteString(string(data) + "\n")
+		l.auditFile.Sync()
+	}
+
+	// Also output to console for development
+	fmt.Printf("[%s] %s: %s\n", entry.Level, entry.Action, entry.Result)
+}
+
+// shouldLog determines if a log level should be written
+func (l *Logger) shouldLog(level LogLevel) bool {
+	levels := map[LogLevel]int{
+		LogLevelDebug: 0,
+		LogLevelInfo:  1,
+		LogLevelWarn:  2,
+		LogLevelError: 3,
+	}
+
+	currentLevel, exists := levels[l.level]
+	if !exists {
+		currentLevel = 1 // Default to INFO
+	}
+
+	entryLevel, exists := levels[level]
+	if !exists {
+		entryLevel = 1
+	}
+
+	return entryLevel >= currentLevel
+}
+
+// isAuditableAction determines if an action should be audited
+func (l *Logger) isAuditableAction(action string) bool {
+	auditableActions := map[string]bool{
+		"license_activation": true,
+		"license_transfer":   true,
+		"license_revocation": true,
+		"license_extension":  true,
+		"validation_failure": true,
+		"security_violation": true,
+		"admin_access":       true,
+	}
+
+	return auditableActions[action]
+}
+
+// Close closes the logger files
+func (l *Logger) Close() error {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+
+	var errors []string
+	if err := l.logFile.Close(); err != nil {
+		errors = append(errors, fmt.Sprintf("log file: %v", err))
+	}
+	if err := l.auditFile.Close(); err != nil {
+		errors = append(errors, fmt.Sprintf("audit file: %v", err))
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to close logger: %s", strings.Join(errors, ", "))
+	}
+	return nil
+}
+
+// CacheEntry represents a cached license validation result
+type CacheEntry struct {
+	LicenseInfo LicenseInfo `json:"license_info"`
+	CachedAt    time.Time   `json:"cached_at"`
+	ExpiresAt   time.Time   `json:"expires_at"`
+	HitCount    int         `json:"hit_count"`
+}
+
+// LicenseCache provides intelligent caching for license validations
+type LicenseCache struct {
+	entries   map[string]CacheEntry
+	mutex     sync.RWMutex
+	ttl       time.Duration
+	maxSize   int
+	hitCount  int64
+	missCount int64
+}
+
+// NewLicenseCache creates a new license cache
+func NewLicenseCache(ttl time.Duration, maxSize int) *LicenseCache {
+	cache := &LicenseCache{
+		entries: make(map[string]CacheEntry),
+		ttl:     ttl,
+		maxSize: maxSize,
+	}
+
+	// Start cleanup goroutine
+	go cache.cleanup()
+
+	return cache
+}
+
+// Get retrieves a license from cache
+func (c *LicenseCache) Get(licenseKey string) (*LicenseInfo, bool) {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
+	entry, exists := c.entries[licenseKey]
+	if !exists || time.Now().After(entry.ExpiresAt) {
+		c.missCount++
+		return nil, false
+	}
+
+	// Update hit count
+	entry.HitCount++
+	c.entries[licenseKey] = entry
+	c.hitCount++
+
+	return &entry.LicenseInfo, true
+}
+
+// Set stores a license in cache
+func (c *LicenseCache) Set(licenseKey string, info LicenseInfo) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	// Evict old entries if cache is full
+	if len(c.entries) >= c.maxSize {
+		c.evictOldest()
+	}
+
+	c.entries[licenseKey] = CacheEntry{
+		LicenseInfo: info,
+		CachedAt:    time.Now(),
+		ExpiresAt:   time.Now().Add(c.ttl),
+		HitCount:    0,
+	}
+}
+
+// Invalidate removes a license from cache
+func (c *LicenseCache) Invalidate(licenseKey string) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	delete(c.entries, licenseKey)
+}
+
+// GetStats returns cache statistics
+func (c *LicenseCache) GetStats() map[string]interface{} {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
+	totalRequests := c.hitCount + c.missCount
+	hitRatio := float64(0)
+	if totalRequests > 0 {
+		hitRatio = float64(c.hitCount) / float64(totalRequests)
+	}
+
+	return map[string]interface{}{
+		"entries":     len(c.entries),
+		"max_size":    c.maxSize,
+		"hit_count":   c.hitCount,
+		"miss_count":  c.missCount,
+		"hit_ratio":   hitRatio,
+		"ttl_seconds": c.ttl.Seconds(),
+	}
+}
+
+// evictOldest removes the oldest cache entry
+func (c *LicenseCache) evictOldest() {
+	var oldestKey string
+	var oldestTime time.Time
+
+	for key, entry := range c.entries {
+		if oldestKey == "" || entry.CachedAt.Before(oldestTime) {
+			oldestKey = key
+			oldestTime = entry.CachedAt
+		}
+	}
+
+	if oldestKey != "" {
+		delete(c.entries, oldestKey)
+	}
+}
+
+// cleanup periodically removes expired entries
+func (c *LicenseCache) cleanup() {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		c.mutex.Lock()
+		now := time.Now()
+		for key, entry := range c.entries {
+			if now.After(entry.ExpiresAt) {
+				delete(c.entries, key)
+			}
+		}
+		c.mutex.Unlock()
+	}
+}
+
+// SecurityManager handles rate limiting and security protection
+type SecurityManager struct {
+	attemptCounts   map[string]int
+	lastAttempts    map[string]time.Time
+	blockedIPs      map[string]time.Time
+	mutex           sync.RWMutex
+	maxAttempts     int
+	blockDuration   time.Duration
+	windowDuration  time.Duration
+	cleanupInterval time.Duration
+	logger          *Logger
+}
+
+// NewSecurityManager creates a new security manager
+func NewSecurityManager(maxAttempts int, blockDuration, windowDuration time.Duration, logger *Logger) *SecurityManager {
+	sm := &SecurityManager{
+		attemptCounts:   make(map[string]int),
+		lastAttempts:    make(map[string]time.Time),
+		blockedIPs:      make(map[string]time.Time),
+		maxAttempts:     maxAttempts,
+		blockDuration:   blockDuration,
+		windowDuration:  windowDuration,
+		cleanupInterval: 5 * time.Minute,
+		logger:          logger,
+	}
+
+	// Start cleanup goroutine
+	go sm.cleanup()
+
+	return sm
+}
+
+// IsBlocked checks if an identifier is currently blocked
+func (s *SecurityManager) IsBlocked(identifier string) bool {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	if blockTime, exists := s.blockedIPs[identifier]; exists {
+		if time.Since(blockTime) < s.blockDuration {
+			return true
+		}
+		delete(s.blockedIPs, identifier)
+	}
+	return false
+}
+
+// RecordAttempt records a license operation attempt
+func (s *SecurityManager) RecordAttempt(identifier string, success bool) bool {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	now := time.Now()
+
+	if success {
+		// Clear attempts on success
+		delete(s.attemptCounts, identifier)
+		delete(s.lastAttempts, identifier)
+		return true
+	}
+
+	// Check if this is within the time window
+	if lastAttempt, exists := s.lastAttempts[identifier]; exists {
+		if now.Sub(lastAttempt) > s.windowDuration {
+			// Reset counter if outside window
+			s.attemptCounts[identifier] = 1
+		} else {
+			s.attemptCounts[identifier]++
+		}
+	} else {
+		s.attemptCounts[identifier] = 1
+	}
+
+	s.lastAttempts[identifier] = now
+
+	// Check if we should block
+	if s.attemptCounts[identifier] >= s.maxAttempts {
+		s.blockedIPs[identifier] = now
+
+		// Log security violation
+		if s.logger != nil {
+			s.logger.Log(LogEntry{
+				Level:     LogLevelWarn,
+				Action:    "security_violation",
+				Result:    "IP blocked due to too many failed attempts",
+				IPAddress: identifier,
+				Details: map[string]interface{}{
+					"attempt_count": s.attemptCounts[identifier],
+					"max_attempts":  s.maxAttempts,
+				},
+			})
+		}
+
+		return false
+	}
+
+	return true
+}
+
+// GetStats returns security statistics
+func (s *SecurityManager) GetStats() map[string]interface{} {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	return map[string]interface{}{
+		"active_attempts": len(s.attemptCounts),
+		"blocked_ips":     len(s.blockedIPs),
+		"max_attempts":    s.maxAttempts,
+		"block_duration":  s.blockDuration.String(),
+		"window_duration": s.windowDuration.String(),
+	}
+}
+
+// cleanup periodically removes old entries
+func (s *SecurityManager) cleanup() {
+	ticker := time.NewTicker(s.cleanupInterval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		s.mutex.Lock()
+		now := time.Now()
+
+		// Clean up old attempts
+		for identifier, lastAttempt := range s.lastAttempts {
+			if now.Sub(lastAttempt) > s.windowDuration {
+				delete(s.attemptCounts, identifier)
+				delete(s.lastAttempts, identifier)
+			}
+		}
+
+		// Clean up expired blocks
+		for identifier, blockTime := range s.blockedIPs {
+			if now.Sub(blockTime) > s.blockDuration {
+				delete(s.blockedIPs, identifier)
+			}
+		}
+
+		s.mutex.Unlock()
+	}
+}
 
 // LicenseInfo represents license data
 type LicenseInfo struct {
@@ -36,18 +472,166 @@ type GoogleSheetsConfig struct {
 	SheetName          string `json:"sheet_name"`
 	UseServiceAccount  bool   `json:"use_service_account"`
 	ServiceAccountFile string `json:"service_account_file"`
+	ServiceAccountJSON string `json:"service_account_json"` // Embedded JSON credentials
 }
 
-// Manager handles license operations
+// PerformanceMetrics tracks operation performance
+type PerformanceMetrics struct {
+	Count        int64         `json:"count"`
+	TotalTime    time.Duration `json:"total_time"`
+	AverageTime  time.Duration `json:"average_time"`
+	MaxTime      time.Duration `json:"max_time"`
+	MinTime      time.Duration `json:"min_time"`
+	ErrorCount   int64         `json:"error_count"`
+	SuccessCount int64         `json:"success_count"`
+	LastUpdated  time.Time     `json:"last_updated"`
+}
+
+// Manager handles license operations with enhanced logging, caching, and security
 type Manager struct {
-	config        GoogleSheetsConfig
-	licenseFile   string
-	machineID     string
-	sheetsService *sheets.Service
+	config          GoogleSheetsConfig
+	licenseFile     string
+	machineID       string
+	sheetsService   *sheets.Service
+	logger          *Logger
+	cache           *LicenseCache
+	security        *SecurityManager
+	performanceData map[string]*PerformanceMetrics
+	perfMutex       sync.RWMutex
+	// Add validation state tracking
+	lastValidationResult *ValidationResult
+	lastValidationTime   time.Time
+	validationMutex      sync.RWMutex
 }
 
-// NewManager creates a new license manager
-func NewManager(configFile, licenseFile string) (*Manager, error) {
+// ValidationResult holds cached validation results
+type ValidationResult struct {
+	IsValid     bool
+	Error       error
+	ErrorType   string // "machine_mismatch", "expired", "network_error", etc.
+	CachedUntil time.Time
+	RetryAfter  time.Duration
+}
+
+// RenewalInfo contains information about license renewal requirements
+type RenewalInfo struct {
+	DaysLeft     int    `json:"days_left"`
+	Status       string `json:"status"`
+	Message      string `json:"message"`
+	NeedsRenewal bool   `json:"needs_renewal"`
+	IsExpired    bool   `json:"is_expired"`
+}
+
+// Helper function for min operation
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// getBuiltInConfig returns the embedded Google Sheets configuration
+// This contains your pre-configured credentials so users don't need to set up anything
+func getBuiltInConfig() GoogleSheetsConfig {
+	// Production credentials for ISX Portfolio License Management
+	serviceAccountJSON := `{
+  "type": "service_account",
+  "project_id": "REPLACE_WITH_YOUR_PROJECT_ID",
+  "private_key_id": "REPLACE_WITH_YOUR_PRIVATE_KEY_ID",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nREPLACE_WITH_YOUR_ACTUAL_PRIVATE_KEY\n-----END PRIVATE KEY-----\n",
+  "client_email": "REPLACE_WITH_YOUR_SERVICE_ACCOUNT_EMAIL",
+  "client_id": "REPLACE_WITH_YOUR_CLIENT_ID",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "REPLACE_WITH_YOUR_CERT_URL",
+  "universe_domain": "googleapis.com"
+}`
+
+	return GoogleSheetsConfig{
+		SheetID:            "REPLACE_WITH_YOUR_GOOGLE_SHEET_ID", // Replace with your Google Sheet ID
+		SheetName:          "Licenses",
+		UseServiceAccount:  true,
+		ServiceAccountJSON: serviceAccountJSON,
+	}
+}
+
+// NewManager creates a new license manager with enhanced capabilities
+func NewManager(licenseFile string) (*Manager, error) {
+	// Use built-in configuration instead of loading from file
+	config := getBuiltInConfig()
+
+	machineID, err := generateMachineID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate machine ID: %v", err)
+	}
+
+	// Initialize logger
+	logger, err := NewLogger(LogLevelInfo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize logger: %v", err)
+	}
+
+	// Initialize cache (30 minute TTL, max 1000 entries)
+	cache := NewLicenseCache(30*time.Minute, 1000)
+
+	// Initialize security manager (max 5 attempts, 15 minute block, 5 minute window)
+	security := NewSecurityManager(5, 15*time.Minute, 5*time.Minute, logger)
+
+	manager := &Manager{
+		config:          config,
+		licenseFile:     licenseFile,
+		machineID:       machineID,
+		logger:          logger,
+		cache:           cache,
+		security:        security,
+		performanceData: make(map[string]*PerformanceMetrics),
+	}
+
+	// Log manager initialization
+	logger.Log(LogEntry{
+		Level:     LogLevelInfo,
+		Action:    "manager_initialization",
+		Result:    "License manager initialized successfully",
+		MachineID: machineID[:min(8, len(machineID))],
+		Details: map[string]interface{}{
+			"cache_ttl":               "30m",
+			"cache_max_size":          1000,
+			"security_max_attempts":   5,
+			"security_block_duration": "15m",
+		},
+	})
+
+	// Initialize Google Sheets service with embedded credentials
+	if config.UseServiceAccount && config.ServiceAccountJSON != "" {
+		ctx := context.Background()
+
+		// Create temporary credentials from embedded JSON
+		credentialsOption := option.WithCredentialsJSON([]byte(config.ServiceAccountJSON))
+		sheetsService, err := sheets.NewService(ctx, credentialsOption)
+		if err != nil {
+			logger.Log(LogEntry{
+				Level:  LogLevelError,
+				Action: "sheets_initialization",
+				Result: "Failed to initialize Google Sheets service",
+				Error:  err.Error(),
+			})
+			return nil, fmt.Errorf("failed to create sheets service with embedded credentials: %v", err)
+		}
+		manager.sheetsService = sheetsService
+
+		logger.Log(LogEntry{
+			Level:  LogLevelInfo,
+			Action: "sheets_initialization",
+			Result: "Google Sheets service initialized successfully",
+		})
+	}
+
+	return manager, nil
+}
+
+// NewManagerWithConfig creates a new license manager with custom configuration (for backward compatibility)
+func NewManagerWithConfig(configFile, licenseFile string) (*Manager, error) {
 	config, err := loadConfig(configFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %v", err)
@@ -67,7 +651,18 @@ func NewManager(configFile, licenseFile string) (*Manager, error) {
 	// Initialize Google Sheets service if using service account
 	if config.UseServiceAccount {
 		ctx := context.Background()
-		sheetsService, err := sheets.NewService(ctx, option.WithCredentialsFile(config.ServiceAccountFile))
+		var sheetsService *sheets.Service
+		var err error
+
+		if config.ServiceAccountJSON != "" {
+			// Use embedded JSON credentials
+			credentialsOption := option.WithCredentialsJSON([]byte(config.ServiceAccountJSON))
+			sheetsService, err = sheets.NewService(ctx, credentialsOption)
+		} else {
+			// Use external credentials file
+			sheetsService, err = sheets.NewService(ctx, option.WithCredentialsFile(config.ServiceAccountFile))
+		}
+
 		if err != nil {
 			return nil, fmt.Errorf("failed to create sheets service: %v", err)
 		}
@@ -103,20 +698,22 @@ func (m *Manager) GenerateLicense(userEmail string, duration string) (string, er
 
 	licenseKey = fmt.Sprintf("%s-%s", prefix, licenseKey)
 
-	// Calculate expiry date
-	var expiryDate time.Time
+	// Calculate expiry date - expires at 12am next day after standard period
+	var standardExpiry time.Time
 	switch duration {
 	case "1m":
-		expiryDate = time.Now().AddDate(0, 1, 0)
+		standardExpiry = time.Now().AddDate(0, 1, 0)
 	case "3m":
-		expiryDate = time.Now().AddDate(0, 3, 0)
+		standardExpiry = time.Now().AddDate(0, 3, 0)
 	case "6m":
-		expiryDate = time.Now().AddDate(0, 6, 0)
+		standardExpiry = time.Now().AddDate(0, 6, 0)
 	case "1y":
-		expiryDate = time.Now().AddDate(1, 0, 0)
+		standardExpiry = time.Now().AddDate(1, 0, 0)
 	default:
-		expiryDate = time.Now().AddDate(0, 1, 0)
+		standardExpiry = time.Now().AddDate(0, 1, 0)
 	}
+	// Set expiry to 12:00 AM next day after standard expiry
+	expiryDate := time.Date(standardExpiry.Year(), standardExpiry.Month(), standardExpiry.Day()+1, 0, 0, 0, 0, standardExpiry.Location())
 
 	// Create license info
 	license := LicenseInfo{
@@ -138,66 +735,251 @@ func (m *Manager) GenerateLicense(userEmail string, duration string) (string, er
 	return licenseKey, nil
 }
 
-// ActivateLicense activates a license for the current machine
+// ActivateLicense activates a license with enhanced tracking and security
 func (m *Manager) ActivateLicense(licenseKey string) error {
-	// Validate license from Google Sheets
-	license, err := m.validateLicenseFromSheets(licenseKey)
+	return m.TrackOperation("license_activation", func() error {
+		return m.performActivation(licenseKey)
+	})
+}
+
+// performActivation contains the actual license activation logic
+func (m *Manager) performActivation(licenseKey string) error {
+	// Validate input
+	if licenseKey == "" {
+		return fmt.Errorf("license key cannot be empty")
+	}
+
+	// Check rate limiting (use license key as identifier for now)
+	identifier := licenseKey[:min(8, len(licenseKey))]
+	if m.security != nil && m.security.IsBlocked(identifier) {
+		if m.logger != nil {
+			m.logger.Log(LogEntry{
+				Level:      LogLevelWarn,
+				Action:     "license_activation",
+				Result:     "Activation blocked due to rate limiting",
+				LicenseKey: identifier,
+			})
+		}
+		return fmt.Errorf("too many failed attempts - please try again later")
+	}
+
+	// Log activation attempt
+	if m.logger != nil {
+		m.logger.Log(LogEntry{
+			Level:      LogLevelInfo,
+			Action:     "license_activation",
+			Result:     "Starting license activation",
+			LicenseKey: identifier,
+			MachineID:  m.machineID[:min(8, len(m.machineID))],
+		})
+	}
+
+	// Test Google Sheets connectivity first
+	if m.sheetsService == nil {
+		return fmt.Errorf("Google Sheets service not initialized - network connectivity may be an issue")
+	}
+
+	// Try to validate the license from Google Sheets (with caching)
+	licenseInfo, err := m.validateLicenseFromSheetsWithCache(licenseKey)
 	if err != nil {
+		// Record failed attempt
+		if m.security != nil {
+			m.security.RecordAttempt(identifier, false)
+		}
+
+		// Provide more specific error context
+		if strings.Contains(err.Error(), "timeout") {
+			return fmt.Errorf("connection timeout while accessing license validation service - please check your internet connection")
+		} else if strings.Contains(err.Error(), "no such host") || strings.Contains(err.Error(), "network is unreachable") {
+			return fmt.Errorf("network connection error - please check your internet connection and firewall settings")
+		} else if strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "unauthorized") {
+			return fmt.Errorf("license validation service access denied - please contact support")
+		} else if strings.Contains(err.Error(), "not found") {
+			return fmt.Errorf("invalid license key - license not found in our system")
+		}
 		return fmt.Errorf("license validation failed: %v", err)
 	}
 
-	// Check if license is available for activation
-	if license.Status != "Available" {
-		if license.Status == "Activated" {
-			return fmt.Errorf("license already activated")
+	// Check if license is already activated on a different machine
+	if licenseInfo.MachineID != "" && licenseInfo.MachineID != m.machineID {
+		if m.security != nil {
+			m.security.RecordAttempt(identifier, false)
 		}
-		return fmt.Errorf("license status is '%s' - not available for activation", license.Status)
+		return fmt.Errorf("license is already activated on another machine (Machine ID: %s)", licenseInfo.MachineID[:8])
 	}
 
-	// Check if already activated on another machine
-	if license.MachineID != "" && license.MachineID != m.machineID {
-		return fmt.Errorf("license already activated on another machine")
+	// Handle Available status licenses - calculate expiry date during activation
+	if licenseInfo.Status == "Available" || licenseInfo.ExpiryDate.IsZero() {
+		// Calculate expiry date - expires at 12am next day after standard period
+		var standardExpiry time.Time
+		switch licenseInfo.Duration {
+		case "1m":
+			standardExpiry = time.Now().AddDate(0, 1, 0)
+		case "3m":
+			standardExpiry = time.Now().AddDate(0, 3, 0)
+		case "6m":
+			standardExpiry = time.Now().AddDate(0, 6, 0)
+		case "1y":
+			standardExpiry = time.Now().AddDate(1, 0, 0)
+		default:
+			standardExpiry = time.Now().AddDate(0, 1, 0) // Default to 1 month
+		}
+		// Set expiry to 12:00 AM next day after standard expiry
+		licenseInfo.ExpiryDate = time.Date(standardExpiry.Year(), standardExpiry.Month(), standardExpiry.Day()+1, 0, 0, 0, 0, standardExpiry.Location())
+		licenseInfo.IssuedDate = time.Now()
+	} else {
+		// Check if already activated license has expired
+		if time.Now().After(licenseInfo.ExpiryDate) {
+			if m.security != nil {
+				m.security.RecordAttempt(identifier, false)
+			}
+			return fmt.Errorf("license has expired on %s", licenseInfo.ExpiryDate.Format("2006-01-02"))
+		}
 	}
 
-	// Calculate expiry date based on duration (for recharge cards)
-	var expiryDate time.Time
-	now := time.Now()
-	switch license.Duration {
-	case "1 Month":
-		expiryDate = now.AddDate(0, 1, 0)
-	case "3 Months":
-		expiryDate = now.AddDate(0, 3, 0)
-	case "6 Months":
-		expiryDate = now.AddDate(0, 6, 0)
-	case "1 Year":
-		expiryDate = now.AddDate(1, 0, 0)
-	default:
-		expiryDate = now.AddDate(0, 1, 0) // Default to 1 month
-	}
+	// Update license with machine ID and activation info
+	licenseInfo.MachineID = m.machineID
+	licenseInfo.Status = "Activated"
+	licenseInfo.LastChecked = time.Now()
 
-	// Activate license
-	license.MachineID = m.machineID
-	license.Status = "Activated"
-	license.ExpiryDate = expiryDate
-	license.IssuedDate = now
-	license.LastChecked = now
-	license.UserEmail = "" // Recharge cards don't have user emails initially
-
-	// Save locally
-	if err := m.saveLicenseLocal(license); err != nil {
+	// Save license locally
+	if err := m.saveLicenseLocal(licenseInfo); err != nil {
 		return fmt.Errorf("failed to save license locally: %v", err)
 	}
 
-	// Update Google Sheets
-	if err := m.updateLicenseInSheets(license); err != nil {
-		return fmt.Errorf("failed to update license in sheets: %v", err)
+	// Update license in Google Sheets
+	if err := m.updateLicenseInSheets(licenseInfo); err != nil {
+		// Don't fail activation if we can't update sheets, but log the warning
+		if m.logger != nil {
+			m.logger.Log(LogEntry{
+				Level:      LogLevelWarn,
+				Action:     "license_activation",
+				Result:     "Failed to update Google Sheets",
+				LicenseKey: identifier,
+				Error:      err.Error(),
+			})
+		}
+	}
+
+	// Invalidate cache to ensure fresh data on next validation
+	if m.cache != nil {
+		m.cache.Invalidate(licenseKey)
+	}
+
+	// Record successful attempt
+	if m.security != nil {
+		m.security.RecordAttempt(identifier, true)
+	}
+
+	// Log successful activation
+	if m.logger != nil {
+		daysLeft := int(time.Until(licenseInfo.ExpiryDate).Hours() / 24)
+		m.logger.Log(LogEntry{
+			Level:      LogLevelInfo,
+			Action:     "license_activation",
+			Result:     "License activated successfully",
+			LicenseKey: identifier,
+			MachineID:  m.machineID[:min(8, len(m.machineID))],
+			Details: map[string]interface{}{
+				"expiry_date": licenseInfo.ExpiryDate.Format("2006-01-02"),
+				"duration":    licenseInfo.Duration,
+				"days_left":   daysLeft,
+			},
+		})
 	}
 
 	return nil
 }
 
-// ValidateLicense checks if current license is valid
+// ValidateLicense checks if current license is valid with enhanced tracking
 func (m *Manager) ValidateLicense() (bool, error) {
+	// Check if we have a recent cached result
+	m.validationMutex.RLock()
+	if m.lastValidationResult != nil && time.Now().Before(m.lastValidationResult.CachedUntil) {
+		result := m.lastValidationResult
+		m.validationMutex.RUnlock()
+		return result.IsValid, result.Error
+	}
+	m.validationMutex.RUnlock()
+
+	// Perform actual validation
+	var valid bool
+	var err error
+
+	trackErr := m.TrackOperation("license_validation_complete", func() error {
+		valid, err = m.performValidation()
+
+		// Cache the result with appropriate duration
+		m.cacheValidationResult(valid, err)
+
+		if !valid {
+			return err
+		}
+		return nil
+	})
+
+	if trackErr != nil {
+		return false, trackErr
+	}
+
+	return valid, err
+}
+
+// cacheValidationResult caches validation results with appropriate durations
+func (m *Manager) cacheValidationResult(isValid bool, err error) {
+	m.validationMutex.Lock()
+	defer m.validationMutex.Unlock()
+
+	result := &ValidationResult{
+		IsValid: isValid,
+		Error:   err,
+	}
+
+	if isValid {
+		// Cache successful validations for 30 minutes
+		result.CachedUntil = time.Now().Add(30 * time.Minute)
+	} else if err != nil {
+		// Determine error type and cache duration
+		errorMsg := err.Error()
+
+		if strings.Contains(errorMsg, "license_machine_mismatch") {
+			result.ErrorType = "machine_mismatch"
+			// Cache machine mismatch errors for 10 minutes to avoid spam
+			result.CachedUntil = time.Now().Add(10 * time.Minute)
+			result.RetryAfter = 1 * time.Minute
+		} else if strings.Contains(errorMsg, "expired") {
+			result.ErrorType = "expired"
+			// Cache expiry errors for 1 hour
+			result.CachedUntil = time.Now().Add(1 * time.Hour)
+			result.RetryAfter = 5 * time.Minute
+		} else {
+			result.ErrorType = "network_error"
+			// Cache network errors for 2 minutes
+			result.CachedUntil = time.Now().Add(2 * time.Minute)
+			result.RetryAfter = 30 * time.Second
+		}
+	}
+
+	m.lastValidationResult = result
+	m.lastValidationTime = time.Now()
+}
+
+// GetValidationState returns the current validation state for better user feedback
+func (m *Manager) GetValidationState() (*ValidationResult, error) {
+	m.validationMutex.RLock()
+	defer m.validationMutex.RUnlock()
+
+	if m.lastValidationResult == nil {
+		return nil, fmt.Errorf("no validation performed yet")
+	}
+
+	// Return a copy to avoid concurrent access issues
+	result := *m.lastValidationResult
+	return &result, nil
+}
+
+// performValidation contains the actual validation logic
+func (m *Manager) performValidation() (bool, error) {
 	// Load local license
 	license, err := m.loadLicenseLocal()
 	if err != nil {
@@ -208,22 +990,216 @@ func (m *Manager) ValidateLicense() (bool, error) {
 	if time.Now().After(license.ExpiryDate) {
 		license.Status = "expired"
 		m.saveLicenseLocal(license)
+
+		if m.logger != nil {
+			m.logger.Log(LogEntry{
+				Level:      LogLevelWarn,
+				Action:     "license_validation",
+				Result:     "License expired",
+				LicenseKey: license.LicenseKey[:min(8, len(license.LicenseKey))],
+				MachineID:  m.machineID[:min(8, len(m.machineID))],
+				Details: map[string]interface{}{
+					"expiry_date": license.ExpiryDate.Format("2006-01-02"),
+				},
+			})
+		}
+
 		return false, fmt.Errorf("license expired on %s", license.ExpiryDate.Format("2006-01-02"))
 	}
 
 	// Check machine ID
 	if license.MachineID != m.machineID {
-		return false, fmt.Errorf("license not valid for this machine")
+		// Only log machine mismatch errors once per hour to avoid spam
+		shouldLog := false
+		if m.logger != nil {
+			// Check if we've logged this recently
+			if m.lastValidationTime.IsZero() || time.Since(m.lastValidationTime) > 1*time.Hour {
+				shouldLog = true
+			}
+		}
+
+		if shouldLog && m.logger != nil {
+			m.logger.Log(LogEntry{
+				Level:      LogLevelError,
+				Action:     "license_validation",
+				Result:     "License not valid for this machine",
+				LicenseKey: license.LicenseKey[:min(8, len(license.LicenseKey))],
+				MachineID:  m.machineID[:min(8, len(m.machineID))],
+				Details: map[string]interface{}{
+					"expected_machine_id": license.MachineID[:min(8, len(license.MachineID))],
+					"current_machine_id":  m.machineID[:min(8, len(m.machineID))],
+					"user_action":         "Contact Iraqi Investor to get new license for this machine",
+				},
+			})
+		}
+		return false, fmt.Errorf("license_machine_mismatch")
 	}
 
-	// Periodic validation with Google Sheets (once per day)
-	if time.Since(license.LastChecked) > 24*time.Hour {
+	// Periodic validation with Google Sheets (every 6 hours for better security)
+	if time.Since(license.LastChecked) > 6*time.Hour {
 		if err := m.validateWithSheets(license); err != nil {
-			return false, fmt.Errorf("remote validation failed: %v", err)
+			// For better user experience, don't fail immediately on network issues
+			// Log the error but allow offline usage for up to 48 hours total
+			if time.Since(license.LastChecked) > 48*time.Hour {
+				if m.logger != nil {
+					m.logger.Log(LogEntry{
+						Level:      LogLevelError,
+						Action:     "license_validation",
+						Result:     "Remote validation failed and grace period expired",
+						LicenseKey: license.LicenseKey[:min(8, len(license.LicenseKey))],
+						Error:      err.Error(),
+					})
+				}
+				return false, fmt.Errorf("remote validation failed and offline grace period expired: %v", err)
+			}
+			// Just log the warning but continue with local validation
+			if m.logger != nil {
+				m.logger.Log(LogEntry{
+					Level:      LogLevelWarn,
+					Action:     "license_validation",
+					Result:     "Remote validation failed, using local cache",
+					LicenseKey: license.LicenseKey[:min(8, len(license.LicenseKey))],
+					Error:      err.Error(),
+				})
+			}
 		}
 	}
 
 	return true, nil
+}
+
+// TransferLicense transfers a license with enhanced tracking
+func (m *Manager) TransferLicense(licenseKey string, forceTransfer bool) error {
+	return m.TrackOperation("license_transfer", func() error {
+		return m.performTransfer(licenseKey, forceTransfer)
+	})
+}
+
+// performTransfer contains the actual transfer logic
+func (m *Manager) performTransfer(licenseKey string, forceTransfer bool) error {
+	// Validate input
+	if licenseKey == "" {
+		return fmt.Errorf("license key cannot be empty")
+	}
+
+	identifier := licenseKey[:min(8, len(licenseKey))]
+
+	// Check rate limiting
+	if m.security != nil && m.security.IsBlocked(identifier) {
+		return fmt.Errorf("too many failed attempts - please try again later")
+	}
+
+	// Log transfer attempt
+	if m.logger != nil {
+		m.logger.Log(LogEntry{
+			Level:      LogLevelInfo,
+			Action:     "license_transfer",
+			Result:     "Starting license transfer",
+			LicenseKey: identifier,
+			MachineID:  m.machineID[:min(8, len(m.machineID))],
+			Details: map[string]interface{}{
+				"force_transfer": forceTransfer,
+			},
+		})
+	}
+
+	// Test Google Sheets connectivity first
+	if m.sheetsService == nil {
+		return fmt.Errorf("Google Sheets service not initialized - network connectivity may be an issue")
+	}
+
+	// Try to validate the license from Google Sheets (with caching)
+	licenseInfo, err := m.validateLicenseFromSheetsWithCache(licenseKey)
+	if err != nil {
+		if m.security != nil {
+			m.security.RecordAttempt(identifier, false)
+		}
+		return fmt.Errorf("license validation failed: %v", err)
+	}
+
+	// Check if license has expired
+	if time.Now().After(licenseInfo.ExpiryDate) {
+		if m.security != nil {
+			m.security.RecordAttempt(identifier, false)
+		}
+		return fmt.Errorf("license has expired on %s", licenseInfo.ExpiryDate.Format("2006-01-02"))
+	}
+
+	// Check if license is already activated on a different machine
+	if licenseInfo.MachineID != "" && licenseInfo.MachineID != m.machineID {
+		if !forceTransfer {
+			if m.security != nil {
+				m.security.RecordAttempt(identifier, false)
+			}
+			return fmt.Errorf("license is already activated on another machine (Machine ID: %s). Use force transfer if this is intentional", licenseInfo.MachineID[:8])
+		}
+
+		if m.logger != nil {
+			m.logger.Log(LogEntry{
+				Level:      LogLevelWarn,
+				Action:     "license_transfer",
+				Result:     "Forcing license transfer from another machine",
+				LicenseKey: identifier,
+				Details: map[string]interface{}{
+					"previous_machine_id": licenseInfo.MachineID[:min(8, len(licenseInfo.MachineID))],
+					"new_machine_id":      m.machineID[:min(8, len(m.machineID))],
+				},
+			})
+		}
+	}
+
+	// Update license with new machine ID
+	licenseInfo.MachineID = m.machineID
+	licenseInfo.Status = "Activated"
+	licenseInfo.LastChecked = time.Now()
+
+	// Save license locally
+	if err := m.saveLicenseLocal(licenseInfo); err != nil {
+		return fmt.Errorf("failed to save license locally: %v", err)
+	}
+
+	// Update license in Google Sheets
+	if err := m.updateLicenseInSheets(licenseInfo); err != nil {
+		// Don't fail transfer if we can't update sheets, but log the warning
+		if m.logger != nil {
+			m.logger.Log(LogEntry{
+				Level:      LogLevelWarn,
+				Action:     "license_transfer",
+				Result:     "Failed to update Google Sheets",
+				LicenseKey: identifier,
+				Error:      err.Error(),
+			})
+		}
+	}
+
+	// Invalidate cache
+	if m.cache != nil {
+		m.cache.Invalidate(licenseKey)
+	}
+
+	// Record successful attempt
+	if m.security != nil {
+		m.security.RecordAttempt(identifier, true)
+	}
+
+	// Log successful transfer
+	if m.logger != nil {
+		daysLeft := int(time.Until(licenseInfo.ExpiryDate).Hours() / 24)
+		m.logger.Log(LogEntry{
+			Level:      LogLevelInfo,
+			Action:     "license_transfer",
+			Result:     "License transferred successfully",
+			LicenseKey: identifier,
+			MachineID:  m.machineID[:min(8, len(m.machineID))],
+			Details: map[string]interface{}{
+				"expiry_date":    licenseInfo.ExpiryDate.Format("2006-01-02"),
+				"days_left":      daysLeft,
+				"force_transfer": forceTransfer,
+			},
+		})
+	}
+
+	return nil
 }
 
 // UpdateLastConnected updates the last connected time in both local storage and Google Sheets
@@ -259,27 +1235,121 @@ func (m *Manager) GetLicenseInfo() (*LicenseInfo, error) {
 	return &license, nil
 }
 
-// generateMachineID creates a unique machine identifier
+// generateMachineID creates a unique machine identifier using hardware fingerprinting
 func generateMachineID() (string, error) {
+	var fingerprint strings.Builder
+
+	// Get hostname
 	hostname, err := os.Hostname()
 	if err != nil {
-		return "", err
+		hostname = "unknown-host"
+	}
+	fingerprint.WriteString(hostname)
+
+	// Get username from environment
+	user := os.Getenv("USERNAME")
+	if user == "" {
+		user = os.Getenv("USER")
+	}
+	if user != "" {
+		fingerprint.WriteString(user)
 	}
 
-	// Create a hash based on hostname and other machine-specific data
-	h := md5.New()
-	h.Write([]byte(hostname))
+	// Get OS and architecture
+	fingerprint.WriteString(runtime.GOOS)
+	fingerprint.WriteString(runtime.GOARCH)
 
-	// Add some additional entropy
-	if user := os.Getenv("USERNAME"); user != "" {
-		h.Write([]byte(user))
-	}
-	if user := os.Getenv("USER"); user != "" {
-		h.Write([]byte(user))
+	// Try to get MAC address
+	if macAddr := getMACAddress(); macAddr != "" {
+		fingerprint.WriteString(macAddr)
 	}
 
+	// Try to get CPU info (Windows specific)
+	if runtime.GOOS == "windows" {
+		if cpuInfo := getWindowsCPUInfo(); cpuInfo != "" {
+			fingerprint.WriteString(cpuInfo)
+		}
+	}
+
+	// Try to get system UUID (Windows)
+	if runtime.GOOS == "windows" {
+		if systemUUID := getWindowsSystemUUID(); systemUUID != "" {
+			fingerprint.WriteString(systemUUID)
+		}
+	}
+
+	// Use SHA256 instead of MD5 for better security
+	h := sha256.New()
+	h.Write([]byte(fingerprint.String()))
 	hash := fmt.Sprintf("%x", h.Sum(nil))
-	return hash[:16], nil
+
+	// Return first 24 characters for better uniqueness (was 16)
+	return hash[:24], nil
+}
+
+// getMACAddress gets the MAC address of the first network interface
+func getMACAddress() string {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return ""
+	}
+
+	for _, iface := range interfaces {
+		// Skip loopback and down interfaces
+		if iface.Flags&net.FlagLoopback == 0 && iface.Flags&net.FlagUp != 0 {
+			macAddr := iface.HardwareAddr.String()
+			if macAddr != "" && macAddr != "00:00:00:00:00:00" {
+				return macAddr
+			}
+		}
+	}
+	return ""
+}
+
+// getWindowsCPUInfo gets CPU information on Windows
+func getWindowsCPUInfo() string {
+	if runtime.GOOS != "windows" {
+		return ""
+	}
+
+	cmd := exec.Command("wmic", "cpu", "get", "ProcessorId", "/value")
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "ProcessorId=") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "ProcessorId="))
+		}
+	}
+	return ""
+}
+
+// getWindowsSystemUUID gets system UUID on Windows
+func getWindowsSystemUUID() string {
+	if runtime.GOOS != "windows" {
+		return ""
+	}
+
+	cmd := exec.Command("wmic", "csproduct", "get", "UUID", "/value")
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "UUID=") {
+			uuid := strings.TrimSpace(strings.TrimPrefix(line, "UUID="))
+			// Filter out common invalid UUIDs
+			if uuid != "" && uuid != "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF" {
+				return uuid
+			}
+		}
+	}
+	return ""
 }
 
 // loadConfig loads Google Sheets configuration
@@ -631,9 +1701,21 @@ func (m *Manager) validateWithSheets(license LicenseInfo) error {
 		return err
 	}
 
-	// Check if license status changed
-	if sheetLicense.Status != "Activated" {
+	// Check if license status changed to revoked or invalid
+	if sheetLicense.Status == "Revoked" {
+		return fmt.Errorf("license has been revoked - please contact support")
+	}
+
+	if sheetLicense.Status != "Activated" && sheetLicense.Status != "Active" {
 		return fmt.Errorf("license is no longer active - status: %s", sheetLicense.Status)
+	}
+
+	// Check if expiry date changed (e.g., license was extended)
+	if !sheetLicense.ExpiryDate.IsZero() && !sheetLicense.ExpiryDate.Equal(license.ExpiryDate) {
+		fmt.Printf("📅 License expiry date updated from %s to %s\n",
+			license.ExpiryDate.Format("2006-01-02"),
+			sheetLicense.ExpiryDate.Format("2006-01-02"))
+		license.ExpiryDate = sheetLicense.ExpiryDate
 	}
 
 	// Update last checked time locally
@@ -705,4 +1787,438 @@ func (m *Manager) calculateExpireStatus(expiryDate time.Time) string {
 	} else {
 		return "Active" // Green - more than 30 days
 	}
+}
+
+// TestNetworkConnectivity tests connectivity to Google Sheets API
+func (m *Manager) TestNetworkConnectivity() error {
+	fmt.Printf("🔍 Testing network connectivity...\n")
+
+	// Test basic internet connectivity
+	fmt.Printf("   • Testing basic internet connectivity...")
+	resp, err := http.Get("https://www.google.com")
+	if err != nil {
+		fmt.Printf(" ❌ FAILED\n")
+		return fmt.Errorf("no internet connection: %v", err)
+	}
+	resp.Body.Close()
+	fmt.Printf(" ✅ OK\n")
+
+	// Test Google APIs connectivity
+	fmt.Printf("   • Testing Google APIs connectivity...")
+	resp, err = http.Get("https://sheets.googleapis.com")
+	if err != nil {
+		fmt.Printf(" ❌ FAILED\n")
+		return fmt.Errorf("cannot reach Google APIs: %v", err)
+	}
+	resp.Body.Close()
+	fmt.Printf(" ✅ OK\n")
+
+	// Test Google Sheets service initialization
+	fmt.Printf("   • Testing Google Sheets service...")
+	if m.sheetsService == nil {
+		fmt.Printf(" ❌ FAILED\n")
+		return fmt.Errorf("Google Sheets service not initialized")
+	}
+	fmt.Printf(" ✅ OK\n")
+
+	// Test actual Google Sheets access
+	fmt.Printf("   • Testing Google Sheets access...")
+	_, err = m.sheetsService.Spreadsheets.Get(m.config.SheetID).Do()
+	if err != nil {
+		fmt.Printf(" ❌ FAILED\n")
+		return fmt.Errorf("cannot access Google Sheets: %v", err)
+	}
+	fmt.Printf(" ✅ OK\n")
+
+	fmt.Printf("🎉 All connectivity tests passed!\n")
+	return nil
+}
+
+// RevokeLicense revokes a license (admin operation)
+func (m *Manager) RevokeLicense(licenseKey string) error {
+	if licenseKey == "" {
+		return fmt.Errorf("license key cannot be empty")
+	}
+
+	fmt.Printf("❌ Revoking license: %s...\n", licenseKey[:min(8, len(licenseKey))])
+
+	// Try to validate the license from Google Sheets
+	licenseInfo, err := m.validateLicenseFromSheets(licenseKey)
+	if err != nil {
+		return fmt.Errorf("license validation failed: %v", err)
+	}
+
+	// Update license status to revoked
+	licenseInfo.Status = "Revoked"
+	licenseInfo.LastChecked = time.Now()
+
+	// Update license in Google Sheets
+	if err := m.updateLicenseInSheets(licenseInfo); err != nil {
+		return fmt.Errorf("failed to revoke license in Google Sheets: %v", err)
+	}
+
+	fmt.Printf("✅ License revoked successfully\n")
+	return nil
+}
+
+// GetLicenseStatus returns detailed license status information
+func (m *Manager) GetLicenseStatus() (*LicenseInfo, string, error) {
+	license, err := m.loadLicenseLocal()
+	if err != nil {
+		return nil, "No License", fmt.Errorf("no local license found: %v", err)
+	}
+
+	// Calculate status based on expiry date
+	daysLeft := int(time.Until(license.ExpiryDate).Hours() / 24)
+	var status string
+
+	if time.Now().After(license.ExpiryDate) {
+		status = "Expired"
+	} else if daysLeft <= 7 {
+		status = "Critical" // 7 or fewer days
+	} else if daysLeft <= 30 {
+		status = "Warning" // 8-30 days
+	} else {
+		status = "Active" // More than 30 days
+	}
+
+	return &license, status, nil
+}
+
+// CheckRenewalStatus checks if license needs renewal and returns detailed info
+func (m *Manager) CheckRenewalStatus() (*RenewalInfo, error) {
+	license, err := m.loadLicenseLocal()
+	if err != nil {
+		return &RenewalInfo{
+			Status:       "No License",
+			Message:      "No license found. Please activate a license.",
+			NeedsRenewal: true,
+			IsExpired:    true,
+		}, fmt.Errorf("no local license found: %v", err)
+	}
+
+	daysLeft := int(time.Until(license.ExpiryDate).Hours() / 24)
+	renewalInfo := &RenewalInfo{DaysLeft: daysLeft}
+
+	if time.Now().After(license.ExpiryDate) {
+		renewalInfo.Status = "Expired"
+		renewalInfo.Message = fmt.Sprintf("License expired %d days ago. Please renew immediately.", -daysLeft)
+		renewalInfo.NeedsRenewal = true
+		renewalInfo.IsExpired = true
+	} else if daysLeft <= 7 {
+		renewalInfo.Status = "Critical"
+		renewalInfo.Message = fmt.Sprintf("License expires in %d days! Please renew soon to avoid interruption.", daysLeft)
+		renewalInfo.NeedsRenewal = true
+		renewalInfo.IsExpired = false
+	} else if daysLeft <= 30 {
+		renewalInfo.Status = "Warning"
+		renewalInfo.Message = fmt.Sprintf("License expires in %d days. Consider renewing soon.", daysLeft)
+		renewalInfo.NeedsRenewal = true
+		renewalInfo.IsExpired = false
+	} else {
+		renewalInfo.Status = "Active"
+		renewalInfo.Message = fmt.Sprintf("License is active with %d days remaining.", daysLeft)
+		renewalInfo.NeedsRenewal = false
+		renewalInfo.IsExpired = false
+	}
+
+	return renewalInfo, nil
+}
+
+// ShowRenewalNotification displays renewal notification if needed
+func (m *Manager) ShowRenewalNotification() error {
+	renewalInfo, err := m.CheckRenewalStatus()
+	if err != nil {
+		return err
+	}
+
+	if renewalInfo.NeedsRenewal {
+		fmt.Printf("\n")
+		fmt.Printf("┌─────────────────────────────────────────────────────────────────┐\n")
+		fmt.Printf("│                    LICENSE RENEWAL NOTICE                      │\n")
+		fmt.Printf("├─────────────────────────────────────────────────────────────────┤\n")
+
+		switch renewalInfo.Status {
+		case "Expired":
+			fmt.Printf("│ ❌ STATUS: EXPIRED                                             │\n")
+		case "Critical":
+			fmt.Printf("│ 🚨 STATUS: CRITICAL - EXPIRES SOON                            │\n")
+		case "Warning":
+			fmt.Printf("│ ⚠️  STATUS: WARNING - RENEWAL RECOMMENDED                      │\n")
+		}
+
+		fmt.Printf("│                                                                 │\n")
+		fmt.Printf("│ %s\n", fmt.Sprintf("%-63s", renewalInfo.Message)+"│")
+		fmt.Printf("│                                                                 │\n")
+
+		if renewalInfo.IsExpired {
+			fmt.Printf("│ 🔒 Application functionality is limited until renewal.         │\n")
+		} else {
+			fmt.Printf("│ 📧 Contact support for license renewal options.               │\n")
+		}
+
+		fmt.Printf("│                                                                 │\n")
+		fmt.Printf("│ 📞 Support: contact your license provider                      │\n")
+		fmt.Printf("│ 🌐 Web: Use license activation interface for new licenses     │\n")
+		fmt.Printf("└─────────────────────────────────────────────────────────────────┘\n")
+		fmt.Printf("\n")
+	}
+
+	return nil
+}
+
+// ExtendLicense extends a license for additional time (admin operation)
+func (m *Manager) ExtendLicense(licenseKey string, additionalDuration string) error {
+	if licenseKey == "" {
+		return fmt.Errorf("license key cannot be empty")
+	}
+
+	fmt.Printf("⏰ Extending license: %s...\n", licenseKey[:min(8, len(licenseKey))])
+
+	// Try to validate the license from Google Sheets
+	licenseInfo, err := m.validateLicenseFromSheets(licenseKey)
+	if err != nil {
+		return fmt.Errorf("license validation failed: %v", err)
+	}
+
+	// Calculate additional time
+	var additionalTime time.Duration
+	switch additionalDuration {
+	case "1m":
+		additionalTime = 30 * 24 * time.Hour // 30 days
+	case "3m":
+		additionalTime = 90 * 24 * time.Hour // 90 days
+	case "6m":
+		additionalTime = 180 * 24 * time.Hour // 180 days
+	case "1y":
+		additionalTime = 365 * 24 * time.Hour // 365 days
+	default:
+		return fmt.Errorf("invalid duration: %s (use 1m, 3m, 6m, or 1y)", additionalDuration)
+	}
+
+	// Extend the expiry date
+	originalExpiry := licenseInfo.ExpiryDate
+	licenseInfo.ExpiryDate = licenseInfo.ExpiryDate.Add(additionalTime)
+	licenseInfo.LastChecked = time.Now()
+
+	fmt.Printf("✅ License extended successfully\n")
+	fmt.Printf("📋 Extension Details:\n")
+	fmt.Printf("   • Original expiry: %s\n", originalExpiry.Format("2006-01-02"))
+	fmt.Printf("   • New expiry: %s\n", licenseInfo.ExpiryDate.Format("2006-01-02"))
+	fmt.Printf("   • Additional time: %s\n", additionalDuration)
+
+	// Update license in Google Sheets
+	if err := m.updateLicenseInSheets(licenseInfo); err != nil {
+		return fmt.Errorf("failed to extend license in Google Sheets: %v", err)
+	}
+
+	fmt.Printf("☁️  License extension updated in Google Sheets\n")
+	return nil
+}
+
+// ValidateWithRenewalCheck performs validation and checks for renewal needs
+func (m *Manager) ValidateWithRenewalCheck() (bool, *RenewalInfo, error) {
+	// First perform normal validation
+	isValid, err := m.ValidateLicense()
+
+	// Get renewal information regardless of validation result
+	renewalInfo, renewalErr := m.CheckRenewalStatus()
+	if renewalErr != nil {
+		renewalInfo = &RenewalInfo{
+			Status:       "No License",
+			Message:      "No license found",
+			NeedsRenewal: true,
+			IsExpired:    true,
+		}
+	}
+
+	// Show notification if renewal is needed
+	if renewalInfo.NeedsRenewal {
+		m.ShowRenewalNotification()
+	}
+
+	return isValid, renewalInfo, err
+}
+
+// TrackOperation wraps an operation with performance tracking and logging
+func (m *Manager) TrackOperation(operation string, fn func() error) error {
+	start := time.Now()
+
+	// Log operation start
+	if m.logger != nil {
+		m.logger.Log(LogEntry{
+			Level:     LogLevelDebug,
+			Action:    operation + "_start",
+			Result:    "Operation initiated",
+			MachineID: m.machineID[:min(8, len(m.machineID))],
+		})
+	}
+
+	err := fn()
+	duration := time.Since(start)
+
+	// Record performance metrics
+	m.recordPerformanceMetric(operation, duration, err == nil)
+
+	// Log operation completion
+	if m.logger != nil {
+		level := LogLevelInfo
+		result := "Operation completed successfully"
+		if err != nil {
+			level = LogLevelError
+			result = "Operation failed"
+		}
+
+		m.logger.Log(LogEntry{
+			Level:    level,
+			Action:   operation + "_complete",
+			Result:   result,
+			Duration: duration.Milliseconds(),
+			Error: func() string {
+				if err != nil {
+					return err.Error()
+				}
+				return ""
+			}(),
+			MachineID: m.machineID[:min(8, len(m.machineID))],
+		})
+	}
+
+	return err
+}
+
+// recordPerformanceMetric updates performance statistics
+func (m *Manager) recordPerformanceMetric(operation string, duration time.Duration, success bool) {
+	m.perfMutex.Lock()
+	defer m.perfMutex.Unlock()
+
+	if m.performanceData == nil {
+		m.performanceData = make(map[string]*PerformanceMetrics)
+	}
+
+	metric, exists := m.performanceData[operation]
+	if !exists {
+		metric = &PerformanceMetrics{
+			MinTime: duration,
+			MaxTime: duration,
+		}
+		m.performanceData[operation] = metric
+	}
+
+	// Update metrics
+	metric.Count++
+	metric.TotalTime += duration
+	metric.AverageTime = time.Duration(int64(metric.TotalTime) / metric.Count)
+	metric.LastUpdated = time.Now()
+
+	if duration > metric.MaxTime {
+		metric.MaxTime = duration
+	}
+	if duration < metric.MinTime {
+		metric.MinTime = duration
+	}
+
+	if success {
+		metric.SuccessCount++
+	} else {
+		metric.ErrorCount++
+	}
+}
+
+// GetPerformanceMetrics returns performance statistics
+func (m *Manager) GetPerformanceMetrics() map[string]*PerformanceMetrics {
+	m.perfMutex.RLock()
+	defer m.perfMutex.RUnlock()
+
+	// Create a copy to avoid concurrent access issues
+	result := make(map[string]*PerformanceMetrics)
+	for k, v := range m.performanceData {
+		result[k] = &PerformanceMetrics{
+			Count:        v.Count,
+			TotalTime:    v.TotalTime,
+			AverageTime:  v.AverageTime,
+			MaxTime:      v.MaxTime,
+			MinTime:      v.MinTime,
+			ErrorCount:   v.ErrorCount,
+			SuccessCount: v.SuccessCount,
+			LastUpdated:  v.LastUpdated,
+		}
+	}
+	return result
+}
+
+// GetSystemStats returns comprehensive system statistics
+func (m *Manager) GetSystemStats() map[string]interface{} {
+	stats := map[string]interface{}{
+		"performance": m.GetPerformanceMetrics(),
+		"timestamp":   time.Now(),
+		"machine_id":  m.machineID[:min(8, len(m.machineID))],
+		"version":     "enhanced-v2.0.0",
+	}
+
+	if m.cache != nil {
+		stats["cache"] = m.cache.GetStats()
+	}
+
+	if m.security != nil {
+		stats["security"] = m.security.GetStats()
+	}
+
+	return stats
+}
+
+// Close properly shuts down the manager and its components
+func (m *Manager) Close() error {
+	var errors []string
+
+	if m.logger != nil {
+		if err := m.logger.Close(); err != nil {
+			errors = append(errors, fmt.Sprintf("logger: %v", err))
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to close manager: %s", strings.Join(errors, ", "))
+	}
+
+	return nil
+}
+
+// validateLicenseFromSheetsWithCache validates license with caching support
+func (m *Manager) validateLicenseFromSheetsWithCache(licenseKey string) (LicenseInfo, error) {
+	// Check cache first
+	if m.cache != nil {
+		if cachedInfo, found := m.cache.Get(licenseKey); found {
+			if m.logger != nil {
+				m.logger.Log(LogEntry{
+					Level:      LogLevelDebug,
+					Action:     "cache_hit",
+					Result:     "License found in cache",
+					LicenseKey: licenseKey[:min(8, len(licenseKey))],
+				})
+			}
+			return *cachedInfo, nil
+		}
+	}
+
+	// Cache miss - fetch from Google Sheets
+	licenseInfo, err := m.validateLicenseFromSheets(licenseKey)
+	if err != nil {
+		return licenseInfo, err
+	}
+
+	// Store in cache
+	if m.cache != nil {
+		m.cache.Set(licenseKey, licenseInfo)
+		if m.logger != nil {
+			m.logger.Log(LogEntry{
+				Level:      LogLevelDebug,
+				Action:     "cache_store",
+				Result:     "License stored in cache",
+				LicenseKey: licenseKey[:min(8, len(licenseKey))],
+			})
+		}
+	}
+
+	return licenseInfo, nil
 }

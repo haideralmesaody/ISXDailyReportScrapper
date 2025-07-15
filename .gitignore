@@ -105,4 +105,15 @@ installer/assets/vc_redist.x64.exe
 license-generator-app/service-account-credentials.json
 license-generator-app/oauth-config.json
 license-generator-app/license.dat
-license-generator-app/licenses_*.txt 
+license-generator-app/licenses_*.txt
+
+# Release Directory - Exclude binaries but keep source files
+release/bin/
+release/tools/*.exe
+release/data/downloads/
+release/data/reports/
+
+# Google Service Account Credentials (SENSITIVE)
+**/isxportfolio-*.json
+**/service-account-*.json
+**/*-credentials.json 

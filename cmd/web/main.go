@@ -75,7 +75,7 @@ var (
 func main() {
 	// Initialize license manager
 	var err error
-	licenseManager, err = license.NewManager("license-config.json", "license.dat")
+	licenseManager, err = license.NewManager("license.dat")
 	if err != nil {
 		log.Printf("Warning: Failed to initialize license manager: %v", err)
 	}
@@ -127,15 +127,46 @@ func licenseMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		valid, err := licenseManager.ValidateLicense()
+		valid, _ := licenseManager.ValidateLicense()
 		if !valid {
+			// Get detailed validation state for better error messages
+			validationState, _ := licenseManager.GetValidationState()
+
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"error":   "License invalid or expired",
-				"message": err.Error(),
-				"code":    "LICENSE_REQUIRED",
-			})
+
+			response := map[string]interface{}{
+				"error":    "License required",
+				"code":     "LICENSE_REQUIRED",
+				"redirect": "/license.html",
+			}
+
+			// Add specific guidance based on error type
+			if validationState != nil {
+				response["error_type"] = validationState.ErrorType
+
+				switch validationState.ErrorType {
+				case "machine_mismatch":
+					response["code"] = "LICENSE_MACHINE_MISMATCH"
+					response["message"] = "This license is not valid for this machine. Please contact Iraqi Investor to get a new license for this machine."
+					response["contact_info"] = "Please contact Iraqi Investor for assistance"
+				case "expired":
+					response["code"] = "LICENSE_EXPIRED"
+					response["message"] = "Your license has expired. Please contact Iraqi Investor to renew your license."
+					response["contact_info"] = "Please contact Iraqi Investor for renewal"
+				case "network_error":
+					response["code"] = "LICENSE_NETWORK_ERROR"
+					response["message"] = "Cannot verify license due to network issues. Please check your internet connection and try again."
+				default:
+					response["message"] = "No valid license found. Please contact Iraqi Investor to get a license."
+					response["contact_info"] = "Please contact Iraqi Investor for assistance"
+				}
+			} else {
+				response["message"] = "No valid license found. Please contact Iraqi Investor to get a license."
+				response["contact_info"] = "Please contact Iraqi Investor for assistance"
+			}
+
+			json.NewEncoder(w).Encode(response)
 			return
 		}
 
@@ -149,26 +180,46 @@ func handleLicenseStatus(w http.ResponseWriter, r *http.Request) {
 	if licenseManager == nil {
 		json.NewEncoder(w).Encode(LicenseStatus{
 			IsValid: false,
-			Message: "License system unavailable",
+			Message: "License system unavailable. Please contact Iraqi Investor for assistance.",
 		})
 		return
 	}
 
-	valid, err := licenseManager.ValidateLicense()
+	valid, _ := licenseManager.ValidateLicense()
 	if !valid {
-		json.NewEncoder(w).Encode(LicenseStatus{
+		// Get detailed validation state for better feedback
+		validationState, _ := licenseManager.GetValidationState()
+
+		status := LicenseStatus{
 			IsValid: false,
-			Message: err.Error(),
-		})
+		}
+
+		// Add helpful information based on validation state
+		if validationState != nil {
+			switch validationState.ErrorType {
+			case "machine_mismatch":
+				status.Message = "This license is not valid for this machine. Please contact Iraqi Investor to get a new license for this machine."
+			case "expired":
+				status.Message = "Your license has expired. Please contact Iraqi Investor to renew your license."
+			case "network_error":
+				status.Message = "Cannot verify license due to network issues. Please check your internet connection and try again."
+			default:
+				status.Message = "No valid license found. Please contact Iraqi Investor to get a license."
+			}
+		} else {
+			status.Message = "No valid license found. Please contact Iraqi Investor to get a license."
+		}
+
+		json.NewEncoder(w).Encode(status)
 		return
 	}
 
-	// Get license info
+	// Valid license - get license info
 	info, err := licenseManager.GetLicenseInfo()
 	if err != nil {
 		json.NewEncoder(w).Encode(LicenseStatus{
 			IsValid: false,
-			Message: "Failed to get license info",
+			Message: "Failed to get license information. Please contact Iraqi Investor for assistance.",
 		})
 		return
 	}
@@ -208,8 +259,10 @@ func handleLicenseActivate(w http.ResponseWriter, r *http.Request) {
 	info, err := licenseManager.GetLicenseInfo()
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
-			"message": "License activated successfully",
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"message":  "License activated successfully",
+			"success":  true,
+			"redirect": true,
 		})
 		return
 	}
@@ -219,9 +272,12 @@ func handleLicenseActivate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message":     "License activated successfully",
+		"success":     true,
+		"redirect":    true,
 		"days_left":   daysLeft,
-		"expiry_date": info.ExpiryDate.Format("2006-01-02"),
+		"expiry_date": info.ExpiryDate.Format("January 2, 2006"),
 		"duration":    info.Duration,
+		"user_email":  info.UserEmail,
 	})
 }
 

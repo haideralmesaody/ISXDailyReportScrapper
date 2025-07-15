@@ -11,7 +11,7 @@ echo.
 
 REM Check if Inno Setup is installed
 where iscc >nul 2>&1
-if %errorlevel% neq 0 (
+if errorlevel 1 (
     echo ERROR: Inno Setup Compiler (iscc.exe) not found!
     echo.
     echo Please install Inno Setup from: https://www.jrsoftware.org/isinfo.php
@@ -58,7 +58,7 @@ echo Step 3: Creating installer icon...
 if not exist "installer\assets\setup-icon.ico" (
     echo Creating default installer icon...
     copy "web\static\images\favicon.ico" "installer\assets\setup-icon.ico" >nul 2>&1
-    if %errorlevel% neq 0 (
+    if errorlevel 1 (
         echo WARNING: Could not create installer icon
         echo You may need to create installer\assets\setup-icon.ico manually
         echo.
@@ -70,7 +70,7 @@ echo Step 4: Downloading Visual C++ Redistributable (if needed)...
 if not exist "installer\assets\vc_redist.x64.exe" (
     echo Downloading Visual C++ Redistributable...
     powershell -Command "try { Invoke-WebRequest -Uri 'https://aka.ms/vs/17/release/vc_redist.x64.exe' -OutFile 'installer\assets\vc_redist.x64.exe' -UseBasicParsing } catch { exit 1 }"
-    if %errorlevel% neq 0 (
+    if errorlevel 1 (
         echo WARNING: Failed to download Visual C++ Redistributable
         echo The installer will still work, but may require manual installation of VC++ Redist
         echo You can download it manually from: https://aka.ms/vs/17/release/vc_redist.x64.exe
@@ -88,7 +88,7 @@ cd installer
 iscc github-installer.iss
 cd ..
 
-if %errorlevel% neq 0 (
+if errorlevel 1 (
     echo.
     echo ERROR: Installer build failed!
     echo Please check the Inno Setup compiler output for errors.
@@ -119,6 +119,6 @@ echo 2. Create a GitHub release with application binaries
 echo 3. Distribute this small installer to end users
 echo 4. Users will automatically get the latest version
 echo.
-echo For GitHub release creation, see: GITHUB_RELEASE_GUIDE.md
+echo For GitHub release creation, see: GITHUB_COMMIT_GUIDE.md
 echo.
 pause 

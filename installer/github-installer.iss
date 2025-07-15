@@ -29,14 +29,19 @@ InfoBeforeFile=assets\README.txt
 InfoAfterFile=assets\AFTER_INSTALL.txt
 OutputDir=output
 OutputBaseFilename=ISX-Daily-Reports-Scraper-Setup-{#AppVersion}
-SetupIconFile=assets\setup-icon.ico
+;SetupIconFile=assets\setup-icon.ico
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-ArchitecturesAllowed=x64
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
-MinVersion=6.1sp1
+MinVersion=10.0.19041
+; Windows 11 compatibility
+SetupMutex=ISXDailyReportsScraper_Setup
+RestartIfNeededByRun=no
+CloseApplications=yes
+DirExistsWarning=no
 DisableDirPage=no
 DisableProgramGroupPage=no
 CreateAppDir=yes
@@ -85,7 +90,7 @@ Source: "assets\run-scraper.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "assets\download-github-release.ps1"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
 ; Visual C++ Redistributable (downloaded if needed)
-Source: "assets\vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: VCRedistNeedsInstall
+;Source: "assets\vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: VCRedistNeedsInstall
 
 [Dirs]
 Name: "{app}\downloads"; Flags: uninsneveruninstall
@@ -113,7 +118,7 @@ Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#AppName}"; Filen
 
 [Run]
 ; Install Microsoft Visual C++ Redistributable if needed
-Filename: "{tmp}\vc_redist.x64.exe"; Parameters: "/quiet /norestart"; StatusMsg: "Installing Microsoft Visual C++ Redistributable..."; Check: VCRedistNeedsInstall; Flags: waituntilterminated
+;Filename: "{tmp}\vc_redist.x64.exe"; Parameters: "/quiet /norestart"; StatusMsg: "Installing Microsoft Visual C++ Redistributable..."; Check: VCRedistNeedsInstall; Flags: waituntilterminated
 
 ; Download application files from GitHub
 Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{tmp}\download-github-release.ps1"" ""{app}"""; StatusMsg: "{cm:DownloadingFiles}"; Flags: waituntilterminated; Check: not IsUpgrade
@@ -155,12 +160,15 @@ Root: HKCU; Subkey: "SOFTWARE\{#AppPublisher}\{#AppName}"; ValueType: string; Va
 Root: HKCU; Subkey: "SOFTWARE\{#AppPublisher}\{#AppName}"; ValueType: dword; ValueName: "FirstRun"; ValueData: "1"; Flags: uninsdeletekey
 
 [Code]
-function VCRedistNeedsInstall: Boolean;
-var
-  Version: String;
-begin
-  Result := not RegQueryStringValue(HKLM, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64', 'Version', Version);
-end;
+// Import Windows API functions
+// function InternetCheckConnection(lpszUrl: PAnsiChar; dwFlags: DWORD; dwReserved: DWORD): BOOL; external 'InternetCheckConnectionA@wininet.dll stdcall';
+
+// function VCRedistNeedsInstall: Boolean;
+// var
+//   Version: String;
+// begin
+//   Result := not RegQueryStringValue(HKLM, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64', 'Version', Version);
+// end;
 
 function NeedsAddPath(Param: string): boolean;
 var
@@ -183,9 +191,9 @@ procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssInstall then
   begin
-    SetProgress(0, 100);
-    if VCRedistNeedsInstall then
-      ExtractTemporaryFile('vc_redist.x64.exe');
+    // SetProgress(0, 100);
+    // if VCRedistNeedsInstall then
+    //   ExtractTemporaryFile('vc_redist.x64.exe');
     ExtractTemporaryFile('download-github-release.ps1');
   end;
 end;
@@ -216,14 +224,14 @@ begin
   end;
   
   // Check internet connection
-  if not InternetCheckConnection('http://www.google.com', 1, 0) then
-  begin
-    if MsgBox('Internet connection is required to download application files. Continue anyway?', mbConfirmation, MB_YESNO) = IDNO then
-    begin
-      Result := False;
-      Exit;
-    end;
-  end;
+  // if not InternetCheckConnection(PAnsiChar('http://www.google.com'), 1, 0) then
+  // begin
+  //   if MsgBox('Internet connection is required to download application files. Continue anyway?', mbConfirmation, MB_YESNO) = IDNO then
+  //   begin
+  //     Result := False;
+  //     Exit;
+  //   end;
+  // end;
   
   Result := True;
 end;

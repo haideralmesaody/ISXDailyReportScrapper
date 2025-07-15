@@ -23,7 +23,7 @@ func main() {
 	flag.Parse()
 
 	// Initialize license manager
-	licenseManager, err := license.NewManager("license-config.json", "license.dat")
+	licenseManager, err := license.NewManagerWithConfig("license-config.json", "license.dat")
 	if err != nil {
 		log.Fatal("Failed to initialize license manager:", err)
 	}

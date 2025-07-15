@@ -33,7 +33,7 @@ func main() {
 	configPath := filepath.Join(exeDir, *config)
 
 	// Create license manager
-	manager, err := license.NewManager(configPath, "")
+	manager, err := license.NewManagerWithConfig(configPath, "")
 	if err != nil {
 		log.Fatal("Failed to create license manager:", err)
 	}
