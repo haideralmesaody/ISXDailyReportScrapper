@@ -3,6 +3,15 @@
 ## ⚡ **What To Do First**
 
 ### **🎯 STEP 1: Run the Installer**
+
+**Option A: Executable Installer (Recommended)**
+```
+Double-click: ISX-Alpha-Installer.exe
+→ Follow the setup wizard
+→ Requires Administrator privileges
+```
+
+**Option B: PowerShell Installer**
 ```powershell
 # Right-click PowerShell → "Run as Administrator"
 .\install-alpha.ps1
@@ -29,7 +38,8 @@ After installation completes:
 
 | File/Folder | Purpose |
 |-------------|---------|
-| **`install-alpha.ps1`** | 🔧 **RUN THIS FIRST** - Professional installer |
+| **`ISX-Alpha-Installer.exe`** | 🔧 **RUN THIS FIRST** - Executable installer (recommended) |
+| **`install-alpha.ps1`** | 🔧 Alternative PowerShell installer |
 | **`bin/`** | 💻 Application executables (installed automatically) |
 | **`docs/`** | 📚 Complete user guides and testing instructions |
 | **`web/`** | 🌐 Web interface files (installed automatically) |

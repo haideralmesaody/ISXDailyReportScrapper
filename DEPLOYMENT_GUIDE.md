@@ -8,6 +8,16 @@
 3. **Do NOT manually copy files** - use the installer instead!
 
 ### **Step 2: Run Professional Installer**
+
+**Option A: Executable Installer (Recommended)**
+```
+1. Double-click "ISX-Alpha-Installer.exe"
+2. Follow the setup wizard
+3. Installer requires Administrator privileges (auto-prompt)
+4. Select installation options and proceed
+```
+
+**Option B: PowerShell Installer**
 ```powershell
 # Right-click PowerShell → "Run as Administrator"
 cd C:\Temp\ISX-Alpha
@@ -203,7 +213,7 @@ C:\Users\[Username]\AppData\Local\ISX\logs\
 
 ### **For Most Users:**
 1. **Extract** alpha package to temporary folder
-2. **Run** `install-alpha.ps1` as Administrator
+2. **Run** `ISX-Alpha-Installer.exe` (or `install-alpha.ps1` as Administrator)
 3. **Double-click** "ISX Web Interface" desktop shortcut
 4. **Activate** license in browser interface
 5. **Begin** testing following the alpha testing guide
