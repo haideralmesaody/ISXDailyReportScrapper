@@ -4,7 +4,6 @@ import (
 	"encoding/csv"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -39,7 +38,7 @@ func main() {
 	fmt.Printf("Full rework: %v\n", *fullRework)
 
 	// Get all available Excel files
-	files, err := ioutil.ReadDir(*inDir)
+	files, err := os.ReadDir(*inDir)
 	if err != nil {
 		fmt.Printf("failed to read input dir: %v\n", err)
 		os.Exit(1)
@@ -184,7 +183,7 @@ func determineFilesToProcess(excelFiles []ExcelFileInfo, outDir string) ([]Excel
 
 	// Check which daily CSV files already exist
 	existingDates := make(map[string]bool)
-	if entries, err := ioutil.ReadDir(outDir); err == nil {
+	if entries, err := os.ReadDir(outDir); err == nil {
 		for _, entry := range entries {
 			if strings.HasPrefix(entry.Name(), "isx_daily_") && strings.HasSuffix(entry.Name(), ".csv") {
 				// Extract date from filename: isx_daily_YYYY_MM_DD.csv

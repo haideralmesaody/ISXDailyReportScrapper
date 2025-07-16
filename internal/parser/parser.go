@@ -198,6 +198,21 @@ func ParseFile(filePath string) (*DailyReport, error) {
 	}
 
 	if headerRow == -1 {
+		for i, row := range rows {
+			if len(row) >= 14 {
+				if _, err1 := strconv.ParseFloat(strings.ReplaceAll(row[8], ",", ""), 64); err1 == nil {
+					if _, err2 := strconv.ParseInt(strings.ReplaceAll(row[12], ",", ""), 10, 64); err2 == nil {
+						headerRow = i - 1
+						columnMap = map[string]int{"code": 1, "close": 8, "volume": 12, "value": 13}
+						fmt.Printf("Using fallback column indices at row %d\n", headerRow+1)
+						break
+					}
+				}
+			}
+		}
+	}
+
+	if headerRow == -1 {
 		return nil, fmt.Errorf("could not find header row in trading data")
 	}
 

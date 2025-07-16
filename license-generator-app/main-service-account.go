@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
@@ -60,7 +59,7 @@ func NewLicenseGenerator(configFile string) (*LicenseGenerator, error) {
 
 // loadServiceAccountConfig loads configuration from JSON file
 func loadServiceAccountConfig(filename string) (*ServiceAccountConfig, error) {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
