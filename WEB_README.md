@@ -194,4 +194,4 @@ GOOS=linux GOARCH=amd64 go build -o web ./cmd/web
 
 ## License
 
-Same as the main project (MIT). 
+This project is licensed under the terms of the MIT License. See the [LICENSE](LICENSE) file for details.
