@@ -9,6 +9,15 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
+// Debug enables verbose logging when set to true.
+var Debug bool
+
+func debugf(format string, args ...interface{}) {
+	if Debug {
+		fmt.Printf(format, args...)
+	}
+}
+
 // TradeRecord represents a single company's trading data for one day.
 type TradeRecord struct {
 	CompanyName      string
@@ -85,13 +94,13 @@ func ParseFile(filePath string) (*DailyReport, error) {
 		return nil, fmt.Errorf("could not find trading data sheet in file")
 	}
 
-	fmt.Printf("Found trading data in sheet: %s\n", sheetName)
-	fmt.Printf("Total rows in sheet: %d\n", len(rows))
+	debugf("Found trading data in sheet: %s\n", sheetName)
+	debugf("Total rows in sheet: %d\n", len(rows))
 
 	// Print first 20 rows to understand the structure
 	fmt.Println("=== First 20 rows ===")
 	for i := 0; i < len(rows) && i < 20; i++ {
-		fmt.Printf("Row %d: %v\n", i, rows[i])
+		debugf("Row %d: %v\n", i, rows[i])
 	}
 
 	// Find the last row with actual data
@@ -113,9 +122,9 @@ func ParseFile(filePath string) (*DailyReport, error) {
 		}
 	}
 
-	fmt.Printf("Last row with data: %d\n", lastDataRow)
+	debugf("Last row with data: %d\n", lastDataRow)
 	if lastDataRow > 0 {
-		fmt.Printf("Last data row content: %v\n", rows[lastDataRow])
+		debugf("Last data row content: %v\n", rows[lastDataRow])
 	}
 
 	report := &DailyReport{}
@@ -134,7 +143,7 @@ func ParseFile(filePath string) (*DailyReport, error) {
 		rowText := strings.ToLower(strings.Join(row, " "))
 
 		// Debug: Show what we're looking for in each row
-		fmt.Printf("Row %d text: %s\n", i, rowText)
+		debugf("Row %d text: %s\n", i, rowText)
 
 		// More flexible header detection - look for key trading columns
 		if (strings.Contains(rowText, "company") || strings.Contains(rowText, "name")) &&
@@ -142,57 +151,57 @@ func ParseFile(filePath string) (*DailyReport, error) {
 			(strings.Contains(rowText, "closing") || strings.Contains(rowText, "price")) &&
 			strings.Contains(rowText, "volume") {
 			headerRow = i
-			fmt.Printf("*** FOUND HEADER ROW AT %d ***\n", i)
+			debugf("*** FOUND HEADER ROW AT %d ***\n", i)
 
 			// Map column positions based on header names
 			for j, header := range row {
 				headerLower := strings.ToLower(strings.TrimSpace(header))
-				fmt.Printf("  Column %d: '%s'\n", j, headerLower)
+				debugf("  Column %d: '%s'\n", j, headerLower)
 
 				// Map different variations of column names
 				switch {
 				case strings.Contains(headerLower, "company") || (strings.Contains(headerLower, "name") && !strings.Contains(headerLower, "code")):
 					columnMap["company"] = j
-					fmt.Printf("    -> Mapped to COMPANY\n")
+					debugf("    -> Mapped to COMPANY\n")
 				case headerLower == "code":
 					columnMap["code"] = j
-					fmt.Printf("    -> Mapped to CODE\n")
+					debugf("    -> Mapped to CODE\n")
 				case strings.Contains(headerLower, "opening") && strings.Contains(headerLower, "price"):
 					columnMap["open"] = j
-					fmt.Printf("    -> Mapped to OPEN\n")
+					debugf("    -> Mapped to OPEN\n")
 				case strings.Contains(headerLower, "highest") && strings.Contains(headerLower, "price"):
 					columnMap["high"] = j
-					fmt.Printf("    -> Mapped to HIGH\n")
+					debugf("    -> Mapped to HIGH\n")
 				case strings.Contains(headerLower, "lowest") && strings.Contains(headerLower, "price"):
 					columnMap["low"] = j
-					fmt.Printf("    -> Mapped to LOW\n")
+					debugf("    -> Mapped to LOW\n")
 				case strings.Contains(headerLower, "average") && strings.Contains(headerLower, "price") && !strings.Contains(headerLower, "prev"):
 					columnMap["avg"] = j
-					fmt.Printf("    -> Mapped to AVERAGE\n")
+					debugf("    -> Mapped to AVERAGE\n")
 				case strings.Contains(headerLower, "prev") && strings.Contains(headerLower, "average"):
 					columnMap["prev_avg"] = j
-					fmt.Printf("    -> Mapped to PREV_AVERAGE\n")
+					debugf("    -> Mapped to PREV_AVERAGE\n")
 				case strings.Contains(headerLower, "closing") && strings.Contains(headerLower, "price"):
 					columnMap["close"] = j
-					fmt.Printf("    -> Mapped to CLOSE\n")
+					debugf("    -> Mapped to CLOSE\n")
 				case strings.Contains(headerLower, "prev") && strings.Contains(headerLower, "closing"):
 					columnMap["prev_close"] = j
-					fmt.Printf("    -> Mapped to PREV_CLOSE\n")
+					debugf("    -> Mapped to PREV_CLOSE\n")
 				case strings.Contains(headerLower, "change") && strings.Contains(headerLower, "%"):
 					columnMap["change_pct"] = j
-					fmt.Printf("    -> Mapped to CHANGE_PCT\n")
+					debugf("    -> Mapped to CHANGE_PCT\n")
 				case strings.Contains(headerLower, "no") && strings.Contains(headerLower, "trades"):
 					columnMap["num_trades"] = j
-					fmt.Printf("    -> Mapped to NUM_TRADES\n")
+					debugf("    -> Mapped to NUM_TRADES\n")
 				case headerLower == "traded volume":
 					columnMap["volume"] = j
-					fmt.Printf("    -> Mapped to VOLUME\n")
+					debugf("    -> Mapped to VOLUME\n")
 				case headerLower == "traded value":
 					columnMap["value"] = j
-					fmt.Printf("    -> Mapped to VALUE\n")
+					debugf("    -> Mapped to VALUE\n")
 				}
 			}
-			fmt.Printf("Final column mapping: %+v\n", columnMap)
+			debugf("Final column mapping: %+v\n", columnMap)
 			break
 		}
 	}
@@ -204,7 +213,7 @@ func ParseFile(filePath string) (*DailyReport, error) {
 					if _, err2 := strconv.ParseInt(strings.ReplaceAll(row[12], ",", ""), 10, 64); err2 == nil {
 						headerRow = i - 1
 						columnMap = map[string]int{"code": 1, "close": 8, "volume": 12, "value": 13}
-						fmt.Printf("Using fallback column indices at row %d\n", headerRow+1)
+						debugf("Using fallback column indices at row %d\n", headerRow+1)
 						break
 					}
 				}
@@ -230,16 +239,16 @@ func ParseFile(filePath string) (*DailyReport, error) {
 		dataEndRow = lastDataRow + 1
 	}
 
-	fmt.Printf("Processing data rows from %d to %d\n", headerRow+1, dataEndRow-1)
+	debugf("Processing data rows from %d to %d\n", headerRow+1, dataEndRow-1)
 
 	for i := headerRow + 1; i < dataEndRow; i++ {
 		row := rows[i]
 
-		fmt.Printf("Processing row %d: %v\n", i, row)
+		debugf("Processing row %d: %v\n", i, row)
 
 		// Skip if not enough columns
 		if len(row) <= columnMap["value"] {
-			fmt.Printf("  -> Skipped: Not enough columns (need %d, got %d)\n", columnMap["value"]+1, len(row))
+			debugf("  -> Skipped: Not enough columns (need %d, got %d)\n", columnMap["value"]+1, len(row))
 			continue
 		}
 
@@ -252,30 +261,30 @@ func ParseFile(filePath string) (*DailyReport, error) {
 			}
 		}
 		if isEmpty {
-			fmt.Printf("  -> Skipped: Empty row\n")
+			debugf("  -> Skipped: Empty row\n")
 			continue
 		}
 
 		// Skip sector headers (merged cells or rows containing "Sector")
 		if strings.Contains(row[0], "Sector") || strings.Contains(row[0], "Total") {
-			fmt.Printf("  -> Skipped: Sector/Total row\n")
+			debugf("  -> Skipped: Sector/Total row\n")
 			continue
 		}
 
 		// Skip if code column is empty (likely a merged/header row)
 		if columnMap["code"] < len(row) && strings.TrimSpace(row[columnMap["code"]]) == "" {
-			fmt.Printf("  -> Skipped: Empty code column\n")
+			debugf("  -> Skipped: Empty code column\n")
 			continue
 		}
 
 		// Extract data using dynamic column mapping
 		companyCode := strings.TrimSpace(row[columnMap["code"]])
 		if companyCode == "" {
-			fmt.Printf("  -> Skipped: Empty company code after trim\n")
+			debugf("  -> Skipped: Empty company code after trim\n")
 			continue
 		}
 
-		fmt.Printf("  -> Processing: Code=%s\n", companyCode)
+		debugf("  -> Processing: Code=%s\n", companyCode)
 
 		// Helper function to safely parse float
 		parseFloat := func(colName string) float64 {
@@ -342,12 +351,12 @@ func ParseFile(filePath string) (*DailyReport, error) {
 
 		// Debug: Show first few records
 		if len(report.Records) <= 5 {
-			fmt.Printf("Record %d: %s (%s) - Open: %.3f, High: %.3f, Low: %.3f, Close: %.3f, Volume: %d, Value: %.2f\n",
+			debugf("Record %d: %s (%s) - Open: %.3f, High: %.3f, Low: %.3f, Close: %.3f, Volume: %d, Value: %.2f\n",
 				len(report.Records), companyCode, companyName, openPrice, highPrice, lowPrice, closePrice, volume, value)
 		}
 	}
 
-	fmt.Printf("Total records processed: %d\n", len(report.Records))
+	debugf("Total records processed: %d\n", len(report.Records))
 
 	return report, nil
 }

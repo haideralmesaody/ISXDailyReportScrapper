@@ -149,4 +149,5 @@ service-account-key.json
 # Temporary installer files
 installer-*.ps1
 *-installer-*.exe
+*-Installer-*.exe
 release/web/
