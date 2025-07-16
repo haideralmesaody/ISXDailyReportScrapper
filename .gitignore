@@ -122,7 +122,7 @@ release/data/reports/
 # Temporary release directories
 release-*/
 *-v*/
-ISXDailyReportsScrapper-v*/
+ISXDailyReportsScraper-v*/
 
 # IDE and editor files
 .vscode/

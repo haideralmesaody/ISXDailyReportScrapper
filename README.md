@@ -34,8 +34,8 @@ A comprehensive web scraping and analytics platform for the Iraqi Stock Exchange
 ### Setup
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/ISXDailyReportsScrapper.git
-   cd ISXDailyReportsScrapper
+   git clone https://github.com/yourusername/ISXDailyReportsScraper.git
+   cd ISXDailyReportsScraper
    ```
 
 2. Install dependencies:
@@ -99,7 +99,7 @@ A comprehensive web scraping and analytics platform for the Iraqi Stock Exchange
 ## Project Structure
 
 ```
-ISXDailyReportsScrapper/
+ISXDailyReportsScraper/
 ├── cmd/                    # Application entry points
 │   ├── scraper/           # CLI scraper application
 │   ├── web/               # Web server application

@@ -5,13 +5,13 @@
 #define AppName "ISX Daily Reports Scraper"
 #define AppVersion "1.0-Alpha"
 #define AppPublisher "The Iraqi Investor Group"
-#define AppURL "https://github.com/haideralmesaody/ISXDailyReportScrapper"
+#define AppURL "https://github.com/haideralmesaody/ISXDailyReportScraper"
 #define AppExeName "isx-web-interface.exe"
 #define CliExeName "isxcli.exe"
 
 ; GitHub Release URLs - Update these when you create releases
-#define GitHubReleasesAPI "https://api.github.com/repos/haideralmesaody/ISXDailyReportScrapper/releases/latest"
-#define GitHubDownloadBase "https://github.com/haideralmesaody/ISXDailyReportScrapper/releases/latest/download"
+#define GitHubReleasesAPI "https://api.github.com/repos/haideralmesaody/ISXDailyReportScraper/releases/latest"
+#define GitHubDownloadBase "https://github.com/haideralmesaody/ISXDailyReportScraper/releases/latest/download"
 
 [Setup]
 AppId={{A1B2C3D4-5E6F-7890-ABCD-123456789ABC}
@@ -56,7 +56,7 @@ Source: "assets\chrome-installer.exe"; DestDir: "{tmp}"; Flags: dontcopy noencry
 ; Start Menu
 Name: "{group}\ISX Web Interface"; Filename: "{app}\bin\{#AppExeName}"; WorkingDir: "{app}"
 Name: "{group}\ISX Command Line"; Filename: "{app}\bin\{#CliExeName}"; WorkingDir: "{app}"; Parameters: "--help"
-Name: "{group}\User Guide"; Filename: "https://github.com/haideralmesaody/ISXDailyReportScrapper/blob/main/release/docs/ALPHA-USER-GUIDE.md"
+Name: "{group}\User Guide"; Filename: "https://github.com/haideralmesaody/ISXDailyReportScraper/blob/main/release/docs/ALPHA-USER-GUIDE.md"
 Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"
 
 ; Desktop

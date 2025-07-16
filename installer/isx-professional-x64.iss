@@ -1,12 +1,12 @@
-; ISX Daily Reports Scrapper - Professional Windows Installer (x64)
+; ISX Daily Reports Scraper - Professional Windows Installer (x64)
 ; Creates a standard Windows installer with GitHub download capability
 ; Version 1.0.0 - Professional Edition
 
 #define MyAppName "ISX Daily Reports"
-#define MyAppNameLong "ISX Daily Reports Scrapper"
+#define MyAppNameLong "ISX Daily Reports Scraper"
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "The Iraqi Investor Group"
-#define MyAppURL "https://github.com/haideralmesaody/ISXDailyReportScrapper"
+#define MyAppURL "https://github.com/haideralmesaody/ISXDailyReportScraper"
 #define MyAppExeName "start-web-interface.exe"
 #define MyAppDescription "Professional Iraqi Stock Exchange Analytics Platform"
 #define MyAppId "ISXDailyReports"

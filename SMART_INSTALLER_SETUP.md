@@ -47,7 +47,7 @@ zip -r ../docs.zip *
 
 ### **Using GitHub Web Interface:**
 
-1. **Go to your repository**: https://github.com/haideralmesaody/ISXDailyReportScrapper
+1. **Go to your repository**: https://github.com/haideralmesaody/ISXDailyReportScraper
 2. **Click "Releases"** → **"Create a new release"**
 3. **Tag version**: `v1.0-alpha` 
 4. **Release title**: `ISX Alpha Release v1.0`
@@ -142,7 +142,7 @@ gh release create v1.0-alpha \
 
 ### **Download URLs Used by Installer:**
 ```
-Base: https://github.com/haideralmesaody/ISXDailyReportScrapper/releases/latest/download/
+Base: https://github.com/haideralmesaody/ISXDailyReportScraper/releases/latest/download/
 
 Files:
 - isx-web-interface.exe

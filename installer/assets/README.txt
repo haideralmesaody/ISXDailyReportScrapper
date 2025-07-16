@@ -60,7 +60,7 @@ Complete documentation is included in the installation:
 SUPPORT:
 =======
 For technical support, license issues, or questions:
-- GitHub Issues: https://github.com/haideralmesaody/ISXDailyReportScrapper/issues
+- GitHub Issues: https://github.com/haideralmesaody/ISXDailyReportScraper/issues
 - Email: support@iraqiinvestor.com
 - Documentation: See docs folder after installation
 

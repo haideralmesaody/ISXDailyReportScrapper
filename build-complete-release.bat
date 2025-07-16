@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo  ISX Daily Reports Scrapper
+echo  ISX Daily Reports Scraper
 echo  Complete Release Package Builder
 echo ========================================
 echo.
@@ -125,7 +125,7 @@ echo echo. >> release\run-cli.bat
 echo pause >> release\run-cli.bat
 
 REM Create version file
-echo ISX Daily Reports Scrapper > release\VERSION.txt
+echo ISX Daily Reports Scraper > release\VERSION.txt
 echo Version: Enhanced v2.0.0 >> release\VERSION.txt
 echo Build Date: %date% %time% >> release\VERSION.txt
 echo. >> release\VERSION.txt
@@ -141,7 +141,7 @@ echo - Run individual .exe files for command-line usage >> release\VERSION.txt
 echo - See docs/ directory for detailed documentation >> release\VERSION.txt
 
 REM Create README file
-echo # ISX Daily Reports Scrapper > release\README.md
+echo # ISX Daily Reports Scraper > release\README.md
 echo. >> release\README.md
 echo ## Quick Start >> release\README.md
 echo. >> release\README.md

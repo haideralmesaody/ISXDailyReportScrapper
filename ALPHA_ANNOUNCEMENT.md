@@ -1,10 +1,10 @@
-# 🚀 Alpha Testers Wanted: ISX Daily Reports Scrapper - Professional Stock Market Data Platform
+# 🚀 Alpha Testers Wanted: ISX Daily Reports Scraper - Professional Stock Market Data Platform
 
 ## 📈 Transform Your Iraq Stock Exchange Analysis
 
 We're excited to announce the **Alpha Release** of our comprehensive ISX (Iraq Stock Exchange) data analysis platform! After months of development, we're ready to share this powerful tool with select alpha testers.
 
-## 🎯 What Is ISX Daily Reports Scrapper?
+## 🎯 What Is ISX Daily Reports Scraper?
 
 A complete, enterprise-grade solution for Iraq Stock Exchange data collection, processing, and analysis. Our platform automates the entire workflow from data scraping to professional visualizations.
 
@@ -190,7 +190,7 @@ This is your opportunity to be among the first to experience a truly professiona
 
 ---
 
-*ISX Daily Reports Scrapper - Professional Stock Market Data Platform*
+*ISX Daily Reports Scraper - Professional Stock Market Data Platform*
 *Developed for Iraqi financial professionals and international investors*
 
 **Ready to revolutionize your ISX data analysis? Apply today!** 🚀 

@@ -41,8 +41,8 @@ iscc /?
 ### 2. Build the Installer
 ```bash
 # Clone the repository
-git clone https://github.com/haideralmesaody/ISXDailyReportScrapper.git
-cd ISXDailyReportScrapper
+git clone https://github.com/haideralmesaody/ISXDailyReportScraper.git
+cd ISXDailyReportScraper
 
 # Run the build script
 build-installer.bat
@@ -228,8 +228,8 @@ The installer supports:
 
 ## 📞 **Support**
 
-For installer-related issues:
-- **GitHub Issues**: [ISXDailyReportScrapper Issues](https://github.com/haideralmesaody/ISXDailyReportScrapper/issues)
+-For installer-related issues:
+- **GitHub Issues**: [ISXDailyReportScraper Issues](https://github.com/haideralmesaody/ISXDailyReportScraper/issues)
 - **Email Support**: support@iraqiinvestor.com
 - **Documentation**: See `docs/` folder in installation
 

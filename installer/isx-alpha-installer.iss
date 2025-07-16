@@ -5,11 +5,11 @@
 #define AppName "ISX Daily Reports Scraper"
 #define AppVersion "1.0-Alpha"
 #define AppPublisher "The Iraqi Investor Group"
-#define AppURL "https://github.com/haideralmesaody/ISXDailyReportScrapper"
+#define AppURL "https://github.com/haideralmesaody/ISXDailyReportScraper"
 #define AppExeName "isx-web-interface.exe"
 #define CliExeName "isxcli.exe"
-#define AppSupportURL "https://github.com/haideralmesaody/ISXDailyReportScrapper/issues"
-#define AppUpdatesURL "https://github.com/haideralmesaody/ISXDailyReportScrapper/releases"
+#define AppSupportURL "https://github.com/haideralmesaody/ISXDailyReportScraper/issues"
+#define AppUpdatesURL "https://github.com/haideralmesaody/ISXDailyReportScraper/releases"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
