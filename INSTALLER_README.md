@@ -237,6 +237,8 @@ For installer-related issues:
 
 This installer and the ISX Daily Reports Scraper are licensed under the terms specified in the End User License Agreement (EULA) included with the software.
 
+The source code for this project is provided under the terms of the MIT License. See the repository [LICENSE](LICENSE) file for details.
+
 ---
 
 **The Iraqi Investor Group**  

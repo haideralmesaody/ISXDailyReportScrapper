@@ -40,7 +40,7 @@ license-generator-sa.exe -total=100
 
 ## 🔧 Files You Need:
 - ✅ `service-account-credentials.json` (from Google Cloud Console)
-- ✅ `service-account-config.json` (already created)
+ - ✅ `service-account-config.json` (copy from `service-account-config-template.json`)
 - ✅ `main-service-account.go` (already created)
 
 ## 🎯 Test with 1 License First:
