@@ -22,6 +22,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+var startTime time.Time
+
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true // Allow all origins for development
@@ -73,6 +75,7 @@ var (
 )
 
 func main() {
+	startTime = time.Now()
 	// Initialize license manager
 	var err error
 	licenseManager, err = license.NewManager("license.dat")
@@ -648,7 +651,7 @@ func handleDownloadFile(w http.ResponseWriter, r *http.Request) {
 func handleStatus(w http.ResponseWriter, r *http.Request) {
 	status := map[string]interface{}{
 		"timestamp": time.Now().Format(time.RFC3339),
-		"uptime":    time.Since(time.Now()).String(),
+		"uptime":    time.Since(startTime).String(),
 		"commands":  []string{"scrape", "process", "indexcsv"},
 	}
 

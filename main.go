@@ -116,6 +116,7 @@ func runScraper(fromSite, toSite, outDir string) chromedp.Tasks {
 			page := 1
 			for {
 				fmt.Printf("Scraping page %d...\n", page)
+				startPage := time.Now()
 				shouldContinue, err := scrapePage(ctx, outDir)
 				if err != nil {
 					return err
@@ -140,7 +141,7 @@ func runScraper(fromSite, toSite, outDir string) chromedp.Tasks {
 				if err := chromedp.WaitVisible(`#report`, chromedp.ByID).Do(ctx); err != nil {
 					return err
 				}
-				fmt.Printf("[TIME] page %d processed in %s\n", page, time.Since(time.Now()))
+				fmt.Printf("[TIME] page %d processed in %s\n", page, time.Since(startPage))
 				page++
 			}
 		}),
