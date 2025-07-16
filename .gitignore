@@ -87,6 +87,7 @@ installer/assets/vc_redist.x64.exe
 !go.sum
 # License Generator App - Exclude sensitive credential files
 license-generator-app/service-account-credentials.json
+license-generator-app/service-account-config.json
 license-generator-app/oauth-config.json
 license-generator-app/license.dat
 license-generator-app/licenses_*.txt

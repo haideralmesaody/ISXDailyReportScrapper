@@ -104,7 +104,7 @@ go build -o license-generator-sa.exe main.go
 ## 🔧 **Files You Need:**
 
 1. `service-account-credentials.json` (downloaded from Google Cloud)
-2. `service-account-config.json` (already created)
+2. `service-account-config.json` (copy from `service-account-config-template.json`)
 3. Updated `main.go` with service account authentication
 
 ## 📞 **Quick Test:**
