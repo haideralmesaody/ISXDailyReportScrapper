@@ -92,14 +92,16 @@ license-generator-app/oauth-config.json
 license-generator-app/license.dat
 license-generator-app/licenses_*.txt
 # Release Directory - Exclude binaries but keep source files
-release/bin/
-release/tools/*.exe
+release/*.exe
 release/data/downloads/
 release/data/reports/
 # Google Service Account Credentials (SENSITIVE)
 **/isxportfolio-*.json
 **/service-account-*.json
 **/*-credentials.json
+# External configuration files (SENSITIVE)
+credentials.json
+sheets-config.json
 # Temporary release directories
 release-*/
 *-v*/
@@ -119,4 +121,8 @@ service-account-key.json
 installer-*.ps1
 *-installer-*.exe
 *-Installer-*.exe
-release/web/
+
+# IMPORTANT: Keep real credentials in separate ignored file
+# This file contains the actual credentials for build process
+dev/internal/license/credentials_real.go
+dev/internal/license/manager.go.backup
