@@ -549,9 +549,32 @@ func getBuiltInConfig() GoogleSheetsConfig {
 		}
 	}
 
+	// Sheet configuration - loaded from environment or defaults
+	sheetID := os.Getenv("ISX_SHEET_ID")
+	if sheetID == "" {
+		// Try to load from sheets-config.json if environment variable not set
+		if configData, err := os.ReadFile("sheets-config.json"); err == nil {
+			var sheetConfig struct {
+				SpreadsheetID string `json:"spreadsheet_id"`
+				SheetName     string `json:"sheet_name"`
+			}
+			if err := json.Unmarshal(configData, &sheetConfig); err == nil {
+				sheetID = sheetConfig.SpreadsheetID
+			}
+		}
+		if sheetID == "" {
+			sheetID = "PLACEHOLDER_SHEET_ID" // Placeholder ID
+		}
+	}
+	
+	sheetName := os.Getenv("ISX_SHEET_NAME")
+	if sheetName == "" {
+		sheetName = "Licenses"
+	}
+
 	return GoogleSheetsConfig{
-		SheetID:            "1l4jJNNqHZNomjp3wpkL-txDfCjsRr19aJZOZqPHJ6lc", // Your actual Google Sheet ID
-		SheetName:          "Licenses",
+		SheetID:            sheetID,
+		SheetName:          sheetName,
 		UseServiceAccount:  true,
 		ServiceAccountJSON: serviceAccountJSON,
 	}

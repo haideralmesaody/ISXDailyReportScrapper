@@ -62,6 +62,8 @@ node_modules/
 # Backup Files
 *.bak
 *.backup
+*.old
+*~
 
 # Archive Files
 *.zip
@@ -73,6 +75,10 @@ node_modules/
 test_*
 debug*.txt
 inspect_output.txt
+coverage.out
+coverage.html
+*.test
+*.prof
 
 # Generated HTML/JSON Files (except templates)
 isx_daily_reports.html
@@ -118,6 +124,8 @@ release/data/reports/
 **/isxportfolio-*.json
 **/service-account-*.json
 **/*-credentials.json
+credentials.json
+sheets-config.json
 
 # Temporary release directories
 release-*/
@@ -150,3 +158,9 @@ service-account-key.json
 installer-*.ps1
 *-installer-*.exe
 *-Installer-*.exe 
+# Credential backup directory created by sanitization scripts
+.credentials-backup/
+
+# Windows null device files
+nul
+NUL
