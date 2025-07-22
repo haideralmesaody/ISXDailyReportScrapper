@@ -1,0 +1,30 @@
+ISX Daily Reports Scrapper - Software License Agreement
+
+Copyright (c) 2025 The Iraqi Investor Group. All rights reserved.
+
+This software is licensed, not sold. By installing and using this software, you agree to the following terms:
+
+1. GRANT OF LICENSE
+   Subject to the terms of this agreement, The Iraqi Investor Group grants you a non-exclusive, non-transferable license to use this software.
+
+2. RESTRICTIONS
+   - You may not distribute, rent, lease, or sublicense the software
+   - You may not reverse engineer, decompile, or disassemble the software
+   - You may not remove or alter any proprietary notices or labels
+
+3. DISCLAIMER OF WARRANTIES
+   This software is provided "as is" without warranty of any kind, either express or implied, including but not limited to the implied warranties of merchantability and fitness for a particular purpose.
+
+4. LIMITATION OF LIABILITY
+   In no event shall The Iraqi Investor Group be liable for any damages whatsoever arising out of the use of or inability to use this software.
+
+5. TERMINATION
+   This license is effective until terminated. Your rights under this license will terminate automatically without notice if you fail to comply with any term of this agreement.
+
+6. DATA COLLECTION
+   This software connects to the Iraqi Stock Exchange website to download publicly available market data. No personal information is collected or transmitted.
+
+For questions about this license or the software, please contact:
+The Iraqi Investor Group
+
+Last updated: July 2025 
