@@ -1,0 +1,79 @@
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-archive me-2"></i>File Archive</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- Downloaded Excel Files -->
+            <div class="col-md-4">
+                <h6>Downloaded Excel Files</h6>
+                <div class="card">
+                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                        <div id="downloadedFiles">
+                            <div class="text-center py-4 text-muted">
+                                <i class="fas fa-spinner fa-spin me-2"></i>Loading files...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Ticker CSV Files -->
+            <div class="col-md-4">
+                <h6>Ticker CSV Files</h6>
+                <div class="card">
+                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                        <div id="tickerFiles">
+                            <div class="text-center py-4 text-muted">
+                                <i class="fas fa-spinner fa-spin me-2"></i>Loading ticker files...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Other CSV Reports -->
+            <div class="col-md-4">
+                <h6>Other CSV Reports</h6>
+                <div class="card">
+                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                        <div id="otherReports">
+                            <div class="text-center py-4 text-muted">
+                                <i class="fas fa-spinner fa-spin me-2"></i>Loading reports...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- File Statistics -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6 class="mb-3">File Statistics</h6>
+                        <div class="row text-center">
+                            <div class="col-md-3">
+                                <h4 id="totalDownloads" class="text-primary">0</h4>
+                                <small class="text-muted">Downloaded Files</small>
+                            </div>
+                            <div class="col-md-3">
+                                <h4 id="totalReports" class="text-success">0</h4>
+                                <small class="text-muted">Generated Reports</small>
+                            </div>
+                            <div class="col-md-3">
+                                <h4 id="totalSize" class="text-info">0 MB</h4>
+                                <small class="text-muted">Total Size</small>
+                            </div>
+                            <div class="col-md-3">
+                                <h4 id="lastUpdate" class="text-warning">-</h4>
+                                <small class="text-muted">Last Update</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

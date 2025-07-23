@@ -1,0 +1,41 @@
+/* ISX Theme Variables - Iraq Stock Exchange Color Palette */
+:root {
+    /* Primary ISX Colors */
+    --primary-green: #2d5a3d;
+    --secondary-green: #4a7c59;
+    --light-green: #6b9b7a;
+    --accent-green: #8bc34a;
+    --dark-green: #1a3d2b;
+    --cream-bg: #f8f6f0;
+    --red-accent: #c53030;
+    
+    /* Highcharts Color Palette */
+    --highcharts-color-0: #8bc34a;
+    --highcharts-color-1: #c53030;
+    --highcharts-color-2: #2d5a3d;
+    --highcharts-color-3: #4a7c59;
+    --highcharts-color-4: #6b9b7a;
+    --highcharts-color-5: #a02929;
+    --highcharts-color-6: #1a3d2b;
+    --highcharts-color-7: #f8f6f0;
+    --highcharts-color-8: #5a8069;
+    --highcharts-color-9: #8da98f;
+    
+    /* Neutral colors for UI elements */
+    --highcharts-neutral-color-100: #2d5a3d;
+    --highcharts-neutral-color-80: #4a7c59;
+    --highcharts-neutral-color-60: #6b9b7a;
+    --highcharts-neutral-color-40: #8da98f;
+    --highcharts-neutral-color-20: #b6c9bb;
+    --highcharts-neutral-color-10: #dae4dc;
+    --highcharts-neutral-color-5: #f0f4f1;
+    --highcharts-neutral-color-3: #f8f6f0;
+    
+    /* Highlight colors */
+    --highcharts-highlight-color-100: #8bc34a;
+    --highcharts-highlight-color-80: #a3d063;
+    --highcharts-highlight-color-60: #bbdc7c;
+    --highcharts-highlight-color-40: #d3e995;
+    --highcharts-highlight-color-20: #ebf5ae;
+    --highcharts-highlight-color-10: #f5fad7;
+}

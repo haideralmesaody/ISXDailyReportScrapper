@@ -1,0 +1,35 @@
+<div class="sidebar p-3">
+    <div class="logo-container">
+        <img src="/static/images/TII Logo.jpg" alt="The Iraqi Investor" class="logo">
+        <div class="logo-text">ISX Data Analytics</div>
+    </div>
+    
+    <div class="connection-status">
+        <small class="text-white-50">Connection Status</small>
+        <div class="mt-1">
+            <span class="status-indicator status-disconnected" id="connectionStatus"></span>
+            <span class="text-white-50" id="connectionText">Disconnected</span>
+        </div>
+    </div>
+
+    <nav class="nav flex-column">
+        <a class="nav-link {{#if scraperActive}}active{{/if}}" href="#" data-section="scraper">
+            <i class="fas fa-cloud-download-alt me-2"></i>Data Collection
+        </a>
+        <a class="nav-link {{#if processorActive}}active{{/if}}" href="#" data-section="processor">
+            <i class="fas fa-database me-2"></i>Process Reports
+        </a>
+        <a class="nav-link {{#if indexcsvActive}}active{{/if}}" href="#" data-section="indexcsv">
+            <i class="fas fa-chart-line me-2"></i>Market Indices
+        </a>
+        <a class="nav-link {{#if tickerchartsActive}}active{{/if}}" href="#" data-section="tickercharts">
+            <i class="fas fa-chart-bar me-2"></i>Ticker Charts
+        </a>
+        <a class="nav-link {{#if marketmoversActive}}active{{/if}}" href="#" data-section="marketmovers">
+            <i class="fas fa-fire me-2"></i>Market Movers
+        </a>
+        <a class="nav-link {{#if filesActive}}active{{/if}}" href="#" data-section="files">
+            <i class="fas fa-archive me-2"></i>File Archive
+        </a>
+    </nav>
+</div>

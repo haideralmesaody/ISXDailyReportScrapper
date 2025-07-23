@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISX Analytics Platform - The Iraqi Investor</title>
+    <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Professional Financial Charts with Highcharts Stock -->
+    <link rel="stylesheet" type="text/css" href="https://code.highcharts.com/css/stocktools/gui.css">
+    <link rel="stylesheet" type="text/css" href="https://code.highcharts.com/css/annotations/popup.css">
+    
+    <!-- Core Highcharts Stock -->
+    <script src="https://code.highcharts.com/stock/highstock.js"></script>
+    
+    <!-- Technical Indicators Module -->
+    <script src="https://code.highcharts.com/stock/indicators/indicators-all.js"></script>
+    <script src="https://code.highcharts.com/stock/indicators/rsi.js"></script>
+    <script src="https://code.highcharts.com/stock/indicators/macd.js"></script>
+    <script src="https://code.highcharts.com/stock/indicators/sma.js"></script>
+    <script src="https://code.highcharts.com/stock/indicators/ema.js"></script>
+    
+    <!-- Advanced Features -->
+    <script src="https://code.highcharts.com/stock/modules/drag-panes.js"></script>
+    <script src="https://code.highcharts.com/modules/annotations-advanced.js"></script>
+    <script src="https://code.highcharts.com/modules/price-indicator.js"></script>
+    <script src="https://code.highcharts.com/modules/full-screen.js"></script>
+    <script src="https://code.highcharts.com/modules/stock-tools.js"></script>
+    
+    <!-- Export and Accessibility -->
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script src="https://code.highcharts.com/modules/export-data.js"></script>
+    <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+    
+    <!-- ISX Custom Styles -->
+    <link rel="stylesheet" href="/static/css/theme.css">
+    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="/static/css/components.css">
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar Container -->
+            <div id="sidebar-container" class="col-md-3 col-lg-2"></div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10 p-0">
+                <!-- Header Container -->
+                <div id="header-container"></div>
+                
+                <div class="p-4">
+                    <!-- Section Container -->
+                    <div id="section-container">
+                        <!-- Sections will be dynamically loaded here -->
+                    </div>
+                    
+                    <!-- Output Console -->
+                    <div class="mt-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h5><i class="fas fa-terminal me-2"></i>Output Console</h5>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="clearOutput()">
+                                <i class="fas fa-eraser me-1"></i>Clear
+                            </button>
+                        </div>
+                        <div id="output" class="output-console">
+                            <div class="text-muted">Console output will appear here...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer Container -->
+    <div id="footer-container"></div>
+    
+    <!-- Modals Container -->
+    <div id="modals-container">
+        <!-- Modals will be dynamically loaded here -->
+    </div>
+    
+    <!-- Chart.js for additional charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sparkline"></script>
+    
+    <!-- ISX Application Modules -->
+    <script src="/static/js/core/eventBus.js"></script>
+    <script src="/static/js/core/websocket.js"></script>
+    <script src="/static/js/core/state.js"></script>
+    <script src="/static/js/core/templateLoader.js"></script>
+    <script src="/static/js/core/componentManager.js"></script>
+    <script src="/static/js/services/api.js"></script>
+    <script src="/static/js/components/dataUpdateManager.js"></script>
+    <script src="/static/js/components/compatibility.js"></script>
+    <script src="/static/js/main.js"></script>
+    
+    <script>
+        // Clear output console
+        function clearOutput() {
+            const outputElement = document.getElementById('output');
+            if (outputElement) {
+                outputElement.innerHTML = '<div class="text-muted">Console output will appear here...</div>';
+            }
+        }
+        
+        // Initialize application when DOM is ready
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                // Create global application instance
+                window.isxApp = new ISXApplication();
+                
+                // Initialize the application
+                await window.isxApp.init();
+                
+                console.log('ISX Analytics Platform initialized successfully');
+            } catch (error) {
+                console.error('Failed to initialize application:', error);
+                
+                // Show error message to user
+                const errorHtml = `
+                    <div class="alert alert-danger m-3">
+                        <h5>Application Initialization Failed</h5>
+                        <p>${error.message}</p>
+                        <button onclick="location.reload()" class="btn btn-danger btn-sm">Reload Page</button>
+                    </div>
+                `;
+                document.body.innerHTML = errorHtml + document.body.innerHTML;
+            }
+        });
+    </script>
+</body>
+</html>

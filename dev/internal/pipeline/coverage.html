@@ -1,0 +1,2461 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>pipeline: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">isxcli/internal/pipeline/config.go (50.0%)</option>
+				
+				<option value="file1">isxcli/internal/pipeline/errors.go (38.1%)</option>
+				
+				<option value="file2">isxcli/internal/pipeline/manager.go (83.3%)</option>
+				
+				<option value="file3">isxcli/internal/pipeline/registry.go (100.0%)</option>
+				
+				<option value="file4">isxcli/internal/pipeline/stage.go (100.0%)</option>
+				
+				<option value="file5">isxcli/internal/pipeline/state.go (100.0%)</option>
+				
+				<option value="file6">isxcli/internal/pipeline/testutil/assertions.go (0.0%)</option>
+				
+				<option value="file7">isxcli/internal/pipeline/testutil/fixtures.go (0.0%)</option>
+				
+				<option value="file8">isxcli/internal/pipeline/testutil/mocks.go (0.0%)</option>
+				
+				<option value="file9">isxcli/internal/pipeline/types.go (100.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package pipeline
+
+import (
+        "time"
+)
+
+// Config represents the pipeline configuration
+type Config struct {
+        // Execution mode (sequential or parallel)
+        ExecutionMode ExecutionMode `json:"execution_mode"`
+
+        // Stage-specific timeouts
+        StageTimeouts map[string]time.Duration `json:"stage_timeouts"`
+
+        // Retry configuration for stages
+        RetryConfig RetryConfig `json:"retry_config"`
+
+        // Whether to continue on stage failures
+        ContinueOnError bool `json:"continue_on_error"`
+
+        // Maximum concurrent stages (for parallel execution)
+        MaxConcurrency int `json:"max_concurrency"`
+
+        // Whether to enable checkpointing
+        EnableCheckpoints bool `json:"enable_checkpoints"`
+
+        // Checkpoint directory
+        CheckpointDir string `json:"checkpoint_dir"`
+
+        // Custom stage configurations
+        StageConfigs map[string]interface{} `json:"stage_configs"`
+}
+
+// DefaultConfig returns the default pipeline configuration
+func DefaultConfig() *Config <span class="cov8" title="1">{
+        return &amp;Config{
+                ExecutionMode: ExecutionModeSequential,
+                StageTimeouts: map[string]time.Duration{
+                        StageIDScraping:  DefaultScrapingTimeout,
+                        StageIDProcessing: DefaultProcessingTimeout,
+                        StageIDIndices:   DefaultIndicesTimeout,
+                        StageIDAnalysis:  DefaultAnalysisTimeout,
+                },
+                RetryConfig:       DefaultRetryConfig(),
+                ContinueOnError:   false,
+                MaxConcurrency:    1,
+                EnableCheckpoints: false,
+                CheckpointDir:     "data/checkpoints",
+                StageConfigs:      make(map[string]interface{}),
+        }
+}</span>
+
+// GetStageTimeout returns the timeout for a specific stage
+func (c *Config) GetStageTimeout(stageID string) time.Duration <span class="cov8" title="1">{
+        if timeout, ok := c.StageTimeouts[stageID]; ok </span><span class="cov8" title="1">{
+                return timeout
+        }</span>
+        <span class="cov8" title="1">return DefaultStageTimeout</span>
+}
+
+// SetStageTimeout sets the timeout for a specific stage
+func (c *Config) SetStageTimeout(stageID string, timeout time.Duration) <span class="cov8" title="1">{
+        if c.StageTimeouts == nil </span><span class="cov0" title="0">{
+                c.StageTimeouts = make(map[string]time.Duration)
+        }</span>
+        <span class="cov8" title="1">c.StageTimeouts[stageID] = timeout</span>
+}
+
+// GetStageConfig returns the configuration for a specific stage
+func (c *Config) GetStageConfig(stageID string) (interface{}, bool) <span class="cov0" title="0">{
+        if c.StageConfigs == nil </span><span class="cov0" title="0">{
+                return nil, false
+        }</span>
+        <span class="cov0" title="0">config, ok := c.StageConfigs[stageID]
+        return config, ok</span>
+}
+
+// SetStageConfig sets the configuration for a specific stage
+func (c *Config) SetStageConfig(stageID string, config interface{}) <span class="cov0" title="0">{
+        if c.StageConfigs == nil </span><span class="cov0" title="0">{
+                c.StageConfigs = make(map[string]interface{})
+        }</span>
+        <span class="cov0" title="0">c.StageConfigs[stageID] = config</span>
+}
+
+// StageConfig represents configuration for individual stages
+type StageConfig struct {
+        // Whether this stage is enabled
+        Enabled bool `json:"enabled"`
+
+        // Whether to skip this stage on failure
+        SkipOnFailure bool `json:"skip_on_failure"`
+
+        // Custom timeout for this stage
+        Timeout time.Duration `json:"timeout"`
+
+        // Retry configuration override
+        RetryConfig *RetryConfig `json:"retry_config,omitempty"`
+
+        // Stage-specific parameters
+        Parameters map[string]interface{} `json:"parameters,omitempty"`
+}
+
+// ScrapingStageConfig represents configuration for the scraping stage
+type ScrapingStageConfig struct {
+        StageConfig
+        Mode     string `json:"mode"`     // initial or accumulative
+        FromDate string `json:"from_date"`
+        ToDate   string `json:"to_date"`
+        OutDir   string `json:"out_dir"`
+}
+
+// ProcessingStageConfig represents configuration for the processing stage
+type ProcessingStageConfig struct {
+        StageConfig
+        InDir      string `json:"in_dir"`
+        OutDir     string `json:"out_dir"`
+        FullRework bool   `json:"full_rework"`
+}
+
+// IndicesStageConfig represents configuration for the indices extraction stage
+type IndicesStageConfig struct {
+        StageConfig
+        InputDir   string `json:"input_dir"`
+        OutputFile string `json:"output_file"`
+}
+
+// AnalysisStageConfig represents configuration for the analysis stage
+type AnalysisStageConfig struct {
+        StageConfig
+        InputFile  string `json:"input_file"`
+        OutputFile string `json:"output_file"`
+}
+
+// Builder provides a fluent interface for building pipeline configurations
+type ConfigBuilder struct {
+        config *Config
+}
+
+// NewConfigBuilder creates a new configuration builder
+func NewConfigBuilder() *ConfigBuilder <span class="cov8" title="1">{
+        return &amp;ConfigBuilder{
+                config: DefaultConfig(),
+        }
+}</span>
+
+// WithExecutionMode sets the execution mode
+func (b *ConfigBuilder) WithExecutionMode(mode ExecutionMode) *ConfigBuilder <span class="cov8" title="1">{
+        b.config.ExecutionMode = mode
+        return b
+}</span>
+
+// WithStageTimeout sets the timeout for a stage
+func (b *ConfigBuilder) WithStageTimeout(stageID string, timeout time.Duration) *ConfigBuilder <span class="cov8" title="1">{
+        b.config.SetStageTimeout(stageID, timeout)
+        return b
+}</span>
+
+// WithRetryConfig sets the retry configuration
+func (b *ConfigBuilder) WithRetryConfig(config RetryConfig) *ConfigBuilder <span class="cov8" title="1">{
+        b.config.RetryConfig = config
+        return b
+}</span>
+
+// WithContinueOnError sets whether to continue on errors
+func (b *ConfigBuilder) WithContinueOnError(continueOnError bool) *ConfigBuilder <span class="cov0" title="0">{
+        b.config.ContinueOnError = continueOnError
+        return b
+}</span>
+
+// WithMaxConcurrency sets the maximum concurrency
+func (b *ConfigBuilder) WithMaxConcurrency(maxConcurrency int) *ConfigBuilder <span class="cov8" title="1">{
+        b.config.MaxConcurrency = maxConcurrency
+        return b
+}</span>
+
+// WithCheckpoints enables checkpointing
+func (b *ConfigBuilder) WithCheckpoints(enabled bool, dir string) *ConfigBuilder <span class="cov0" title="0">{
+        b.config.EnableCheckpoints = enabled
+        if dir != "" </span><span class="cov0" title="0">{
+                b.config.CheckpointDir = dir
+        }</span>
+        <span class="cov0" title="0">return b</span>
+}
+
+// WithStageConfig sets the configuration for a stage
+func (b *ConfigBuilder) WithStageConfig(stageID string, config interface{}) *ConfigBuilder <span class="cov0" title="0">{
+        b.config.SetStageConfig(stageID, config)
+        return b
+}</span>
+
+// Build returns the built configuration
+func (b *ConfigBuilder) Build() *Config <span class="cov8" title="1">{
+        return b.config
+}</pre>
+		
+		<pre class="file" id="file1" style="display: none">package pipeline
+
+import (
+        "fmt"
+)
+
+// ErrorType represents the type of pipeline error
+type ErrorType string
+
+const (
+        ErrorTypeValidation   ErrorType = "validation"
+        ErrorTypeDependency   ErrorType = "dependency"
+        ErrorTypeExecution    ErrorType = "execution"
+        ErrorTypeTimeout      ErrorType = "timeout"
+        ErrorTypeCancellation ErrorType = "cancellation"
+        ErrorTypeRetryable    ErrorType = "retryable"
+        ErrorTypeFatal        ErrorType = "fatal"
+)
+
+// PipelineError represents a pipeline-specific error
+type PipelineError struct {
+        Type      ErrorType              `json:"type"`
+        Stage     string                 `json:"stage,omitempty"`
+        Message   string                 `json:"message"`
+        Cause     error                  `json:"cause,omitempty"`
+        Context   map[string]interface{} `json:"context,omitempty"`
+        Retryable bool                   `json:"retryable"`
+}
+
+// Error implements the error interface
+func (e *PipelineError) Error() string <span class="cov8" title="1">{
+        if e.Stage != "" </span><span class="cov8" title="1">{
+                return fmt.Sprintf("[%s] %s: %s", e.Type, e.Stage, e.Message)
+        }</span>
+        <span class="cov0" title="0">return fmt.Sprintf("[%s] %s", e.Type, e.Message)</span>
+}
+
+// Unwrap returns the underlying error
+func (e *PipelineError) Unwrap() error <span class="cov0" title="0">{
+        return e.Cause
+}</span>
+
+// NewValidationError creates a new validation error
+func NewValidationError(stage, message string) *PipelineError <span class="cov8" title="1">{
+        return &amp;PipelineError{
+                Type:      ErrorTypeValidation,
+                Stage:     stage,
+                Message:   message,
+                Retryable: false,
+        }
+}</span>
+
+// NewDependencyError creates a new dependency error
+func NewDependencyError(stage, dependsOn, message string) *PipelineError <span class="cov0" title="0">{
+        return &amp;PipelineError{
+                Type:    ErrorTypeDependency,
+                Stage:   stage,
+                Message: message,
+                Context: map[string]interface{}{
+                        "depends_on": dependsOn,
+                },
+                Retryable: false,
+        }
+}</span>
+
+// NewExecutionError creates a new execution error
+func NewExecutionError(stage string, cause error, retryable bool) *PipelineError <span class="cov8" title="1">{
+        return &amp;PipelineError{
+                Type:      ErrorTypeExecution,
+                Stage:     stage,
+                Message:   "Stage execution failed",
+                Cause:     cause,
+                Retryable: retryable,
+        }
+}</span>
+
+// NewTimeoutError creates a new timeout error
+func NewTimeoutError(stage string, timeout string) *PipelineError <span class="cov8" title="1">{
+        return &amp;PipelineError{
+                Type:    ErrorTypeTimeout,
+                Stage:   stage,
+                Message: fmt.Sprintf("Stage exceeded timeout of %s", timeout),
+                Context: map[string]interface{}{
+                        "timeout": timeout,
+                },
+                Retryable: true,
+        }
+}</span>
+
+// NewCancellationError creates a new cancellation error
+func NewCancellationError(stage string) *PipelineError <span class="cov0" title="0">{
+        return &amp;PipelineError{
+                Type:      ErrorTypeCancellation,
+                Stage:     stage,
+                Message:   "Pipeline was cancelled",
+                Retryable: false,
+        }
+}</span>
+
+// NewFatalError creates a new fatal error
+func NewFatalError(message string, cause error) *PipelineError <span class="cov0" title="0">{
+        return &amp;PipelineError{
+                Type:      ErrorTypeFatal,
+                Message:   message,
+                Cause:     cause,
+                Retryable: false,
+        }
+}</span>
+
+// IsRetryable checks if an error is retryable
+func IsRetryable(err error) bool <span class="cov8" title="1">{
+        if err == nil </span><span class="cov0" title="0">{
+                return false
+        }</span>
+        <span class="cov8" title="1">if pErr, ok := err.(*PipelineError); ok </span><span class="cov8" title="1">{
+                return pErr.Retryable
+        }</span>
+        <span class="cov8" title="1">return false</span>
+}
+
+// GetErrorType returns the type of the error
+func GetErrorType(err error) ErrorType <span class="cov0" title="0">{
+        if err == nil </span><span class="cov0" title="0">{
+                return ""
+        }</span>
+        <span class="cov0" title="0">if pErr, ok := err.(*PipelineError); ok </span><span class="cov0" title="0">{
+                return pErr.Type
+        }</span>
+        <span class="cov0" title="0">return ErrorTypeExecution</span>
+}
+
+// WrapError wraps an error with pipeline context
+func WrapError(err error, stage string, message string) *PipelineError <span class="cov8" title="1">{
+        if err == nil </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+        
+        // If it's already a PipelineError, enhance it
+        <span class="cov8" title="1">if pErr, ok := err.(*PipelineError); ok </span><span class="cov8" title="1">{
+                if pErr.Stage == "" </span><span class="cov0" title="0">{
+                        pErr.Stage = stage
+                }</span>
+                <span class="cov8" title="1">if message != "" </span><span class="cov8" title="1">{
+                        pErr.Message = fmt.Sprintf("%s: %s", message, pErr.Message)
+                }</span>
+                <span class="cov8" title="1">return pErr</span>
+        }
+        
+        // Otherwise create a new execution error
+        <span class="cov8" title="1">return &amp;PipelineError{
+                Type:      ErrorTypeExecution,
+                Stage:     stage,
+                Message:   message,
+                Cause:     err,
+                Retryable: false,
+        }</span>
+}
+
+// ErrorList represents multiple errors
+type ErrorList struct {
+        Errors []*PipelineError `json:"errors"`
+}
+
+// Error implements the error interface
+func (e *ErrorList) Error() string <span class="cov0" title="0">{
+        if len(e.Errors) == 0 </span><span class="cov0" title="0">{
+                return "no errors"
+        }</span>
+        <span class="cov0" title="0">if len(e.Errors) == 1 </span><span class="cov0" title="0">{
+                return e.Errors[0].Error()
+        }</span>
+        <span class="cov0" title="0">return fmt.Sprintf("multiple errors: %d errors occurred", len(e.Errors))</span>
+}
+
+// Add adds an error to the list
+func (e *ErrorList) Add(err *PipelineError) <span class="cov0" title="0">{
+        if err != nil </span><span class="cov0" title="0">{
+                e.Errors = append(e.Errors, err)
+        }</span>
+}
+
+// HasErrors returns true if there are any errors
+func (e *ErrorList) HasErrors() bool <span class="cov0" title="0">{
+        return len(e.Errors) &gt; 0
+}</span>
+
+// GetByStage returns errors for a specific stage
+func (e *ErrorList) GetByStage(stage string) []*PipelineError <span class="cov0" title="0">{
+        var stageErrors []*PipelineError
+        for _, err := range e.Errors </span><span class="cov0" title="0">{
+                if err.Stage == stage </span><span class="cov0" title="0">{
+                        stageErrors = append(stageErrors, err)
+                }</span>
+        }
+        <span class="cov0" title="0">return stageErrors</span>
+}</pre>
+		
+		<pre class="file" id="file2" style="display: none">package pipeline
+
+import (
+        "context"
+        "fmt"
+        "sync"
+        "time"
+)
+
+// Manager orchestrates pipeline execution
+type Manager struct {
+        registry *Registry
+        config   *Config
+        hub      WebSocketHub
+        logger   Logger
+
+        // Active pipelines
+        mu        sync.RWMutex
+        pipelines map[string]*PipelineState
+}
+
+// NewManager creates a new pipeline manager
+func NewManager(hub WebSocketHub, logger Logger) *Manager <span class="cov8" title="1">{
+        return &amp;Manager{
+                registry:  NewRegistry(),
+                config:    DefaultConfig(),
+                hub:       hub,
+                logger:    logger,
+                pipelines: make(map[string]*PipelineState),
+        }
+}</span>
+
+// RegisterStage registers a stage with the pipeline
+func (m *Manager) RegisterStage(stage Stage) error <span class="cov8" title="1">{
+        return m.registry.Register(stage)
+}</span>
+
+// SetConfig updates the pipeline configuration
+func (m *Manager) SetConfig(config *Config) <span class="cov8" title="1">{
+        if config != nil </span><span class="cov8" title="1">{
+                m.config = config
+        }</span>
+}
+
+// Execute runs a pipeline with the given request
+func (m *Manager) Execute(ctx context.Context, req PipelineRequest) (*PipelineResponse, error) <span class="cov8" title="1">{
+        // Generate pipeline ID if not provided
+        if req.ID == "" </span><span class="cov0" title="0">{
+                req.ID = fmt.Sprintf("pipeline-%d", time.Now().Unix())
+        }</span>
+
+        // Create pipeline state
+        <span class="cov8" title="1">state := NewPipelineState(req.ID)
+        
+        // Set configuration from request
+        if req.FromDate != "" </span><span class="cov8" title="1">{
+                state.SetConfig(ContextKeyFromDate, req.FromDate)
+        }</span>
+        <span class="cov8" title="1">if req.ToDate != "" </span><span class="cov8" title="1">{
+                state.SetConfig(ContextKeyToDate, req.ToDate)
+        }</span>
+        <span class="cov8" title="1">if req.Mode != "" </span><span class="cov8" title="1">{
+                state.SetConfig(ContextKeyMode, req.Mode)
+        }</span>
+        
+        // Copy additional parameters
+        <span class="cov8" title="1">for k, v := range req.Parameters </span><span class="cov8" title="1">{
+                state.SetConfig(k, v)
+        }</span>
+
+        // Store pipeline state
+        <span class="cov8" title="1">m.storePipeline(state)
+        defer m.removePipeline(req.ID)
+
+        // Send pipeline reset event
+        m.sendWebSocketUpdate(EventTypePipelineReset, state)
+
+        // Get stages in dependency order
+        stages, err := m.registry.GetDependencyOrder()
+        if err != nil </span><span class="cov0" title="0">{
+                m.logger.Error("Failed to get dependency order: %v", err)
+                state.Fail(err)
+                return m.createResponse(state), err
+        }</span>
+
+        // Initialize stage states
+        <span class="cov8" title="1">for _, stage := range stages </span><span class="cov8" title="1">{
+                stageState := NewStageState(stage.ID(), stage.Name())
+                state.SetStage(stage.ID(), stageState)
+        }</span>
+
+        // Start pipeline execution
+        <span class="cov8" title="1">state.Start()
+        m.sendWebSocketUpdate(EventTypePipelineStatus, state)
+
+        // Execute stages based on execution mode
+        if m.config.ExecutionMode == ExecutionModeSequential </span><span class="cov8" title="1">{
+                err = m.executeSequential(ctx, state, stages)
+        }</span> else<span class="cov0" title="0"> {
+                err = m.executeParallel(ctx, state, stages)
+        }</span>
+
+        // Update final pipeline state
+        <span class="cov8" title="1">if err != nil </span><span class="cov8" title="1">{
+                state.Fail(err)
+                m.sendWebSocketUpdate(EventTypePipelineError, state)
+        }</span> else<span class="cov8" title="1"> {
+                state.Complete()
+                m.sendWebSocketUpdate(EventTypePipelineComplete, state)
+        }</span>
+
+        <span class="cov8" title="1">return m.createResponse(state), err</span>
+}
+
+// executeSequential executes stages one by one
+func (m *Manager) executeSequential(ctx context.Context, state *PipelineState, stages []Stage) error <span class="cov8" title="1">{
+        for _, stage := range stages </span><span class="cov8" title="1">{
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        return NewCancellationError(stage.ID())</span>
+                default:<span class="cov8" title="1">
+                        // Check if stage should be skipped due to failed dependencies
+                        stageState := state.GetStage(stage.ID())
+                        if stageState != nil &amp;&amp; stageState.Status == StageStatusSkipped </span><span class="cov0" title="0">{
+                                continue</span>
+                        }
+                        
+                        <span class="cov8" title="1">if err := m.executeStage(ctx, state, stage); err != nil </span><span class="cov8" title="1">{
+                                if !m.config.ContinueOnError </span><span class="cov8" title="1">{
+                                        // Skip all dependent stages
+                                        m.skipDependentStages(state, stages, stage.ID())
+                                        return err
+                                }</span>
+                                <span class="cov0" title="0">m.logger.Warn("Stage %s failed but continuing: %v", stage.ID(), err)</span>
+                        }
+                }
+        }
+        <span class="cov8" title="1">return nil</span>
+}
+
+// executeParallel executes independent stages in parallel
+func (m *Manager) executeParallel(ctx context.Context, state *PipelineState, stages []Stage) error <span class="cov0" title="0">{
+        // TODO: Implement parallel execution
+        // For now, fall back to sequential
+        return m.executeSequential(ctx, state, stages)
+}</span>
+
+// executeStage executes a single stage with retry logic
+func (m *Manager) executeStage(ctx context.Context, pipelineState *PipelineState, stage Stage) error <span class="cov8" title="1">{
+        stageState := pipelineState.GetStage(stage.ID())
+        if stageState == nil </span><span class="cov0" title="0">{
+                return NewFatalError("Stage state not found", nil)
+        }</span>
+
+        // Check dependencies
+        <span class="cov8" title="1">if err := m.checkDependencies(pipelineState, stage); err != nil </span><span class="cov0" title="0">{
+                stageState.Skip(fmt.Sprintf("Dependencies not met: %v", err))
+                m.sendStageUpdate(pipelineState, stageState)
+                return err
+        }</span>
+
+        // Validate stage
+        <span class="cov8" title="1">if err := stage.Validate(pipelineState); err != nil </span><span class="cov0" title="0">{
+                stageState.Skip(fmt.Sprintf("Validation failed: %v", err))
+                m.sendStageUpdate(pipelineState, stageState)
+                return NewValidationError(stage.ID(), err.Error())
+        }</span>
+
+        // Get stage timeout
+        <span class="cov8" title="1">timeout := m.config.GetStageTimeout(stage.ID())
+        stageCtx, cancel := context.WithTimeout(ctx, timeout)
+        defer cancel()
+
+        // Execute with retries
+        retryConfig := m.config.RetryConfig
+        var lastErr error
+        
+        for attempt := 1; attempt &lt;= retryConfig.MaxAttempts; attempt++ </span><span class="cov8" title="1">{
+                // Start stage
+                stageState.Start()
+                m.sendStageUpdate(pipelineState, stageState)
+
+                // Execute stage
+                err := stage.Execute(stageCtx, pipelineState)
+                
+                if err == nil </span><span class="cov8" title="1">{
+                        // Success
+                        stageState.Complete()
+                        m.sendStageUpdate(pipelineState, stageState)
+                        return nil
+                }</span>
+
+                <span class="cov8" title="1">lastErr = err
+
+                // Check if error is retryable
+                if !IsRetryable(err) || attempt &gt;= retryConfig.MaxAttempts </span><span class="cov8" title="1">{
+                        stageState.Fail(err)
+                        m.sendStageUpdate(pipelineState, stageState)
+                        return WrapError(err, stage.ID(), "Stage execution failed")
+                }</span>
+
+                // Calculate retry delay
+                <span class="cov8" title="1">delay := m.calculateRetryDelay(attempt, retryConfig)
+                m.logger.Warn("Stage %s failed (attempt %d/%d), retrying in %v: %v", 
+                        stage.ID(), attempt, retryConfig.MaxAttempts, delay, err)
+
+                // Wait before retry
+                select </span>{
+                case &lt;-time.After(delay):<span class="cov8" title="1"></span>
+                        // Continue to next attempt
+                case &lt;-stageCtx.Done():<span class="cov0" title="0">
+                        stageState.Fail(NewTimeoutError(stage.ID(), timeout.String()))
+                        m.sendStageUpdate(pipelineState, stageState)
+                        return NewTimeoutError(stage.ID(), timeout.String())</span>
+                }
+        }
+
+        // All retries exhausted
+        <span class="cov0" title="0">stageState.Fail(lastErr)
+        m.sendStageUpdate(pipelineState, stageState)
+        return WrapError(lastErr, stage.ID(), "Stage execution failed after retries")</span>
+}
+
+// skipDependentStages marks all stages that depend on the failed stage as skipped
+func (m *Manager) skipDependentStages(state *PipelineState, stages []Stage, failedStageID string) <span class="cov8" title="1">{
+        for _, stage := range stages </span><span class="cov8" title="1">{
+                deps := stage.GetDependencies()
+                for _, dep := range deps </span><span class="cov8" title="1">{
+                        if dep == failedStageID </span><span class="cov8" title="1">{
+                                stageState := state.GetStage(stage.ID())
+                                if stageState != nil &amp;&amp; stageState.Status == StageStatusPending </span><span class="cov8" title="1">{
+                                        stageState.Skip(fmt.Sprintf("Dependency %s failed", failedStageID))
+                                        m.sendStageUpdate(state, stageState)
+                                        // Recursively skip stages that depend on this one
+                                        m.skipDependentStages(state, stages, stage.ID())
+                                }</span>
+                                <span class="cov8" title="1">break</span>
+                        }
+                }
+        }
+}
+
+// checkDependencies verifies that all dependencies are satisfied
+func (m *Manager) checkDependencies(state *PipelineState, stage Stage) error <span class="cov8" title="1">{
+        deps := stage.GetDependencies()
+        for _, dep := range deps </span><span class="cov8" title="1">{
+                depState := state.GetStage(dep)
+                if depState == nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("dependency %s not found", dep)
+                }</span>
+                <span class="cov8" title="1">if depState.Status != StageStatusCompleted </span><span class="cov0" title="0">{
+                        return fmt.Errorf("dependency %s not completed (status: %s)", dep, depState.Status)
+                }</span>
+        }
+        <span class="cov8" title="1">return nil</span>
+}
+
+// calculateRetryDelay calculates the delay before next retry
+func (m *Manager) calculateRetryDelay(attempt int, config RetryConfig) time.Duration <span class="cov8" title="1">{
+        delay := config.InitialDelay * time.Duration(float64(attempt-1)*config.Multiplier)
+        if delay &gt; config.MaxDelay </span><span class="cov0" title="0">{
+                delay = config.MaxDelay
+        }</span>
+        <span class="cov8" title="1">return delay</span>
+}
+
+// sendStageUpdate sends a WebSocket update for a stage
+func (m *Manager) sendStageUpdate(pipelineState *PipelineState, stageState *StageState) <span class="cov8" title="1">{
+        update := map[string]interface{}{
+                "pipeline_id": pipelineState.ID,
+                "stage":       stageState.ID,
+                "status":      stageState.Status,
+                "progress":    stageState.Progress,
+                "message":     stageState.Message,
+        }
+
+        if stageState.Metadata != nil </span><span class="cov8" title="1">{
+                update["metadata"] = stageState.Metadata
+        }</span>
+
+        <span class="cov8" title="1">m.hub.BroadcastUpdate(EventTypePipelineProgress, "", "", update)</span>
+}
+
+// sendWebSocketUpdate sends a pipeline-level WebSocket update
+func (m *Manager) sendWebSocketUpdate(eventType string, state *PipelineState) <span class="cov8" title="1">{
+        update := map[string]interface{}{
+                "pipeline_id": state.ID,
+                "status":      state.Status,
+                "stages":      state.Stages,
+        }
+
+        if eventType == EventTypePipelineError &amp;&amp; state.Error != nil </span><span class="cov8" title="1">{
+                update["error"] = state.Error.Error()
+        }</span>
+
+        <span class="cov8" title="1">m.hub.BroadcastUpdate(eventType, "", "", update)</span>
+}
+
+// createResponse creates a pipeline response from state
+func (m *Manager) createResponse(state *PipelineState) *PipelineResponse <span class="cov8" title="1">{
+        resp := &amp;PipelineResponse{
+                ID:       state.ID,
+                Status:   state.Status,
+                Duration: state.Duration(),
+                Stages:   state.Stages,
+        }
+
+        if state.Error != nil </span><span class="cov8" title="1">{
+                resp.Error = state.Error.Error()
+        }</span>
+
+        <span class="cov8" title="1">return resp</span>
+}
+
+// GetPipeline retrieves the state of a running pipeline
+func (m *Manager) GetPipeline(id string) (*PipelineState, error) <span class="cov8" title="1">{
+        m.mu.RLock()
+        defer m.mu.RUnlock()
+
+        state, exists := m.pipelines[id]
+        if !exists </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("pipeline %s not found", id)
+        }</span>
+
+        <span class="cov8" title="1">return state.Clone(), nil</span>
+}
+
+// ListPipelines returns all active pipelines
+func (m *Manager) ListPipelines() []*PipelineState <span class="cov8" title="1">{
+        m.mu.RLock()
+        defer m.mu.RUnlock()
+
+        pipelines := make([]*PipelineState, 0, len(m.pipelines))
+        for _, state := range m.pipelines </span><span class="cov8" title="1">{
+                pipelines = append(pipelines, state.Clone())
+        }</span>
+
+        <span class="cov8" title="1">return pipelines</span>
+}
+
+// CancelPipeline cancels a running pipeline
+func (m *Manager) CancelPipeline(id string) error <span class="cov8" title="1">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+
+        state, exists := m.pipelines[id]
+        if !exists </span><span class="cov8" title="1">{
+                return fmt.Errorf("pipeline %s not found", id)
+        }</span>
+
+        <span class="cov8" title="1">state.Cancel()
+        m.sendWebSocketUpdate(EventTypePipelineStatus, state)
+        return nil</span>
+}
+
+// storePipeline stores a pipeline state
+func (m *Manager) storePipeline(state *PipelineState) <span class="cov8" title="1">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        m.pipelines[state.ID] = state
+}</span>
+
+// removePipeline removes a pipeline state
+func (m *Manager) removePipeline(id string) <span class="cov8" title="1">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        delete(m.pipelines, id)
+}</span>
+
+// GetRegistry returns the stage registry
+func (m *Manager) GetRegistry() *Registry <span class="cov8" title="1">{
+        return m.registry
+}</span>
+
+// GetConfig returns the current configuration
+func (m *Manager) GetConfig() *Config <span class="cov8" title="1">{
+        return m.config
+}</pre>
+		
+		<pre class="file" id="file3" style="display: none">package pipeline
+
+import (
+        "fmt"
+        "sync"
+)
+
+// Registry manages registered pipeline stages
+type Registry struct {
+        mu     sync.RWMutex
+        stages map[string]Stage
+        order  []string // Maintains registration order
+}
+
+// NewRegistry creates a new stage registry
+func NewRegistry() *Registry <span class="cov8" title="1">{
+        return &amp;Registry{
+                stages: make(map[string]Stage),
+                order:  make([]string, 0),
+        }
+}</span>
+
+// Register adds a stage to the registry
+func (r *Registry) Register(stage Stage) error <span class="cov8" title="1">{
+        if stage == nil </span><span class="cov8" title="1">{
+                return fmt.Errorf("cannot register nil stage")
+        }</span>
+
+        <span class="cov8" title="1">id := stage.ID()
+        if id == "" </span><span class="cov8" title="1">{
+                return fmt.Errorf("stage ID cannot be empty")
+        }</span>
+
+        <span class="cov8" title="1">r.mu.Lock()
+        defer r.mu.Unlock()
+
+        if _, exists := r.stages[id]; exists </span><span class="cov8" title="1">{
+                return fmt.Errorf("stage with ID %s already registered", id)
+        }</span>
+
+        <span class="cov8" title="1">r.stages[id] = stage
+        r.order = append(r.order, id)
+        return nil</span>
+}
+
+// Unregister removes a stage from the registry
+func (r *Registry) Unregister(id string) error <span class="cov8" title="1">{
+        r.mu.Lock()
+        defer r.mu.Unlock()
+
+        if _, exists := r.stages[id]; !exists </span><span class="cov8" title="1">{
+                return fmt.Errorf("stage with ID %s not found", id)
+        }</span>
+
+        <span class="cov8" title="1">delete(r.stages, id)
+
+        // Remove from order slice
+        newOrder := make([]string, 0, len(r.order)-1)
+        for _, stageID := range r.order </span><span class="cov8" title="1">{
+                if stageID != id </span><span class="cov8" title="1">{
+                        newOrder = append(newOrder, stageID)
+                }</span>
+        }
+        <span class="cov8" title="1">r.order = newOrder
+
+        return nil</span>
+}
+
+// Get retrieves a stage by ID
+func (r *Registry) Get(id string) (Stage, error) <span class="cov8" title="1">{
+        r.mu.RLock()
+        defer r.mu.RUnlock()
+
+        stage, exists := r.stages[id]
+        if !exists </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("stage with ID %s not found", id)
+        }</span>
+
+        <span class="cov8" title="1">return stage, nil</span>
+}
+
+// Has checks if a stage is registered
+func (r *Registry) Has(id string) bool <span class="cov8" title="1">{
+        r.mu.RLock()
+        defer r.mu.RUnlock()
+
+        _, exists := r.stages[id]
+        return exists
+}</span>
+
+// List returns all registered stages in registration order
+func (r *Registry) List() []Stage <span class="cov8" title="1">{
+        r.mu.RLock()
+        defer r.mu.RUnlock()
+
+        stages := make([]Stage, 0, len(r.order))
+        for _, id := range r.order </span><span class="cov8" title="1">{
+                if stage, exists := r.stages[id]; exists </span><span class="cov8" title="1">{
+                        stages = append(stages, stage)
+                }</span>
+        }
+
+        <span class="cov8" title="1">return stages</span>
+}
+
+// ListIDs returns all registered stage IDs in registration order
+func (r *Registry) ListIDs() []string <span class="cov8" title="1">{
+        r.mu.RLock()
+        defer r.mu.RUnlock()
+
+        ids := make([]string, len(r.order))
+        copy(ids, r.order)
+        return ids
+}</span>
+
+// Count returns the number of registered stages
+func (r *Registry) Count() int <span class="cov8" title="1">{
+        r.mu.RLock()
+        defer r.mu.RUnlock()
+
+        return len(r.stages)
+}</span>
+
+// Clear removes all registered stages
+func (r *Registry) Clear() <span class="cov8" title="1">{
+        r.mu.Lock()
+        defer r.mu.Unlock()
+
+        r.stages = make(map[string]Stage)
+        r.order = make([]string, 0)
+}</span>
+
+// GetDependencyOrder returns stages ordered by dependencies
+func (r *Registry) GetDependencyOrder() ([]Stage, error) <span class="cov8" title="1">{
+        r.mu.RLock()
+        defer r.mu.RUnlock()
+
+        // Build dependency graph
+        graph := make(map[string][]string)
+        inDegree := make(map[string]int)
+        
+        // Initialize
+        for id := range r.stages </span><span class="cov8" title="1">{
+                graph[id] = []string{}
+                inDegree[id] = 0
+        }</span>
+        
+        // Build graph and calculate in-degrees
+        <span class="cov8" title="1">for id, stage := range r.stages </span><span class="cov8" title="1">{
+                deps := stage.GetDependencies()
+                for _, dep := range deps </span><span class="cov8" title="1">{
+                        if _, exists := r.stages[dep]; !exists </span><span class="cov8" title="1">{
+                                return nil, fmt.Errorf("stage %s depends on non-existent stage %s", id, dep)
+                        }</span>
+                        <span class="cov8" title="1">graph[dep] = append(graph[dep], id)
+                        inDegree[id]++</span>
+                }
+        }
+        
+        // Topological sort using Kahn's algorithm
+        // Use registration order for stages with same priority
+        <span class="cov8" title="1">queue := make([]string, 0)
+        for _, id := range r.order </span><span class="cov8" title="1">{
+                if inDegree[id] == 0 </span><span class="cov8" title="1">{
+                        queue = append(queue, id)
+                }</span>
+        }
+        
+        <span class="cov8" title="1">ordered := make([]Stage, 0, len(r.stages))
+        processed := 0
+        
+        for len(queue) &gt; 0 </span><span class="cov8" title="1">{
+                current := queue[0]
+                queue = queue[1:]
+                
+                ordered = append(ordered, r.stages[current])
+                processed++
+                
+                // Reduce in-degree for dependent stages
+                // Collect newly available stages
+                newAvailable := make([]string, 0)
+                for _, dependent := range graph[current] </span><span class="cov8" title="1">{
+                        inDegree[dependent]--
+                        if inDegree[dependent] == 0 </span><span class="cov8" title="1">{
+                                newAvailable = append(newAvailable, dependent)
+                        }</span>
+                }
+                
+                // Sort newly available by registration order
+                <span class="cov8" title="1">for _, id := range r.order </span><span class="cov8" title="1">{
+                        for _, available := range newAvailable </span><span class="cov8" title="1">{
+                                if id == available </span><span class="cov8" title="1">{
+                                        queue = append(queue, id)
+                                        break</span>
+                                }
+                        }
+                }
+        }
+        
+        // Check for cycles
+        <span class="cov8" title="1">if processed != len(r.stages) </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("dependency cycle detected")
+        }</span>
+        
+        <span class="cov8" title="1">return ordered, nil</span>
+}
+
+// ValidateDependencies checks if all stage dependencies are satisfied
+func (r *Registry) ValidateDependencies() error <span class="cov8" title="1">{
+        r.mu.RLock()
+        defer r.mu.RUnlock()
+
+        for id, stage := range r.stages </span><span class="cov8" title="1">{
+                deps := stage.GetDependencies()
+                for _, dep := range deps </span><span class="cov8" title="1">{
+                        if _, exists := r.stages[dep]; !exists </span><span class="cov8" title="1">{
+                                return fmt.Errorf("stage %s depends on non-existent stage %s", id, dep)
+                        }</span>
+                }
+        }
+
+        // Check for cycles
+        <span class="cov8" title="1">_, err := r.GetDependencyOrder()
+        return err</span>
+}
+
+// GetDependents returns stages that depend on the given stage
+func (r *Registry) GetDependents(stageID string) []Stage <span class="cov8" title="1">{
+        r.mu.RLock()
+        defer r.mu.RUnlock()
+
+        dependents := make([]Stage, 0)
+        for _, stage := range r.stages </span><span class="cov8" title="1">{
+                deps := stage.GetDependencies()
+                for _, dep := range deps </span><span class="cov8" title="1">{
+                        if dep == stageID </span><span class="cov8" title="1">{
+                                dependents = append(dependents, stage)
+                                break</span>
+                        }
+                }
+        }
+
+        <span class="cov8" title="1">return dependents</span>
+}
+
+// Clone creates a copy of the registry
+func (r *Registry) Clone() *Registry <span class="cov8" title="1">{
+        r.mu.RLock()
+        defer r.mu.RUnlock()
+
+        clone := NewRegistry()
+        for _, id := range r.order </span><span class="cov8" title="1">{
+                if stage, exists := r.stages[id]; exists </span><span class="cov8" title="1">{
+                        clone.stages[id] = stage
+                        clone.order = append(clone.order, id)
+                }</span>
+        }
+
+        <span class="cov8" title="1">return clone</span>
+}</pre>
+		
+		<pre class="file" id="file4" style="display: none">package pipeline
+
+import (
+        "context"
+        "time"
+)
+
+// Stage represents a single stage in the pipeline
+type Stage interface {
+        // ID returns the unique identifier for this stage
+        ID() string
+
+        // Name returns the human-readable name for this stage
+        Name() string
+
+        // Execute runs the stage with the given context and pipeline state
+        Execute(ctx context.Context, state *PipelineState) error
+
+        // Validate checks if the stage can be executed with the current state
+        Validate(state *PipelineState) error
+
+        // GetDependencies returns the IDs of stages that must complete before this stage
+        GetDependencies() []string
+}
+
+// StageStatus represents the current status of a stage
+type StageStatus string
+
+const (
+        StageStatusPending   StageStatus = "pending"
+        StageStatusActive    StageStatus = "active"
+        StageStatusCompleted StageStatus = "completed"
+        StageStatusFailed    StageStatus = "failed"
+        StageStatusSkipped   StageStatus = "skipped"
+)
+
+// StageState represents the runtime state of a stage
+type StageState struct {
+        ID          string                 `json:"id"`
+        Name        string                 `json:"name"`
+        Status      StageStatus            `json:"status"`
+        StartTime   *time.Time             `json:"start_time,omitempty"`
+        EndTime     *time.Time             `json:"end_time,omitempty"`
+        Progress    float64                `json:"progress"`
+        Message     string                 `json:"message"`
+        Error       error                  `json:"error,omitempty"`
+        Metadata    map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// NewStageState creates a new stage state with default values
+func NewStageState(id, name string) *StageState <span class="cov8" title="1">{
+        return &amp;StageState{
+                ID:       id,
+                Name:     name,
+                Status:   StageStatusPending,
+                Progress: 0,
+                Metadata: make(map[string]interface{}),
+        }
+}</span>
+
+// Start marks the stage as active and sets the start time
+func (s *StageState) Start() <span class="cov8" title="1">{
+        now := time.Now()
+        s.StartTime = &amp;now
+        s.Status = StageStatusActive
+        s.Progress = 0
+}</span>
+
+// Complete marks the stage as completed and sets the end time
+func (s *StageState) Complete() <span class="cov8" title="1">{
+        now := time.Now()
+        s.EndTime = &amp;now
+        s.Status = StageStatusCompleted
+        s.Progress = 100
+}</span>
+
+// Fail marks the stage as failed with the given error
+func (s *StageState) Fail(err error) <span class="cov8" title="1">{
+        now := time.Now()
+        s.EndTime = &amp;now
+        s.Status = StageStatusFailed
+        s.Error = err
+}</span>
+
+// Skip marks the stage as skipped with the given reason
+func (s *StageState) Skip(reason string) <span class="cov8" title="1">{
+        now := time.Now()
+        s.EndTime = &amp;now
+        s.Status = StageStatusSkipped
+        s.Message = reason
+}</span>
+
+// UpdateProgress updates the stage progress and message
+func (s *StageState) UpdateProgress(progress float64, message string) <span class="cov8" title="1">{
+        s.Progress = progress
+        s.Message = message
+}</span>
+
+// Duration returns the duration of the stage execution
+func (s *StageState) Duration() time.Duration <span class="cov8" title="1">{
+        if s.StartTime == nil </span><span class="cov8" title="1">{
+                return 0
+        }</span>
+        <span class="cov8" title="1">if s.EndTime != nil </span><span class="cov8" title="1">{
+                return s.EndTime.Sub(*s.StartTime)
+        }</span>
+        <span class="cov8" title="1">return time.Since(*s.StartTime)</span>
+}
+
+// BaseStage provides common functionality for stage implementations
+type BaseStage struct {
+        id           string
+        name         string
+        dependencies []string
+}
+
+// NewBaseStage creates a new base stage
+func NewBaseStage(id, name string, dependencies []string) BaseStage <span class="cov8" title="1">{
+        if dependencies == nil </span><span class="cov8" title="1">{
+                dependencies = []string{}
+        }</span>
+        <span class="cov8" title="1">return BaseStage{
+                id:           id,
+                name:         name,
+                dependencies: dependencies,
+        }</span>
+}
+
+// ID returns the stage ID
+func (b BaseStage) ID() string <span class="cov8" title="1">{
+        return b.id
+}</span>
+
+// Name returns the stage name
+func (b BaseStage) Name() string <span class="cov8" title="1">{
+        return b.name
+}</span>
+
+// GetDependencies returns the stage dependencies
+func (b BaseStage) GetDependencies() []string <span class="cov8" title="1">{
+        return b.dependencies
+}</span>
+
+// Validate provides a default validation that always passes
+func (b BaseStage) Validate(state *PipelineState) error <span class="cov8" title="1">{
+        return nil
+}</pre>
+		
+		<pre class="file" id="file5" style="display: none">package pipeline
+
+import (
+        "sync"
+        "time"
+)
+
+// PipelineStatus represents the overall pipeline status
+type PipelineStatus string
+
+const (
+        PipelineStatusPending   PipelineStatus = "pending"
+        PipelineStatusRunning   PipelineStatus = "running"
+        PipelineStatusCompleted PipelineStatus = "completed"
+        PipelineStatusFailed    PipelineStatus = "failed"
+        PipelineStatusCancelled PipelineStatus = "cancelled"
+)
+
+// PipelineState represents the complete state of a pipeline execution
+type PipelineState struct {
+        mu sync.RWMutex
+
+        // Basic pipeline information
+        ID        string         `json:"id"`
+        Status    PipelineStatus `json:"status"`
+        StartTime time.Time      `json:"start_time"`
+        EndTime   *time.Time     `json:"end_time,omitempty"`
+
+        // Stage states
+        Stages map[string]*StageState `json:"stages"`
+
+        // Pipeline context for passing data between stages
+        Context map[string]interface{} `json:"context"`
+
+        // Configuration passed from the request
+        Config map[string]interface{} `json:"config"`
+
+        // Error if pipeline failed
+        Error error `json:"error,omitempty"`
+}
+
+// NewPipelineState creates a new pipeline state
+func NewPipelineState(id string) *PipelineState <span class="cov8" title="1">{
+        return &amp;PipelineState{
+                ID:        id,
+                Status:    PipelineStatusPending,
+                StartTime: time.Now(),
+                Stages:    make(map[string]*StageState),
+                Context:   make(map[string]interface{}),
+                Config:    make(map[string]interface{}),
+        }
+}</span>
+
+// Start marks the pipeline as running
+func (p *PipelineState) Start() <span class="cov8" title="1">{
+        p.mu.Lock()
+        defer p.mu.Unlock()
+        p.Status = PipelineStatusRunning
+        p.StartTime = time.Now()
+}</span>
+
+// Complete marks the pipeline as completed
+func (p *PipelineState) Complete() <span class="cov8" title="1">{
+        p.mu.Lock()
+        defer p.mu.Unlock()
+        now := time.Now()
+        p.EndTime = &amp;now
+        p.Status = PipelineStatusCompleted
+}</span>
+
+// Fail marks the pipeline as failed
+func (p *PipelineState) Fail(err error) <span class="cov8" title="1">{
+        p.mu.Lock()
+        defer p.mu.Unlock()
+        now := time.Now()
+        p.EndTime = &amp;now
+        p.Status = PipelineStatusFailed
+        p.Error = err
+}</span>
+
+// Cancel marks the pipeline as cancelled
+func (p *PipelineState) Cancel() <span class="cov8" title="1">{
+        p.mu.Lock()
+        defer p.mu.Unlock()
+        now := time.Now()
+        p.EndTime = &amp;now
+        p.Status = PipelineStatusCancelled
+}</span>
+
+// GetStage returns the state of a specific stage
+func (p *PipelineState) GetStage(stageID string) *StageState <span class="cov8" title="1">{
+        p.mu.RLock()
+        defer p.mu.RUnlock()
+        return p.Stages[stageID]
+}</span>
+
+// SetStage updates the state of a specific stage
+func (p *PipelineState) SetStage(stageID string, state *StageState) <span class="cov8" title="1">{
+        p.mu.Lock()
+        defer p.mu.Unlock()
+        p.Stages[stageID] = state
+}</span>
+
+// GetContext retrieves a value from the pipeline context
+func (p *PipelineState) GetContext(key string) (interface{}, bool) <span class="cov8" title="1">{
+        p.mu.RLock()
+        defer p.mu.RUnlock()
+        val, ok := p.Context[key]
+        return val, ok
+}</span>
+
+// SetContext sets a value in the pipeline context
+func (p *PipelineState) SetContext(key string, value interface{}) <span class="cov8" title="1">{
+        p.mu.Lock()
+        defer p.mu.Unlock()
+        p.Context[key] = value
+}</span>
+
+// GetConfig retrieves a configuration value
+func (p *PipelineState) GetConfig(key string) (interface{}, bool) <span class="cov8" title="1">{
+        p.mu.RLock()
+        defer p.mu.RUnlock()
+        val, ok := p.Config[key]
+        return val, ok
+}</span>
+
+// SetConfig sets a configuration value
+func (p *PipelineState) SetConfig(key string, value interface{}) <span class="cov8" title="1">{
+        p.mu.Lock()
+        defer p.mu.Unlock()
+        p.Config[key] = value
+}</span>
+
+// Duration returns the duration of the pipeline execution
+func (p *PipelineState) Duration() time.Duration <span class="cov8" title="1">{
+        p.mu.RLock()
+        defer p.mu.RUnlock()
+        if p.EndTime != nil </span><span class="cov8" title="1">{
+                return p.EndTime.Sub(p.StartTime)
+        }</span>
+        <span class="cov8" title="1">return time.Since(p.StartTime)</span>
+}
+
+// GetActiveStages returns all currently active stages
+func (p *PipelineState) GetActiveStages() []*StageState <span class="cov8" title="1">{
+        p.mu.RLock()
+        defer p.mu.RUnlock()
+        var active []*StageState
+        for _, stage := range p.Stages </span><span class="cov8" title="1">{
+                if stage.Status == StageStatusActive </span><span class="cov8" title="1">{
+                        active = append(active, stage)
+                }</span>
+        }
+        <span class="cov8" title="1">return active</span>
+}
+
+// GetCompletedStages returns all completed stages
+func (p *PipelineState) GetCompletedStages() []*StageState <span class="cov8" title="1">{
+        p.mu.RLock()
+        defer p.mu.RUnlock()
+        var completed []*StageState
+        for _, stage := range p.Stages </span><span class="cov8" title="1">{
+                if stage.Status == StageStatusCompleted </span><span class="cov8" title="1">{
+                        completed = append(completed, stage)
+                }</span>
+        }
+        <span class="cov8" title="1">return completed</span>
+}
+
+// GetFailedStages returns all failed stages
+func (p *PipelineState) GetFailedStages() []*StageState <span class="cov8" title="1">{
+        p.mu.RLock()
+        defer p.mu.RUnlock()
+        var failed []*StageState
+        for _, stage := range p.Stages </span><span class="cov8" title="1">{
+                if stage.Status == StageStatusFailed </span><span class="cov8" title="1">{
+                        failed = append(failed, stage)
+                }</span>
+        }
+        <span class="cov8" title="1">return failed</span>
+}
+
+// IsComplete returns true if all stages are completed or skipped
+func (p *PipelineState) IsComplete() bool <span class="cov8" title="1">{
+        p.mu.RLock()
+        defer p.mu.RUnlock()
+        for _, stage := range p.Stages </span><span class="cov8" title="1">{
+                if stage.Status == StageStatusPending || stage.Status == StageStatusActive </span><span class="cov8" title="1">{
+                        return false
+                }</span>
+        }
+        <span class="cov8" title="1">return true</span>
+}
+
+// HasFailures returns true if any stage has failed
+func (p *PipelineState) HasFailures() bool <span class="cov8" title="1">{
+        p.mu.RLock()
+        defer p.mu.RUnlock()
+        for _, stage := range p.Stages </span><span class="cov8" title="1">{
+                if stage.Status == StageStatusFailed </span><span class="cov8" title="1">{
+                        return true
+                }</span>
+        }
+        <span class="cov8" title="1">return false</span>
+}
+
+// Clone creates a deep copy of the pipeline state
+func (p *PipelineState) Clone() *PipelineState <span class="cov8" title="1">{
+        p.mu.RLock()
+        defer p.mu.RUnlock()
+
+        clone := &amp;PipelineState{
+                ID:        p.ID,
+                Status:    p.Status,
+                StartTime: p.StartTime,
+                Stages:    make(map[string]*StageState),
+                Context:   make(map[string]interface{}),
+                Config:    make(map[string]interface{}),
+                Error:     p.Error,
+        }
+
+        if p.EndTime != nil </span><span class="cov8" title="1">{
+                endTime := *p.EndTime
+                clone.EndTime = &amp;endTime
+        }</span>
+
+        // Clone stages
+        <span class="cov8" title="1">for k, v := range p.Stages </span><span class="cov8" title="1">{
+                stageCopy := *v
+                clone.Stages[k] = &amp;stageCopy
+        }</span>
+
+        // Clone context
+        <span class="cov8" title="1">for k, v := range p.Context </span><span class="cov8" title="1">{
+                clone.Context[k] = v
+        }</span>
+
+        // Clone config
+        <span class="cov8" title="1">for k, v := range p.Config </span><span class="cov8" title="1">{
+                clone.Config[k] = v
+        }</span>
+
+        <span class="cov8" title="1">return clone</span>
+}</pre>
+		
+		<pre class="file" id="file6" style="display: none">package testutil
+
+import (
+        "fmt"
+        "math"
+        "strings"
+        "testing"
+        "time"
+
+        "isxcli/internal/pipeline"
+)
+
+// AssertStageStatus verifies a stage has the expected status
+func AssertStageStatus(t *testing.T, stage *pipeline.StageState, expected pipeline.StageStatus) <span class="cov0" title="0">{
+        t.Helper()
+        if stage == nil </span><span class="cov0" title="0">{
+                t.Fatal("stage state is nil")
+        }</span>
+        <span class="cov0" title="0">if stage.Status != expected </span><span class="cov0" title="0">{
+                t.Errorf("stage %s status = %v, want %v", stage.ID, stage.Status, expected)
+        }</span>
+}
+
+// AssertPipelineStatus verifies a pipeline has the expected status
+func AssertPipelineStatus(t *testing.T, p *pipeline.PipelineState, expected pipeline.PipelineStatus) <span class="cov0" title="0">{
+        t.Helper()
+        if p == nil </span><span class="cov0" title="0">{
+                t.Fatal("pipeline state is nil")
+        }</span>
+        <span class="cov0" title="0">if p.Status != expected </span><span class="cov0" title="0">{
+                t.Errorf("pipeline status = %v, want %v", p.Status, expected)
+        }</span>
+}
+
+// AssertWebSocketMessage verifies a WebSocket message was sent
+func AssertWebSocketMessage(t *testing.T, hub *MockWebSocketHub, eventType string) <span class="cov0" title="0">{
+        t.Helper()
+        messages := hub.GetMessagesByType(eventType)
+        if len(messages) == 0 </span><span class="cov0" title="0">{
+                t.Errorf("no WebSocket message of type %s found", eventType)
+        }</span>
+}
+
+// AssertWebSocketMessageCount verifies the number of WebSocket messages
+func AssertWebSocketMessageCount(t *testing.T, hub *MockWebSocketHub, eventType string, expected int) <span class="cov0" title="0">{
+        t.Helper()
+        messages := hub.GetMessagesByType(eventType)
+        if len(messages) != expected </span><span class="cov0" title="0">{
+                t.Errorf("WebSocket message count for %s = %d, want %d", eventType, len(messages), expected)
+        }</span>
+}
+
+// AssertStageCompleted verifies a stage completed successfully
+func AssertStageCompleted(t *testing.T, p *pipeline.PipelineState, stageID string) <span class="cov0" title="0">{
+        t.Helper()
+        stage := p.GetStage(stageID)
+        if stage == nil </span><span class="cov0" title="0">{
+                t.Fatalf("stage %s not found", stageID)
+        }</span>
+        <span class="cov0" title="0">AssertStageStatus(t, stage, pipeline.StageStatusCompleted)
+        if stage.Progress != 100 </span><span class="cov0" title="0">{
+                t.Errorf("stage %s progress = %v, want 100", stageID, stage.Progress)
+        }</span>
+}
+
+// AssertStageFailed verifies a stage failed
+func AssertStageFailed(t *testing.T, p *pipeline.PipelineState, stageID string) <span class="cov0" title="0">{
+        t.Helper()
+        stage := p.GetStage(stageID)
+        if stage == nil </span><span class="cov0" title="0">{
+                t.Fatalf("stage %s not found", stageID)
+        }</span>
+        <span class="cov0" title="0">AssertStageStatus(t, stage, pipeline.StageStatusFailed)
+        if stage.Error == nil </span><span class="cov0" title="0">{
+                t.Errorf("stage %s has no error", stageID)
+        }</span>
+}
+
+// AssertStageSkipped verifies a stage was skipped
+func AssertStageSkipped(t *testing.T, p *pipeline.PipelineState, stageID string) <span class="cov0" title="0">{
+        t.Helper()
+        stage := p.GetStage(stageID)
+        if stage == nil </span><span class="cov0" title="0">{
+                t.Fatalf("stage %s not found", stageID)
+        }</span>
+        <span class="cov0" title="0">AssertStageStatus(t, stage, pipeline.StageStatusSkipped)</span>
+}
+
+// AssertDuration verifies a duration is within tolerance
+func AssertDuration(t *testing.T, actual, expected, tolerance time.Duration) <span class="cov0" title="0">{
+        t.Helper()
+        diff := actual - expected
+        if diff &lt; 0 </span><span class="cov0" title="0">{
+                diff = -diff
+        }</span>
+        <span class="cov0" title="0">if diff &gt; tolerance </span><span class="cov0" title="0">{
+                t.Errorf("duration = %v, want %v ± %v", actual, expected, tolerance)
+        }</span>
+}
+
+// AssertProgress verifies stage progress
+func AssertProgress(t *testing.T, stage *pipeline.StageState, expected float64) <span class="cov0" title="0">{
+        t.Helper()
+        if stage == nil </span><span class="cov0" title="0">{
+                t.Fatal("stage state is nil")
+        }</span>
+        <span class="cov0" title="0">if math.Abs(stage.Progress-expected) &gt; 0.01 </span><span class="cov0" title="0">{
+                t.Errorf("stage %s progress = %v, want %v", stage.ID, stage.Progress, expected)
+        }</span>
+}
+
+// AssertError verifies an error matches expected
+func AssertError(t *testing.T, err error, wantErr bool) <span class="cov0" title="0">{
+        t.Helper()
+        if (err != nil) != wantErr </span><span class="cov0" title="0">{
+                t.Errorf("error = %v, wantErr %v", err, wantErr)
+        }</span>
+}
+
+// AssertErrorContains verifies an error contains a substring
+func AssertErrorContains(t *testing.T, err error, substr string) <span class="cov0" title="0">{
+        t.Helper()
+        if err == nil </span><span class="cov0" title="0">{
+                t.Errorf("expected error containing %q, got nil", substr)
+                return
+        }</span>
+        <span class="cov0" title="0">if !strings.Contains(err.Error(), substr) </span><span class="cov0" title="0">{
+                t.Errorf("error = %v, want error containing %q", err, substr)
+        }</span>
+}
+
+// AssertErrorType verifies the type of a pipeline error
+func AssertErrorType(t *testing.T, err error, expectedType pipeline.ErrorType) <span class="cov0" title="0">{
+        t.Helper()
+        if err == nil </span><span class="cov0" title="0">{
+                t.Fatal("error is nil")
+        }</span>
+        <span class="cov0" title="0">pErr, ok := err.(*pipeline.PipelineError)
+        if !ok </span><span class="cov0" title="0">{
+                t.Fatalf("error is not a PipelineError: %T", err)
+        }</span>
+        <span class="cov0" title="0">if pErr.Type != expectedType </span><span class="cov0" title="0">{
+                t.Errorf("error type = %v, want %v", pErr.Type, expectedType)
+        }</span>
+}
+
+// AssertNoError fails if there is an error
+func AssertNoError(t *testing.T, err error) <span class="cov0" title="0">{
+        t.Helper()
+        if err != nil </span><span class="cov0" title="0">{
+                t.Fatalf("unexpected error: %v", err)
+        }</span>
+}
+
+// AssertEqual verifies two values are equal
+func AssertEqual(t *testing.T, got, want interface{}) <span class="cov0" title="0">{
+        t.Helper()
+        if got != want </span><span class="cov0" title="0">{
+                t.Errorf("got %v, want %v", got, want)
+        }</span>
+}
+
+// AssertNotNil verifies a value is not nil
+func AssertNotNil(t *testing.T, v interface{}) <span class="cov0" title="0">{
+        t.Helper()
+        if v == nil </span><span class="cov0" title="0">{
+                t.Fatal("value is nil")
+        }</span>
+}
+
+// AssertStageOrder verifies stages were executed in the expected order
+func AssertStageOrder(t *testing.T, stages []*MockStage, expectedOrder []string) <span class="cov0" title="0">{
+        t.Helper()
+        
+        // Build execution order from call times
+        type execution struct {
+                id   string
+                time time.Time
+        }
+        
+        var executions []execution
+        for _, stage := range stages </span><span class="cov0" title="0">{
+                if len(stage.ExecuteArgs) &gt; 0 </span><span class="cov0" title="0">{
+                        executions = append(executions, execution{
+                                id:   stage.ID(),
+                                time: stage.ExecuteArgs[0].Time,
+                        })
+                }</span>
+        }
+        
+        // Sort by time
+        <span class="cov0" title="0">for i := 0; i &lt; len(executions)-1; i++ </span><span class="cov0" title="0">{
+                for j := i + 1; j &lt; len(executions); j++ </span><span class="cov0" title="0">{
+                        if executions[j].time.Before(executions[i].time) </span><span class="cov0" title="0">{
+                                executions[i], executions[j] = executions[j], executions[i]
+                        }</span>
+                }
+        }
+        
+        // Check order
+        <span class="cov0" title="0">if len(executions) != len(expectedOrder) </span><span class="cov0" title="0">{
+                t.Errorf("executed %d stages, expected %d", len(executions), len(expectedOrder))
+                return
+        }</span>
+        
+        <span class="cov0" title="0">for i, exec := range executions </span><span class="cov0" title="0">{
+                if exec.id != expectedOrder[i] </span><span class="cov0" title="0">{
+                        t.Errorf("execution order[%d] = %s, want %s", i, exec.id, expectedOrder[i])
+                }</span>
+        }
+}
+
+// AssertLogContains verifies a log contains a message
+func AssertLogContains(t *testing.T, logger *MockLogger, level, substr string) <span class="cov0" title="0">{
+        t.Helper()
+        
+        var logs []LogEntry
+        switch level </span>{
+        case "info":<span class="cov0" title="0">
+                logs = logger.GetInfoLogs()</span>
+        case "error":<span class="cov0" title="0">
+                logs = logger.GetErrorLogs()</span>
+        case "warning":<span class="cov0" title="0">
+                logs = logger.GetWarningLogs()</span>
+        default:<span class="cov0" title="0">
+                t.Fatalf("unknown log level: %s", level)</span>
+        }
+        
+        <span class="cov0" title="0">for _, log := range logs </span><span class="cov0" title="0">{
+                msg := fmt.Sprintf(log.Format, log.Args...)
+                if strings.Contains(msg, substr) </span><span class="cov0" title="0">{
+                        return
+                }</span>
+        }
+        
+        <span class="cov0" title="0">t.Errorf("no %s log contains %q", level, substr)</span>
+}
+
+// AssertContextValue verifies a pipeline context value
+func AssertContextValue(t *testing.T, state *pipeline.PipelineState, key string, expected interface{}) <span class="cov0" title="0">{
+        t.Helper()
+        val, ok := state.GetContext(key)
+        if !ok </span><span class="cov0" title="0">{
+                t.Errorf("context key %q not found", key)
+                return
+        }</span>
+        <span class="cov0" title="0">if val != expected </span><span class="cov0" title="0">{
+                t.Errorf("context[%q] = %v, want %v", key, val, expected)
+        }</span>
+}
+
+// AssertConfigValue verifies a pipeline config value
+func AssertConfigValue(t *testing.T, state *pipeline.PipelineState, key string, expected interface{}) <span class="cov0" title="0">{
+        t.Helper()
+        val, ok := state.GetConfig(key)
+        if !ok </span><span class="cov0" title="0">{
+                t.Errorf("config key %q not found", key)
+                return
+        }</span>
+        <span class="cov0" title="0">if val != expected </span><span class="cov0" title="0">{
+                t.Errorf("config[%q] = %v, want %v", key, val, expected)
+        }</span>
+}</pre>
+		
+		<pre class="file" id="file7" style="display: none">package testutil
+
+import (
+        "context"
+        "errors"
+        "fmt"
+        "time"
+
+        "isxcli/internal/pipeline"
+)
+
+// CreateTestPipelineState creates a pipeline state for testing
+func CreateTestPipelineState(id string) *pipeline.PipelineState <span class="cov0" title="0">{
+        state := pipeline.NewPipelineState(id)
+        state.SetConfig(pipeline.ContextKeyFromDate, "2024-01-01")
+        state.SetConfig(pipeline.ContextKeyToDate, "2024-01-31")
+        state.SetConfig(pipeline.ContextKeyMode, pipeline.ModeInitial)
+        return state
+}</span>
+
+// CreateTestStageState creates a stage state for testing
+func CreateTestStageState(id, name string) *pipeline.StageState <span class="cov0" title="0">{
+        return pipeline.NewStageState(id, name)
+}</span>
+
+// CreateTestConfig creates a test configuration
+func CreateTestConfig() *pipeline.Config <span class="cov0" title="0">{
+        return pipeline.NewConfigBuilder().
+                WithExecutionMode(pipeline.ExecutionModeSequential).
+                WithRetryConfig(pipeline.RetryConfig{
+                        MaxAttempts:  2,
+                        InitialDelay: 10 * time.Millisecond,
+                        MaxDelay:     100 * time.Millisecond,
+                        Multiplier:   2.0,
+                }).
+                WithStageTimeout(pipeline.StageIDScraping, 1*time.Second).
+                WithStageTimeout(pipeline.StageIDProcessing, 1*time.Second).
+                WithStageTimeout(pipeline.StageIDIndices, 1*time.Second).
+                WithStageTimeout(pipeline.StageIDAnalysis, 1*time.Second).
+                Build()
+}</span>
+
+// CreateTestRegistry creates a registry with test stages
+func CreateTestRegistry() *pipeline.Registry <span class="cov0" title="0">{
+        registry := pipeline.NewRegistry()
+        
+        // Register test stages
+        registry.Register(CreateSuccessfulStage("stage1", "Stage 1"))
+        registry.Register(CreateSuccessfulStage("stage2", "Stage 2"))
+        registry.Register(CreateSuccessfulStage("stage3", "Stage 3"))
+        
+        return registry
+}</span>
+
+// CreateSuccessfulStage creates a stage that always succeeds
+func CreateSuccessfulStage(id, name string, deps ...string) *MockStage <span class="cov0" title="0">{
+        return &amp;MockStage{
+                IDValue:           id,
+                NameValue:         name,
+                DependenciesValue: deps,
+                ExecuteFunc: func(ctx context.Context, state *pipeline.PipelineState) error </span><span class="cov0" title="0">{
+                        // Simulate some work
+                        stageState := state.GetStage(id)
+                        if stageState != nil </span><span class="cov0" title="0">{
+                                stageState.UpdateProgress(50, "Processing...")
+                                time.Sleep(10 * time.Millisecond)
+                                stageState.UpdateProgress(100, "Completed")
+                        }</span>
+                        <span class="cov0" title="0">return nil</span>
+                },
+        }
+}
+
+// CreateFailingStage creates a stage that always fails
+func CreateFailingStage(id, name string, err error, deps ...string) *MockStage <span class="cov0" title="0">{
+        if err == nil </span><span class="cov0" title="0">{
+                err = errors.New("stage failed")
+        }</span>
+        
+        <span class="cov0" title="0">return &amp;MockStage{
+                IDValue:           id,
+                NameValue:         name,
+                DependenciesValue: deps,
+                ExecuteFunc: func(ctx context.Context, state *pipeline.PipelineState) error </span><span class="cov0" title="0">{
+                        return err
+                }</span>,
+        }
+}
+
+// CreateRetryableStage creates a stage that fails then succeeds
+func CreateRetryableStage(id, name string, failCount int, deps ...string) *MockStage <span class="cov0" title="0">{
+        attempts := 0
+        
+        return &amp;MockStage{
+                IDValue:           id,
+                NameValue:         name,
+                DependenciesValue: deps,
+                ExecuteFunc: func(ctx context.Context, state *pipeline.PipelineState) error </span><span class="cov0" title="0">{
+                        attempts++
+                        if attempts &lt;= failCount </span><span class="cov0" title="0">{
+                                return pipeline.NewExecutionError(id, errors.New("temporary failure"), true)
+                        }</span>
+                        <span class="cov0" title="0">return nil</span>
+                },
+        }
+}
+
+// CreateSlowStage creates a stage that takes a specific duration
+func CreateSlowStage(id, name string, duration time.Duration, deps ...string) *MockStage <span class="cov0" title="0">{
+        return &amp;MockStage{
+                IDValue:           id,
+                NameValue:         name,
+                DependenciesValue: deps,
+                ExecuteFunc: func(ctx context.Context, state *pipeline.PipelineState) error </span><span class="cov0" title="0">{
+                        select </span>{
+                        case &lt;-time.After(duration):<span class="cov0" title="0">
+                                return nil</span>
+                        case &lt;-ctx.Done():<span class="cov0" title="0">
+                                return ctx.Err()</span>
+                        }
+                },
+        }
+}
+
+// CreateValidationFailingStage creates a stage that fails validation
+func CreateValidationFailingStage(id, name string, validationErr error, deps ...string) *MockStage <span class="cov0" title="0">{
+        if validationErr == nil </span><span class="cov0" title="0">{
+                validationErr = errors.New("validation failed")
+        }</span>
+        
+        <span class="cov0" title="0">return &amp;MockStage{
+                IDValue:           id,
+                NameValue:         name,
+                DependenciesValue: deps,
+                ValidateFunc: func(state *pipeline.PipelineState) error </span><span class="cov0" title="0">{
+                        return validationErr
+                }</span>,
+        }
+}
+
+// CreateContextAwareStage creates a stage that reads/writes context
+func CreateContextAwareStage(id, name string, readKey, writeKey string, writeValue interface{}, deps ...string) *MockStage <span class="cov0" title="0">{
+        return &amp;MockStage{
+                IDValue:           id,
+                NameValue:         name,
+                DependenciesValue: deps,
+                ExecuteFunc: func(ctx context.Context, state *pipeline.PipelineState) error </span><span class="cov0" title="0">{
+                        // Read from context if readKey is provided
+                        if readKey != "" </span><span class="cov0" title="0">{
+                                if val, ok := state.GetContext(readKey); ok </span><span class="cov0" title="0">{
+                                        // Log or use the value
+                                        _ = val
+                                }</span>
+                        }
+                        
+                        // Write to context if writeKey is provided
+                        <span class="cov0" title="0">if writeKey != "" </span><span class="cov0" title="0">{
+                                state.SetContext(writeKey, writeValue)
+                        }</span>
+                        
+                        <span class="cov0" title="0">return nil</span>
+                },
+        }
+}
+
+// CreateComplexPipelineStages creates stages with complex dependencies
+func CreateComplexPipelineStages() []pipeline.Stage <span class="cov0" title="0">{
+        // Create a diamond dependency pattern:
+        //     A
+        //    / \
+        //   B   C
+        //    \ /
+        //     D
+        
+        stageA := CreateSuccessfulStage("A", "Stage A")
+        stageB := CreateSuccessfulStage("B", "Stage B", "A")
+        stageC := CreateSuccessfulStage("C", "Stage C", "A")
+        stageD := CreateSuccessfulStage("D", "Stage D", "B", "C")
+        
+        return []pipeline.Stage{stageA, stageB, stageC, stageD}
+}</span>
+
+// CreatePipelineRequest creates a test pipeline request
+func CreatePipelineRequest(mode string) pipeline.PipelineRequest <span class="cov0" title="0">{
+        return pipeline.PipelineRequest{
+                ID:       fmt.Sprintf("test-pipeline-%d", time.Now().UnixNano()),
+                Mode:     mode,
+                FromDate: "2024-01-01",
+                ToDate:   "2024-01-31",
+                Parameters: map[string]interface{}{
+                        "test": true,
+                },
+        }
+}</span>
+
+// StageBuilder provides a fluent interface for creating test stages
+type StageBuilder struct {
+        stage *MockStage
+}
+
+// NewStageBuilder creates a new stage builder
+func NewStageBuilder(id, name string) *StageBuilder <span class="cov0" title="0">{
+        return &amp;StageBuilder{
+                stage: &amp;MockStage{
+                        IDValue:   id,
+                        NameValue: name,
+                },
+        }
+}</span>
+
+// WithDependencies sets the stage dependencies
+func (b *StageBuilder) WithDependencies(deps ...string) *StageBuilder <span class="cov0" title="0">{
+        b.stage.DependenciesValue = deps
+        return b
+}</span>
+
+// WithExecute sets the execute function
+func (b *StageBuilder) WithExecute(fn func(context.Context, *pipeline.PipelineState) error) *StageBuilder <span class="cov0" title="0">{
+        b.stage.ExecuteFunc = fn
+        return b
+}</span>
+
+// WithValidate sets the validate function
+func (b *StageBuilder) WithValidate(fn func(*pipeline.PipelineState) error) *StageBuilder <span class="cov0" title="0">{
+        b.stage.ValidateFunc = fn
+        return b
+}</span>
+
+// Build returns the constructed stage
+func (b *StageBuilder) Build() *MockStage <span class="cov0" title="0">{
+        return b.stage
+}</pre>
+		
+		<pre class="file" id="file8" style="display: none">package testutil
+
+import (
+        "context"
+        "sync"
+        "time"
+
+        "isxcli/internal/pipeline"
+)
+
+// MockStage is a configurable mock implementation of the Stage interface
+type MockStage struct {
+        IDValue          string
+        NameValue        string
+        DependenciesValue []string
+        
+        // Configurable functions
+        ExecuteFunc  func(ctx context.Context, state *pipeline.PipelineState) error
+        ValidateFunc func(state *pipeline.PipelineState) error
+        
+        // Call tracking
+        mu               sync.Mutex
+        ExecuteCalls     int
+        ExecuteArgs      []ExecuteCall
+        ValidateCalls    int
+        ValidateArgs     []ValidateCall
+}
+
+// ExecuteCall tracks arguments passed to Execute
+type ExecuteCall struct {
+        Ctx   context.Context
+        State *pipeline.PipelineState
+        Time  time.Time
+}
+
+// ValidateCall tracks arguments passed to Validate
+type ValidateCall struct {
+        State *pipeline.PipelineState
+        Time  time.Time
+}
+
+// ID returns the stage ID
+func (m *MockStage) ID() string <span class="cov0" title="0">{
+        return m.IDValue
+}</span>
+
+// Name returns the stage name
+func (m *MockStage) Name() string <span class="cov0" title="0">{
+        return m.NameValue
+}</span>
+
+// GetDependencies returns the stage dependencies
+func (m *MockStage) GetDependencies() []string <span class="cov0" title="0">{
+        if m.DependenciesValue == nil </span><span class="cov0" title="0">{
+                return []string{}
+        }</span>
+        <span class="cov0" title="0">return m.DependenciesValue</span>
+}
+
+// Execute runs the mock execute function
+func (m *MockStage) Execute(ctx context.Context, state *pipeline.PipelineState) error <span class="cov0" title="0">{
+        m.mu.Lock()
+        m.ExecuteCalls++
+        m.ExecuteArgs = append(m.ExecuteArgs, ExecuteCall{
+                Ctx:   ctx,
+                State: state,
+                Time:  time.Now(),
+        })
+        m.mu.Unlock()
+        
+        if m.ExecuteFunc != nil </span><span class="cov0" title="0">{
+                return m.ExecuteFunc(ctx, state)
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+// Validate runs the mock validate function
+func (m *MockStage) Validate(state *pipeline.PipelineState) error <span class="cov0" title="0">{
+        m.mu.Lock()
+        m.ValidateCalls++
+        m.ValidateArgs = append(m.ValidateArgs, ValidateCall{
+                State: state,
+                Time:  time.Now(),
+        })
+        m.mu.Unlock()
+        
+        if m.ValidateFunc != nil </span><span class="cov0" title="0">{
+                return m.ValidateFunc(state)
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+// GetExecuteCalls returns the number of Execute calls
+func (m *MockStage) GetExecuteCalls() int <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        return m.ExecuteCalls
+}</span>
+
+// GetValidateCalls returns the number of Validate calls
+func (m *MockStage) GetValidateCalls() int <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        return m.ValidateCalls
+}</span>
+
+// MockWebSocketHub captures WebSocket messages for testing
+type MockWebSocketHub struct {
+        mu       sync.Mutex
+        Messages []WebSocketMessage
+}
+
+// WebSocketMessage represents a captured WebSocket message
+type WebSocketMessage struct {
+        EventType string
+        Stage     string
+        Status    string
+        Metadata  interface{}
+        Time      time.Time
+}
+
+// BroadcastUpdate captures WebSocket messages
+func (m *MockWebSocketHub) BroadcastUpdate(eventType, stage, status string, metadata interface{}) <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        
+        m.Messages = append(m.Messages, WebSocketMessage{
+                EventType: eventType,
+                Stage:     stage,
+                Status:    status,
+                Metadata:  metadata,
+                Time:      time.Now(),
+        })
+}</span>
+
+// BroadcastRefresh captures refresh messages
+func (m *MockWebSocketHub) BroadcastRefresh(source string, components []string) <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        
+        m.Messages = append(m.Messages, WebSocketMessage{
+                EventType: "refresh",
+                Stage:     source,
+                Metadata: map[string]interface{}{
+                        "components": components,
+                },
+                Time: time.Now(),
+        })
+}</span>
+
+// GetMessages returns all captured messages
+func (m *MockWebSocketHub) GetMessages() []WebSocketMessage <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        
+        messages := make([]WebSocketMessage, len(m.Messages))
+        copy(messages, m.Messages)
+        return messages
+}</span>
+
+// GetMessagesByType returns messages of a specific type
+func (m *MockWebSocketHub) GetMessagesByType(eventType string) []WebSocketMessage <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        
+        var filtered []WebSocketMessage
+        for _, msg := range m.Messages </span><span class="cov0" title="0">{
+                if msg.EventType == eventType </span><span class="cov0" title="0">{
+                        filtered = append(filtered, msg)
+                }</span>
+        }
+        <span class="cov0" title="0">return filtered</span>
+}
+
+// Clear removes all captured messages
+func (m *MockWebSocketHub) Clear() <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        m.Messages = nil
+}</span>
+
+// MockLogger captures log messages for testing
+type MockLogger struct {
+        mu          sync.Mutex
+        InfoLogs    []LogEntry
+        ErrorLogs   []LogEntry
+        WarningLogs []LogEntry
+        DebugLogs   []LogEntry
+}
+
+// LogEntry represents a captured log entry
+type LogEntry struct {
+        Format string
+        Args   []interface{}
+        Time   time.Time
+}
+
+// Info captures info log messages
+func (m *MockLogger) Info(format string, args ...interface{}) <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        
+        m.InfoLogs = append(m.InfoLogs, LogEntry{
+                Format: format,
+                Args:   args,
+                Time:   time.Now(),
+        })
+}</span>
+
+// Error captures error log messages
+func (m *MockLogger) Error(format string, args ...interface{}) <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        
+        m.ErrorLogs = append(m.ErrorLogs, LogEntry{
+                Format: format,
+                Args:   args,
+                Time:   time.Now(),
+        })
+}</span>
+
+// Warn captures warning log messages
+func (m *MockLogger) Warn(format string, args ...interface{}) <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        
+        m.WarningLogs = append(m.WarningLogs, LogEntry{
+                Format: format,
+                Args:   args,
+                Time:   time.Now(),
+        })
+}</span>
+
+// Debug captures debug log messages
+func (m *MockLogger) Debug(format string, args ...interface{}) <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        
+        m.DebugLogs = append(m.DebugLogs, LogEntry{
+                Format: format,
+                Args:   args,
+                Time:   time.Now(),
+        })
+}</span>
+
+// GetInfoLogs returns all info logs
+func (m *MockLogger) GetInfoLogs() []LogEntry <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        
+        logs := make([]LogEntry, len(m.InfoLogs))
+        copy(logs, m.InfoLogs)
+        return logs
+}</span>
+
+// GetErrorLogs returns all error logs
+func (m *MockLogger) GetErrorLogs() []LogEntry <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        
+        logs := make([]LogEntry, len(m.ErrorLogs))
+        copy(logs, m.ErrorLogs)
+        return logs
+}</span>
+
+// GetWarningLogs returns all warning logs
+func (m *MockLogger) GetWarningLogs() []LogEntry <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        
+        logs := make([]LogEntry, len(m.WarningLogs))
+        copy(logs, m.WarningLogs)
+        return logs
+}</span>
+
+// Clear removes all captured logs
+func (m *MockLogger) Clear() <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        
+        m.InfoLogs = nil
+        m.ErrorLogs = nil
+        m.WarningLogs = nil
+        m.DebugLogs = nil
+}</pre>
+		
+		<pre class="file" id="file9" style="display: none">package pipeline
+
+import (
+        "time"
+)
+
+// Pipeline stage identifiers
+const (
+        StageIDScraping  = "scraping"
+        StageIDProcessing = "processing"
+        StageIDIndices   = "indices"
+        StageIDAnalysis  = "analysis"
+)
+
+// Pipeline stage names
+const (
+        StageNameScraping  = "Data Collection"
+        StageNameProcessing = "Data Processing"
+        StageNameIndices   = "Index Extraction"
+        StageNameAnalysis  = "Ticker Analysis"
+)
+
+// Context keys for pipeline state
+const (
+        ContextKeyFromDate      = "from_date"
+        ContextKeyToDate        = "to_date"
+        ContextKeyMode          = "mode"
+        ContextKeyDownloadDir   = "download_dir"
+        ContextKeyReportDir     = "report_dir"
+        ContextKeyFilesFound    = "files_found"
+        ContextKeyFilesProcessed = "files_processed"
+        ContextKeyScraperSuccess = "scraper_success"
+)
+
+// Pipeline modes
+const (
+        ModeInitial     = "initial"
+        ModeAccumulative = "accumulative"
+        ModeFull        = "full"
+)
+
+// WebSocket event types
+const (
+        EventTypePipelineStatus   = "pipeline_status"
+        EventTypePipelineProgress = "pipeline_progress"
+        EventTypePipelineComplete = "pipeline_complete"
+        EventTypePipelineError    = "pipeline_error"
+        EventTypePipelineReset    = "pipeline_reset"
+)
+
+// Default timeouts
+const (
+        DefaultStageTimeout     = 30 * time.Minute
+        DefaultScrapingTimeout  = 60 * time.Minute
+        DefaultProcessingTimeout = 30 * time.Minute
+        DefaultIndicesTimeout   = 10 * time.Minute
+        DefaultAnalysisTimeout  = 5 * time.Minute
+)
+
+// ExecutionMode defines how stages are executed
+type ExecutionMode string
+
+const (
+        ExecutionModeSequential ExecutionMode = "sequential"
+        ExecutionModeParallel   ExecutionMode = "parallel"
+)
+
+// RetryConfig defines retry behavior for stages
+type RetryConfig struct {
+        MaxAttempts int           `json:"max_attempts"`
+        InitialDelay time.Duration `json:"initial_delay"`
+        MaxDelay    time.Duration `json:"max_delay"`
+        Multiplier  float64       `json:"multiplier"`
+}
+
+// DefaultRetryConfig returns the default retry configuration
+func DefaultRetryConfig() RetryConfig <span class="cov8" title="1">{
+        return RetryConfig{
+                MaxAttempts:  3,
+                InitialDelay: 1 * time.Second,
+                MaxDelay:     30 * time.Second,
+                Multiplier:   2.0,
+        }
+}</span>
+
+// StageExecutionResult represents the result of a stage execution
+type StageExecutionResult struct {
+        StageID   string                 `json:"stage_id"`
+        Success   bool                   `json:"success"`
+        Output    string                 `json:"output,omitempty"`
+        Error     error                  `json:"error,omitempty"`
+        StartTime time.Time              `json:"start_time"`
+        EndTime   time.Time              `json:"end_time"`
+        Metadata  map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// PipelineRequest represents a request to execute a pipeline
+type PipelineRequest struct {
+        ID         string                 `json:"id"`
+        Mode       string                 `json:"mode"`
+        FromDate   string                 `json:"from_date,omitempty"`
+        ToDate     string                 `json:"to_date,omitempty"`
+        Parameters map[string]interface{} `json:"parameters,omitempty"`
+}
+
+// PipelineResponse represents the response from a pipeline execution
+type PipelineResponse struct {
+        ID       string                   `json:"id"`
+        Status   PipelineStatus           `json:"status"`
+        Duration time.Duration            `json:"duration"`
+        Stages   map[string]*StageState   `json:"stages"`
+        Error    string                   `json:"error,omitempty"`
+}
+
+// ProgressUpdate represents a progress update from a stage
+type ProgressUpdate struct {
+        StageID    string                 `json:"stage_id"`
+        Progress   float64                `json:"progress"`
+        Message    string                 `json:"message"`
+        ETA        string                 `json:"eta,omitempty"`
+        Metadata   map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// StageMetrics represents performance metrics for a stage
+type StageMetrics struct {
+        StageID        string        `json:"stage_id"`
+        ExecutionCount int           `json:"execution_count"`
+        SuccessCount   int           `json:"success_count"`
+        FailureCount   int           `json:"failure_count"`
+        AverageDuration time.Duration `json:"average_duration"`
+        LastExecution  *time.Time    `json:"last_execution,omitempty"`
+}</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

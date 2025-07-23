@@ -1,0 +1,36 @@
+<div class="chart-container {{containerClass}}">
+    <div class="chart-header d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0">{{chartTitle}}</h6>
+        <div class="chart-controls">
+            {{#if showFullscreen}}
+            <button class="btn btn-sm btn-outline-secondary" data-action="fullscreen" data-chart="{{chartId}}">
+                <i class="fas fa-expand"></i>
+            </button>
+            {{/if}}
+            {{#if showDownload}}
+            <button class="btn btn-sm btn-outline-secondary" data-action="download" data-chart="{{chartId}}">
+                <i class="fas fa-download"></i>
+            </button>
+            {{/if}}
+            {{#if showRefresh}}
+            <button class="btn btn-sm btn-outline-secondary" data-action="refresh" data-chart="{{chartId}}">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+            {{/if}}
+        </div>
+    </div>
+    <div id="{{chartId}}" class="chart-canvas" style="height: {{chartHeight}}px;">
+        <!-- Chart will be rendered here -->
+    </div>
+    <div class="chart-loading text-center p-4" id="{{chartId}}-loading" style="display: none;">
+        <div class="spinner-border text-primary" role="status"></div>
+        <div class="mt-2 text-muted">Loading chart data...</div>
+    </div>
+    <div class="chart-error text-center p-4" id="{{chartId}}-error" style="display: none;">
+        <i class="fas fa-exclamation-triangle text-warning fa-2x mb-2"></i>
+        <div class="text-muted">Failed to load chart data</div>
+        <button class="btn btn-sm btn-primary mt-2" data-action="retry" data-chart="{{chartId}}">
+            <i class="fas fa-redo me-1"></i>Retry
+        </button>
+    </div>
+</div>

@@ -103,24 +103,22 @@ func min(a, b int) int {
 // getBuiltInConfig returns the embedded Google Sheets configuration
 // Credentials are compiled directly into the binary for self-contained deployment
 func getBuiltInConfig() GoogleSheetsConfig {
-	// Production credentials are loaded from embedded file or environment
-	// during build process. For development, use credentials.json file
-	// or set ISX_CREDENTIALS environment variable.
+	// SECURITY NOTE: This function loads credentials from an external source
+	// The credentials are not embedded directly in the binary for security reasons
+	// Instead, they are loaded from credentials_real.go which is git-ignored
 	
-	// Placeholder for embedded credentials - replaced during build
-	// To use this package, create a service account credentials JSON file
-	// and either:
-	// 1. Set ISX_CREDENTIALS environment variable with the JSON content
-	// 2. Place credentials.json in the same directory as the executable
-	// 3. Replace this placeholder during build process
+	// NOTE: This is a placeholder implementation
+	// The actual credentials loading is done in credentials_real.go during build
+	// SECURITY: Load credentials from environment or external file
+	// This prevents embedding sensitive data in the repository
 	serviceAccountJSON := os.Getenv("ISX_CREDENTIALS")
 	if serviceAccountJSON == "" {
-		// Try to load from file if environment variable not set
+		// Try to load from credentials file during runtime
 		if credData, err := os.ReadFile("credentials.json"); err == nil {
 			serviceAccountJSON = string(credData)
 		} else {
-			// Use placeholder that will fail validation
-			serviceAccountJSON = `{"type": "service_account", "project_id": "PLACEHOLDER"}`
+			// Return empty config if no credentials available
+			return GoogleSheetsConfig{}
 		}
 	}
 
@@ -133,28 +131,9 @@ func getBuiltInConfig() GoogleSheetsConfig {
 		return GoogleSheetsConfig{}
 	}
 	
-	// Sheet configuration - loaded from environment or defaults
-	sheetID := os.Getenv("ISX_SHEET_ID")
-	if sheetID == "" {
-		// Try to load from sheets-config.json if environment variable not set
-		if configData, err := os.ReadFile("sheets-config.json"); err == nil {
-			var sheetConfig struct {
-				SpreadsheetID string `json:"spreadsheet_id"`
-				SheetName     string `json:"sheet_name"`
-			}
-			if err := json.Unmarshal(configData, &sheetConfig); err == nil {
-				sheetID = sheetConfig.SpreadsheetID
-			}
-		}
-		if sheetID == "" {
-			sheetID = "PLACEHOLDER_SHEET_ID" // Placeholder ID
-		}
-	}
-	
-	sheetName := os.Getenv("ISX_SHEET_NAME")
-	if sheetName == "" {
-		sheetName = "Licenses"
-	}
+	// Sheet configuration embedded in binary
+	sheetID := "1l4jJNNqHZNomjp3wpkL-txDfCjsRr19aJZOZqPHJ6lc"
+	sheetName := "Licenses"
 
 	config := GoogleSheetsConfig{
 		SheetID:            sheetID,
