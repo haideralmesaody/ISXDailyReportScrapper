@@ -38,8 +38,17 @@ type Client struct {
 	send chan []byte
 }
 
-// readPump pumps messages from the websocket connection to the hub
-func (c *Client) readPump() {
+// NewClient creates a new Client
+func NewClient(hub *Hub, conn *websocket.Conn) *Client {
+	return &Client{
+		hub:  hub,
+		conn: conn,
+		send: make(chan []byte, 256),
+	}
+}
+
+// ReadPump pumps messages from the websocket connection to the hub
+func (c *Client) ReadPump() {
 	defer func() {
 		log.Printf("WebSocket client disconnected (readPump)")
 		c.hub.unregister <- c
@@ -70,8 +79,8 @@ func (c *Client) readPump() {
 	}
 }
 
-// writePump pumps messages from the hub to the websocket connection
-func (c *Client) writePump() {
+// WritePump pumps messages from the hub to the websocket connection
+func (c *Client) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
@@ -121,6 +130,6 @@ func ServeWS(hub *Hub, conn *websocket.Conn) {
 
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines
-	go client.writePump()
-	go client.readPump()
+	go client.WritePump()
+	go client.ReadPump()
 }

@@ -164,8 +164,9 @@ func SetupTestPipelineFiles(t *testing.T) (downloadDir, reportDir string) {
 	t.Helper()
 	
 	baseDir := CreateTestDirectory(t, "pipeline-test")
-	downloadDir = filepath.Join(baseDir, "downloads")
-	reportDir = filepath.Join(baseDir, "reports")
+	dataDir := filepath.Join(baseDir, "data")
+	downloadDir = filepath.Join(dataDir, "downloads")
+	reportDir = filepath.Join(dataDir, "reports")
 	
 	os.MkdirAll(downloadDir, 0755)
 	os.MkdirAll(reportDir, 0755)

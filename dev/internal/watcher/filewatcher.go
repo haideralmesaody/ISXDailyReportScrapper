@@ -124,32 +124,32 @@ func (fw *FileWatcher) handleFileChange(filename, action string) {
 	var subtype string
 	switch {
 	case base == "ticker_summary.json":
-		subtype = "ticker_summary"
+		subtype = websocket.SubtypeTickerSummary
 	case base == "ticker_summary.csv":
-		subtype = "ticker_summary"
+		subtype = websocket.SubtypeTickerSummary
 	case base == "isx_combined_data.csv":
-		subtype = "combined_data"
+		subtype = websocket.SubtypeCombinedData
 	case base == "indexes.csv":
-		subtype = "index_data"
+		subtype = websocket.SubtypeIndexes
 	case strings.HasPrefix(base, "isx_daily_"):
-		subtype = "daily_report"
+		subtype = websocket.SubtypeDailyReport
 	case strings.HasSuffix(base, "_trading_history.csv"):
-		subtype = "ticker_history"
+		subtype = websocket.SubtypeTickerHistory
 	default:
 		// Unknown file type, skip
 		return
 	}
 
 	// Broadcast the update
-	fw.hub.BroadcastUpdate("data_update", subtype, action, map[string]interface{}{
+	fw.hub.BroadcastUpdate(websocket.TypeDataUpdate, subtype, action, map[string]interface{}{
 		"filename": base,
 		"path":     relPath,
 	})
 
 	// Also send a specific output message
-	level := "info"
+	level := websocket.LevelInfo
 	if action == "deleted" {
-		level = "warning"
+		level = websocket.LevelWarning
 	}
 	fw.hub.BroadcastOutput(fmt.Sprintf("File %s: %s", action, base), level)
 }

@@ -1,0 +1,67 @@
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-cloud-download-alt me-2"></i>ISX Data Collection</h5>
+    </div>
+    <div class="card-body">
+        <form id="scrapeForm">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Mode</label>
+                        <select class="form-select" name="mode">
+                            <option value="initial">Initial (Fresh start)</option>
+                            <option value="accumulative">Accumulative (Incremental)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Headless Browser</label>
+                        <select class="form-select" name="headless">
+                            <option value="true">Yes (Headless)</option>
+                            <option value="false">No (Visible)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">From Date</label>
+                        <input type="date" class="form-control" name="from" id="fromDateInput" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">To Date</label>
+                        <input type="date" class="form-control" name="to" id="toDateInput" required>
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-play me-2"></i>Start Scraping
+            </button>
+        </form>
+        
+        <!-- Processing Flow Diagram -->
+        <div class="mt-4">
+            <h6 class="text-muted mb-3">Processing Pipeline</h6>
+            <div id="pipeline-container" data-component="pipeline-stages"></div>
+        </div>
+        
+        <!-- Progress indicator -->
+        <div id="processProgress" class="mt-4" style="display: none;">
+            <div class="progress">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%">
+                    <span class="progress-text">Starting...</span>
+                </div>
+            </div>
+            <div class="mt-2">
+                <small class="text-muted">
+                    <span id="progressDetails">Initializing...</span>
+                    <span id="progressTimer" class="float-end"></span>
+                </small>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,104 @@
+<div class="card">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-fire me-2"></i>Market Movers</h5>
+            <div class="d-flex gap-2">
+                <select id="periodSelect" class="form-select form-select-sm" style="width: auto;">
+                    <option value="1d" selected>1 Day</option>
+                    <option value="1w">1 Week</option>
+                    <option value="1m">1 Month</option>
+                </select>
+                <button class="btn btn-sm btn-outline-secondary" id="refreshMovers">
+                    <i class="fas fa-sync-alt me-1"></i>Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <!-- Controls Row -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label for="limitSelect" class="form-label small">Results Limit</label>
+                <select id="limitSelect" class="form-select form-select-sm">
+                    <option value="5">Top 5</option>
+                    <option value="10" selected>Top 10</option>
+                    <option value="20">Top 20</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="minVolumeSelect" class="form-label small">Min Volume</label>
+                <select id="minVolumeSelect" class="form-select form-select-sm">
+                    <option value="0">No Minimum</option>
+                    <option value="1000" selected>1,000+</option>
+                    <option value="5000">5,000+</option>
+                    <option value="10000">10,000+</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <div class="form-check form-check-sm mt-4">
+                    <input class="form-check-input" type="checkbox" id="autoRefresh">
+                    <label class="form-check-label small" for="autoRefresh">
+                        Auto-refresh (30s)
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metadata Display -->
+        <div id="marketMoversMetadata" class="text-center mb-3"></div>
+
+        <!-- Market Movers Cards -->
+        <div class="row" id="marketMoversContent">
+            <!-- Top Gainers -->
+            <div class="col-md-4 mb-3">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white d-flex align-items-center">
+                        <i class="fas fa-fire me-2"></i>
+                        <h6 class="mb-0">Top Gainers</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="topGainers" class="list-group list-group-flush">
+                            <div class="list-group-item text-center py-4 text-muted">
+                                <i class="fas fa-spinner fa-spin me-2"></i>Loading market data...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Losers -->
+            <div class="col-md-4 mb-3">
+                <div class="card border-danger">
+                    <div class="card-header bg-danger text-white d-flex align-items-center">
+                        <i class="fas fa-chart-line-down me-2"></i>
+                        <h6 class="mb-0">Top Losers</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="topLosers" class="list-group list-group-flush">
+                            <div class="list-group-item text-center py-4 text-muted">
+                                <i class="fas fa-spinner fa-spin me-2"></i>Loading market data...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Most Active -->
+            <div class="col-md-4 mb-3">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white d-flex align-items-center">
+                        <i class="fas fa-exchange-alt me-2"></i>
+                        <h6 class="mb-0">Most Active</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="mostActive" class="list-group list-group-flush">
+                            <div class="list-group-item text-center py-4 text-muted">
+                                <i class="fas fa-spinner fa-spin me-2"></i>Loading market data...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

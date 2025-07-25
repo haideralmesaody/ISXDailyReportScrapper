@@ -1,0 +1,76 @@
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Ticker Charts</h5>
+    </div>
+    <div class="card-body">
+        <!-- Ticker Search -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" id="tickerSearch" placeholder="Search ticker symbol or company name...">
+                </div>
+                <div id="searchResults" class="list-group mt-2" style="display: none; position: absolute; z-index: 1000; max-height: 300px; overflow-y: auto;"></div>
+            </div>
+        </div>
+
+        <!-- Ticker List -->
+        <div class="row">
+            <div class="col-md-5">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Available Tickers</h6>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Sort options">
+                        <button type="button" class="btn btn-outline-secondary" id="sortByTicker" data-sort="ticker">
+                            <i class="fas fa-sort-alpha-down"></i> Ticker
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="sortByChange" data-sort="change">
+                            <i class="fas fa-sort-numeric-down"></i> Change %
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="sortByDate" data-sort="date">
+                            <i class="fas fa-calendar-alt"></i> Date
+                        </button>
+                    </div>
+                </div>
+                <div id="tickerList" style="max-height: 600px; overflow-y: auto;">
+                    <table class="table table-sm table-hover" id="tickerTable">
+                        <thead class="sticky-top bg-white">
+                            <tr>
+                                <th>Ticker</th>
+                                <th class="text-end">Last Price</th>
+                                <th class="text-end">Change %</th>
+                                <th>Date</th>
+                                <th class="text-center">Trend</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tickerTableBody">
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">
+                                    <i class="fas fa-spinner fa-spin me-2"></i>Loading tickers...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Chart Area -->
+            <div class="col-md-7">
+                <div id="chartContainer">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0" id="chartTitle">Select a ticker to view chart</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="tickerChart" style="height: 600px;">
+                                <div class="text-center py-5 text-muted">
+                                    <i class="fas fa-chart-candlestick fa-3x mb-3 d-block"></i>
+                                    <p>Select a ticker from the list to view its price chart</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

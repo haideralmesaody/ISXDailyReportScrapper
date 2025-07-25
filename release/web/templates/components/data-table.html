@@ -1,0 +1,24 @@
+<div class="table-responsive">
+    <table class="table table-striped table-hover {{tableClass}}">
+        <thead class="table-dark">
+            <tr id="{{tableId}}-header">
+                <!-- Headers will be dynamically populated -->
+            </tr>
+        </thead>
+        <tbody id="{{tableId}}-body">
+            <!-- Data rows will be dynamically populated -->
+        </tbody>
+    </table>
+    {{#if showPagination}}
+    <div class="table-pagination d-flex justify-content-between align-items-center mt-3">
+        <div class="table-info">
+            Showing <span id="{{tableId}}-start">0</span> to <span id="{{tableId}}-end">0</span> of <span id="{{tableId}}-total">0</span> entries
+        </div>
+        <nav>
+            <ul class="pagination pagination-sm mb-0" id="{{tableId}}-pagination">
+                <!-- Pagination will be dynamically generated -->
+            </ul>
+        </nav>
+    </div>
+    {{/if}}
+</div>

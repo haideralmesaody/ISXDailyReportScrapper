@@ -89,17 +89,29 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sparkline"></script>
     
     <!-- ISX Application Modules -->
+    <script src="/static/js/core/logger.js"></script>
     <script src="/static/js/core/eventBus.js"></script>
+    <script src="/static/js/services/messageAdapter.js"></script>
     <script src="/static/js/core/websocket.js"></script>
     <script src="/static/js/core/state.js"></script>
     <script src="/static/js/core/templateLoader.js"></script>
     <script src="/static/js/core/componentManager.js"></script>
     <script src="/static/js/services/api.js"></script>
+    <script src="/static/js/services/stageAdapter.js"></script>
+    <script src="/static/js/components/errorDisplay.js"></script>
     <script src="/static/js/components/dataUpdateManager.js"></script>
     <script src="/static/js/components/compatibility.js"></script>
+    <script src="/static/js/components/pipelineStages.js"></script>
     <script src="/static/js/main.js"></script>
     
     <script>
+        // Application configuration
+        window.APP_CONFIG = {
+            API_BASE_URL: window.location.origin,  // This will be http://localhost:8080
+            DEBUG: true,
+            VERSION: 'enhanced-v3.0.0'
+        };
+        
         // Clear output console
         function clearOutput() {
             const outputElement = document.getElementById('output');

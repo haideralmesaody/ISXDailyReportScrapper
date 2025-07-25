@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ISX License Activation - The Iraqi Investor</title>
+    <title>License Activation - ISX Daily Reports Analytics Platform</title>
     <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -16,35 +16,203 @@
             --dark-green: #1a3d2b;
             --cream-bg: #f8f6f0;
             --red-accent: #c53030;
+            --gold-accent: #d4af37;
+            --soft-gray: #f8f9fa;
+            --text-muted: #6c757d;
+        }
+        
+        * {
+            box-sizing: border-box;
         }
         
         body {
-            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 20px;
+        }
+        
+        .license-wrapper {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
         }
         
         .license-container {
-            max-width: 500px;
-            width: 100%;
-            margin: 20px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            min-height: 600px;
         }
         
-        .license-card {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        @media (max-width: 968px) {
+            .license-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Left Panel - Branding & Info */
+        .license-info-panel {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            padding: 60px 40px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
             overflow: hidden;
-            animation: slideIn 0.6s ease-out;
+        }
+        
+        .license-info-panel::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%);
+            animation: pulse 20s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .brand-section {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .logo-container {
+            margin-bottom: 40px;
+        }
+        
+        .logo-container img {
+            width: 140px;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            background: white;
+            padding: 10px;
+        }
+        
+        .brand-title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+        
+        .brand-subtitle {
+            font-size: 18px;
+            opacity: 0.9;
+            margin-bottom: 40px;
+            line-height: 1.5;
+        }
+        
+        .features-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .features-list li {
+            padding: 12px 0;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            opacity: 0.95;
+        }
+        
+        .features-list li i {
+            color: var(--accent-green);
+            margin-right: 15px;
+            font-size: 20px;
+            width: 24px;
+            text-align: center;
+        }
+        
+        .support-section {
+            position: relative;
+            z-index: 1;
+            padding-top: 40px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            margin-top: 40px;
+        }
+        
+        .support-section h5 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            opacity: 0.95;
+        }
+        
+        .support-section p {
+            margin: 8px 0;
+            opacity: 0.85;
+            font-size: 15px;
+        }
+        
+        .support-section i {
+            margin-right: 10px;
+            color: var(--accent-green);
+        }
+        
+        /* Right Panel - License Form */
+        .license-form-panel {
+            padding: 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        @media (max-width: 968px) {
+            .license-form-panel {
+                padding: 40px;
+            }
+        }
+        
+        .form-header {
+            margin-bottom: 40px;
+            text-align: center;
+        }
+        
+        .form-header h2 {
+            color: var(--dark-green);
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .form-header p {
+            color: var(--text-muted);
+            font-size: 16px;
+        }
+        
+        /* Status Messages */
+        .status-container {
+            margin-bottom: 30px;
+            min-height: 80px;
+        }
+        
+        .status-message {
+            padding: 20px;
+            border-radius: 12px;
+            display: flex;
+            align-items: flex-start;
+            animation: slideIn 0.3s ease-out;
         }
         
         @keyframes slideIn {
             from {
                 opacity: 0;
-                transform: translateY(30px);
+                transform: translateY(-10px);
             }
             to {
                 opacity: 1;
@@ -52,150 +220,193 @@
             }
         }
         
-        .license-header {
-            background: linear-gradient(135deg, var(--primary-green), var(--secondary-green));
-            color: white;
-            padding: 30px;
-            text-align: center;
-            position: relative;
-        }
-        
-        .license-header::before {
-            content: '';
-            position: absolute;
-            bottom: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 20px solid transparent;
-            border-right: 20px solid transparent;
-            border-top: 10px solid var(--secondary-green);
-        }
-        
-        .license-header h2 {
-            margin: 0;
+        .status-message i {
             font-size: 24px;
+            margin-right: 15px;
+            margin-top: 2px;
+        }
+        
+        .status-content h5 {
+            font-size: 18px;
             font-weight: 600;
-        }
-        
-        .license-header p {
-            margin: 10px 0 0 0;
-            opacity: 0.9;
-            font-size: 14px;
-        }
-        
-        .license-body {
-            padding: 40px 30px;
-        }
-        
-        .license-form {
-            margin-bottom: 20px;
-        }
-        
-        .form-label {
-            font-weight: 600;
-            color: var(--dark-green);
             margin-bottom: 8px;
         }
         
-        .form-control {
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 12px 16px;
-            font-size: 14px;
-            transition: all 0.3s ease;
+        .status-content p {
+            margin: 0;
+            font-size: 15px;
+            line-height: 1.5;
         }
         
-        .form-control:focus {
-            border-color: var(--accent-green);
-            box-shadow: 0 0 0 0.2rem rgba(139, 195, 74, 0.25);
+        .status-loading {
+            background: var(--soft-gray);
+            color: var(--text-muted);
         }
         
-        .btn-activate {
-            background: linear-gradient(135deg, var(--accent-green), var(--light-green));
-            border: none;
-            border-radius: 8px;
-            padding: 12px 24px;
-            font-weight: 600;
-            width: 100%;
-            transition: all 0.3s ease;
-            color: white;
+        .status-loading i {
+            color: var(--primary-green);
         }
         
-        .btn-activate:hover {
-            background: linear-gradient(135deg, var(--light-green), var(--accent-green));
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(139, 195, 74, 0.3);
+        .status-info {
+            background: rgba(13, 110, 253, 0.1);
+            color: #0c5460;
+            border-left: 4px solid #0d6efd;
         }
         
-        .btn-activate:disabled {
-            background: #ccc;
-            transform: none;
-            box-shadow: none;
+        .status-info i {
+            color: #0d6efd;
         }
         
-        .license-example {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .license-example h6 {
-            color: var(--dark-green);
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-        
-        .license-example-key {
-            font-family: 'Courier New', monospace;
-            background: white;
-            padding: 8px 12px;
-            border-radius: 6px;
-            border: 1px solid #ddd;
-            font-size: 13px;
-            color: var(--dark-green);
-        }
-        
-        .contact-info {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 20px;
-            text-align: center;
-            margin-top: 20px;
-        }
-        
-        .contact-info h6 {
-            color: var(--dark-green);
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-        
-        .contact-info p {
-            margin: 5px 0;
-            color: #666;
-            font-size: 14px;
-        }
-        
-        .alert {
-            border: none;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .alert-success {
+        .status-success {
             background: rgba(139, 195, 74, 0.1);
             color: var(--dark-green);
             border-left: 4px solid var(--accent-green);
         }
         
-        .alert-danger {
-            background: rgba(197, 48, 48, 0.1);
+        .status-success i {
+            color: var(--accent-green);
+        }
+        
+        .status-error {
+            background: rgba(220, 53, 69, 0.1);
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .status-error i {
+            color: #dc3545;
+        }
+        
+        .status-warning {
+            background: rgba(255, 193, 7, 0.1);
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .status-warning i {
+            color: #ffc107;
+        }
+        
+        /* License Form */
+        .license-form {
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-label {
+            font-weight: 600;
+            color: var(--dark-green);
+            margin-bottom: 10px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .form-label i {
+            margin-right: 8px;
+            color: var(--secondary-green);
+        }
+        
+        .license-input-group {
+            position: relative;
+        }
+        
+        .form-control {
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 14px 20px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            font-family: 'Monaco', 'Consolas', monospace;
+            letter-spacing: 1px;
+        }
+        
+        .form-control:focus {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 0 0.2rem rgba(139, 195, 74, 0.15);
+            outline: none;
+        }
+        
+        .form-control.is-valid {
+            border-color: var(--accent-green);
+            background-image: none;
+        }
+        
+        .form-control.is-invalid {
+            border-color: var(--red-accent);
+            background-image: none;
+        }
+        
+        .input-feedback {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 20px;
+        }
+        
+        .input-feedback.valid {
+            color: var(--accent-green);
+        }
+        
+        .input-feedback.invalid {
             color: var(--red-accent);
-            border-left: 4px solid var(--red-accent);
+        }
+        
+        .form-hint {
+            margin-top: 10px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+        
+        .example-key {
+            font-family: 'Monaco', 'Consolas', monospace;
+            background: var(--soft-gray);
+            padding: 8px 12px;
+            border-radius: 6px;
+            display: inline-block;
+            margin-top: 5px;
+            font-size: 13px;
+            letter-spacing: 1px;
+            color: var(--dark-green);
+        }
+        
+        /* Buttons */
+        .btn-activate {
+            background: linear-gradient(135deg, var(--accent-green) 0%, var(--light-green) 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 14px 32px;
+            font-weight: 600;
+            font-size: 16px;
+            color: white;
+            width: 100%;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-activate:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(139, 195, 74, 0.3);
+        }
+        
+        .btn-activate:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        
+        .btn-activate:disabled {
+            background: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-activate i {
+            margin-right: 8px;
         }
         
         .loading-spinner {
@@ -203,207 +414,628 @@
             margin-left: 10px;
         }
         
-        .logo-container {
-            text-align: center;
-            margin-bottom: 20px;
+        .btn-activate:disabled .loading-spinner {
+            display: inline-block;
         }
         
-        .logo-container img {
-            max-width: 120px;
-            height: auto;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        /* Help Section */
+        .help-section {
+            text-align: center;
+            padding-top: 30px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .help-section h6 {
+            color: var(--dark-green);
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .help-links {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .help-link {
+            color: var(--primary-green);
+            text-decoration: none;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            transition: color 0.3s ease;
+        }
+        
+        .help-link:hover {
+            color: var(--accent-green);
+        }
+        
+        .help-link i {
+            margin-right: 8px;
+        }
+        
+        /* Benefits Section */
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .benefit-card {
+            background: var(--soft-gray);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .benefit-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        
+        .benefit-card i {
+            font-size: 32px;
+            color: var(--primary-green);
+            margin-bottom: 10px;
+        }
+        
+        .benefit-card h6 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--dark-green);
+            margin-bottom: 5px;
+        }
+        
+        .benefit-card p {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin: 0;
+            line-height: 1.4;
+        }
+        
+        /* Progress Bar */
+        .progress-container {
+            height: 4px;
+            background: #e9ecef;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .progress-container.active {
+            opacity: 1;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-green), var(--light-green));
+            width: 0;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px rgba(139, 195, 74, 0.5);
         }
     </style>
 </head>
 <body>
-    <div class="license-container">
-        <div class="license-card">
-            <div class="license-header">
-                <div class="logo-container">
-                    <img src="/static/images/TII Logo.jpg" alt="The Iraqi Investor" class="logo">
+    <div class="progress-container" id="progressContainer">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+    
+    <div class="license-wrapper">
+        <div class="license-container">
+            <!-- Left Panel - Branding & Info -->
+            <div class="license-info-panel">
+                <div class="brand-section">
+                    <div class="logo-container">
+                        <img src="/static/images/TII Logo.jpg" alt="The Iraqi Investor">
+                    </div>
+                    <h1 class="brand-title">ISX Daily Reports</h1>
+                    <p class="brand-subtitle">Professional Analytics Platform for Iraq Stock Exchange</p>
+                    
+                    <ul class="features-list">
+                        <li>
+                            <i class="fas fa-chart-line"></i>
+                            <span>Real-time market data and analytics</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-file-alt"></i>
+                            <span>Automated daily trading reports</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-database"></i>
+                            <span>Historical data analysis tools</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-download"></i>
+                            <span>Export to multiple formats</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Secure cloud-based platform</span>
+                        </li>
+                    </ul>
                 </div>
-                <h2><i class="fas fa-key me-2"></i>License Activation</h2>
-                <p>ISX Daily Reports Analytics Platform</p>
+                
+                <div class="support-section">
+                    <h5><i class="fas fa-headset"></i>Professional Support</h5>
+                    <p><i class="fas fa-envelope"></i>support@iraqiinvestor.com</p>
+                    <p><i class="fas fa-phone"></i>+964 123 456 7890</p>
+                    <p><i class="fas fa-clock"></i>Sunday - Thursday: 9AM - 5PM</p>
+                </div>
             </div>
             
-            <div class="license-body">
-                <div id="alertContainer"></div>
+            <!-- Right Panel - License Form -->
+            <div class="license-form-panel">
+                <div class="form-header">
+                    <h2>Activate Your License</h2>
+                    <p>Enter your license key to unlock all features</p>
+                </div>
                 
-                <div class="license-example">
-                    <h6><i class="fas fa-info-circle me-2"></i>License Key Format</h6>
-                    <div class="license-example-key">
-                        ISX3M-ABC123DEF456GHI789JKL
-                    </div>
-                    <small class="text-muted mt-2 d-block">
-                        Format: ISX[Duration]-[UniqueKey]<br>
-                        Duration: 1M (1 month), 3M (3 months), 6M (6 months), 1Y (1 year)
-                    </small>
+                <div class="status-container" id="statusContainer">
+                    <!-- Status messages will be inserted here -->
                 </div>
                 
                 <form id="licenseForm" class="license-form">
-                    <div class="mb-3">
+                    <div class="form-group">
                         <label for="licenseKey" class="form-label">
-                            <i class="fas fa-key me-2"></i>Enter Your License Key
+                            <i class="fas fa-key"></i>License Key
                         </label>
-                        <input type="text" 
-                               class="form-control" 
-                               id="licenseKey" 
-                               placeholder="ISX3M-ABC123DEF456GHI789JKL"
-                               required>
+                        <div class="license-input-group">
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="licenseKey" 
+                                   placeholder="Enter your license key"
+                                   spellcheck="false"
+                                   autocomplete="off"
+                                   required>
+                            <span class="input-feedback" id="inputFeedback"></span>
+                        </div>
+                        <div class="form-hint">
+                            Example: <span class="example-key">ISX3MABC123DEF456GHI789</span>
+                        </div>
                     </div>
                     
                     <button type="submit" class="btn btn-activate" id="activateBtn">
-                        <i class="fas fa-unlock me-2"></i>Activate License
+                        <i class="fas fa-unlock"></i>
+                        <span id="btnText">Activate License</span>
                         <span class="loading-spinner">
                             <i class="fas fa-spinner fa-spin"></i>
                         </span>
                     </button>
                 </form>
                 
-                <div class="contact-info">
-                    <h6><i class="fas fa-phone me-2"></i>Need Support?</h6>
-                    <p><strong>Contact The Iraqi Investor Group</strong></p>
-                    <p>For license purchase, activation assistance, or technical support</p>
-                    <p><i class="fas fa-envelope me-2"></i>support@iraqiinvestor.com</p>
+                <div class="benefits-grid">
+                    <div class="benefit-card">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <h6>Instant Access</h6>
+                        <p>Start analyzing immediately</p>
+                    </div>
+                    <div class="benefit-card">
+                        <i class="fas fa-sync-alt"></i>
+                        <h6>Auto Updates</h6>
+                        <p>Always latest features</p>
+                    </div>
+                    <div class="benefit-card">
+                        <i class="fas fa-lock"></i>
+                        <h6>Secure Platform</h6>
+                        <p>Bank-level encryption</p>
+                    </div>
+                    <div class="benefit-card">
+                        <i class="fas fa-users"></i>
+                        <h6>Expert Support</h6>
+                        <p>Professional assistance</p>
+                    </div>
+                </div>
+                
+                <div class="help-section">
+                    <h6>Need Help?</h6>
+                    <div class="help-links">
+                        <a href="#" class="help-link" onclick="showPricingInfo(); return false;">
+                            <i class="fas fa-tag"></i>View Pricing
+                        </a>
+                        <a href="#" class="help-link" onclick="showHowToActivate(); return false;">
+                            <i class="fas fa-question-circle"></i>How to Activate
+                        </a>
+                        <a href="mailto:support@iraqiinvestor.com" class="help-link">
+                            <i class="fas fa-envelope"></i>Contact Support
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/debug.js"></script>
+    <script src="/static/js/core/logger.js"></script>
     <script>
-        document.getElementById('licenseForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const licenseKey = document.getElementById('licenseKey').value.trim();
-            const activateBtn = document.getElementById('activateBtn');
-            const loadingSpinner = document.querySelector('.loading-spinner');
-            const alertContainer = document.getElementById('alertContainer');
-            
-            if (!licenseKey) {
-                showAlert('Please enter a valid license key', 'danger');
-                return;
+        // Professional status messages
+        const statusMessages = {
+            noLicense: {
+                icon: 'fas fa-info-circle',
+                title: 'Welcome to ISX Daily Reports Analytics',
+                content: 'To access real-time market data, advanced analytics, and automated reports, please activate your license below.',
+                type: 'info'
+            },
+            expired: {
+                icon: 'fas fa-calendar-times',
+                title: 'Your License Has Expired',
+                content: 'Thank you for being a valued user. To continue accessing our professional analytics tools and market insights, please renew your license.',
+                type: 'warning'
+            },
+            invalidMachine: {
+                icon: 'fas fa-desktop',
+                title: 'License Registered to Different Device',
+                content: 'This license is registered to another device. Please use the correct device or contact support for assistance with license transfer.',
+                type: 'error'
+            },
+            checking: {
+                icon: 'fas fa-spinner fa-spin',
+                title: 'Verifying License Status',
+                content: 'Please wait while we check your license information...',
+                type: 'loading'
+            },
+            networkError: {
+                icon: 'fas fa-wifi',
+                title: 'Connection Issue',
+                content: 'Unable to connect to our licensing server. Please check your internet connection and try again.',
+                type: 'error'
+            },
+            activationSuccess: {
+                icon: 'fas fa-check-circle',
+                title: 'License Activated Successfully!',
+                content: 'Welcome! Your license has been activated. Redirecting to the analytics dashboard...',
+                type: 'success'
+            },
+            validLicense: {
+                icon: 'fas fa-check-shield',
+                title: 'Active License Detected',
+                content: 'Your license is active and valid. Redirecting to the analytics dashboard...',
+                type: 'success'
+            },
+            invalidFormat: {
+                icon: 'fas fa-exclamation-triangle',
+                title: 'Invalid License Format',
+                content: 'The license key format is invalid. Please enter a valid license key.',
+                type: 'error'
             }
-            
-            // Validate license key format
-            if (!isValidLicenseFormat(licenseKey)) {
-                showAlert('Invalid license key format. Please check the example above.', 'danger');
-                return;
-            }
-            
-            // Show loading state
-            activateBtn.disabled = true;
-            loadingSpinner.style.display = 'inline-block';
-            clearAlerts();
-            
-            // Send activation request
-            fetch('/api/license/activate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    license_key: licenseKey
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.message || data.success) {
-                    let successMessage = data.message || 'License activated successfully';
-                    if (data.days_left) {
-                        successMessage += `<br><strong>Duration:</strong> ${data.duration}<br><strong>Valid for:</strong> ${data.days_left} days<br><strong>Expires on:</strong> ${data.expiry_date}`;
-                    }
-                    successMessage += '<br><br><i class="fas fa-spinner fa-spin"></i> Redirecting to main application in <span id="countdown">3</span> seconds...';
-                    showAlert(successMessage, 'success');
-                    
-                    // Countdown timer with cache busting
-                    let timeLeft = 3;
-                    const countdown = setInterval(() => {
-                        timeLeft--;
-                        const countdownElement = document.getElementById('countdown');
-                        if (countdownElement) {
-                            countdownElement.textContent = timeLeft;
-                        }
-                        if (timeLeft <= 0) {
-                            clearInterval(countdown);
-                            // Add cache busting parameter to ensure fresh page load
-                            window.location.href = '/?activated=' + Date.now();
-                        }
-                    }, 1000);
-                } else {
-                    showAlert(data.error || 'License activation failed', 'danger');
-                }
-            })
-            .catch(error => {
-                showAlert('Network error. Please check your connection and try again.', 'danger');
-            })
-            .finally(() => {
-                activateBtn.disabled = false;
-                loadingSpinner.style.display = 'none';
-            });
-        });
+        };
         
-        function isValidLicenseFormat(licenseKey) {
-            const pattern = /^ISX[13]M|ISX6M|ISX1Y/;
-            return pattern.test(licenseKey) && licenseKey.length > 8;
-        }
-        
-        function showAlert(message, type) {
-            const alertContainer = document.getElementById('alertContainer');
-            const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
-            const iconClass = type === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle';
+        // Display status message
+        function showStatus(messageKey, customContent = null) {
+            const container = document.getElementById('statusContainer');
+            const message = statusMessages[messageKey];
             
-            alertContainer.innerHTML = `
-                <div class="alert ${alertClass}" role="alert">
-                    <i class="${iconClass} me-2"></i>${message}
+            if (!message) return;
+            
+            const content = customContent || message.content;
+            
+            container.innerHTML = `
+                <div class="status-message status-${message.type}">
+                    <i class="${message.icon}"></i>
+                    <div class="status-content">
+                        <h5>${message.title}</h5>
+                        <p>${content}</p>
+                    </div>
                 </div>
             `;
         }
         
-        function clearAlerts() {
-            document.getElementById('alertContainer').innerHTML = '';
+        // Clear status messages
+        function clearStatus() {
+            document.getElementById('statusContainer').innerHTML = '';
         }
         
-        // Check license status on page load and auto-redirect if valid
-        document.addEventListener('DOMContentLoaded', function() {
-            checkExistingLicense();
-            document.getElementById('licenseKey').focus();
+        // Show progress bar
+        function showProgress(percentage) {
+            const container = document.getElementById('progressContainer');
+            const bar = document.getElementById('progressBar');
+            
+            container.classList.add('active');
+            bar.style.width = `${percentage}%`;
+            
+            if (percentage >= 100) {
+                setTimeout(() => {
+                    container.classList.remove('active');
+                    bar.style.width = '0';
+                }, 500);
+            }
+        }
+        
+        // License key validation with visual feedback
+        const licenseInput = document.getElementById('licenseKey');
+        const inputFeedback = document.getElementById('inputFeedback');
+        
+        licenseInput.addEventListener('input', function(e) {
+            const value = e.target.value.trim();
+            
+            if (value.length === 0) {
+                licenseInput.classList.remove('is-valid', 'is-invalid');
+                inputFeedback.innerHTML = '';
+                return;
+            }
+            
+            if (isValidLicenseFormat(value)) {
+                licenseInput.classList.remove('is-invalid');
+                licenseInput.classList.add('is-valid');
+                inputFeedback.innerHTML = '<i class="fas fa-check-circle valid"></i>';
+            } else {
+                licenseInput.classList.remove('is-valid');
+                licenseInput.classList.add('is-invalid');
+                inputFeedback.innerHTML = '<i class="fas fa-times-circle invalid"></i>';
+            }
         });
         
-        function checkExistingLicense() {
-            fetch('/api/license/status')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.is_valid) {
-                        // Valid license found - show welcome message and redirect
-                        let welcomeMessage = `Welcome! Your license is active.`;
-                        if (data.days_left) {
-                            welcomeMessage += `<br><strong>Status:</strong> ${data.status}<br><strong>Valid for:</strong> ${data.days_left} days`;
-                        }
-                        welcomeMessage += '<br><br><i class="fas fa-spinner fa-spin"></i> Redirecting to main application in <span id="autoCountdown">3</span> seconds...';
-                        showAlert(welcomeMessage, 'success');
-                        
-                        // Auto-redirect countdown
-                        let timeLeft = 3;
-                        const countdown = setInterval(() => {
-                            timeLeft--;
-                            const countdownElement = document.getElementById('autoCountdown');
-                            if (countdownElement) {
-                                countdownElement.textContent = timeLeft;
-                            }
-                            if (timeLeft <= 0) {
-                                clearInterval(countdown);
-                                window.location.href = '/?auto_redirect=' + Date.now();
-                            }
-                        }, 1000);
-                    }
-                })
-                .catch(error => {
-                    // License check failed - continue with normal license entry
-                    console.log('No existing license found, showing license entry form');
+        // Auto-format license key input
+        licenseInput.addEventListener('paste', function(e) {
+            e.preventDefault();
+            const paste = (e.clipboardData || window.clipboardData).getData('text');
+            const formatted = paste.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            this.value = formatted;
+            this.dispatchEvent(new Event('input'));
+        });
+        
+        // Form submission
+        document.getElementById('licenseForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const licenseKey = licenseInput.value.trim();
+            const activateBtn = document.getElementById('activateBtn');
+            const btnText = document.getElementById('btnText');
+            
+            if (!licenseKey) {
+                licenseInput.classList.add('is-invalid');
+                licenseInput.focus();
+                return;
+            }
+            
+            if (!isValidLicenseFormat(licenseKey)) {
+                showStatus('invalidFormat', 'Invalid license key format. Please check your license key and try again.');
+                licenseInput.focus();
+                return;
+            }
+            
+            // Disable form
+            activateBtn.disabled = true;
+            licenseInput.disabled = true;
+            btnText.textContent = 'Activating...';
+            
+            // Show progress
+            showProgress(20);
+            clearStatus();
+            showStatus('checking');
+            
+            try {
+                showProgress(50);
+                
+                const response = await fetch('/api/license/activate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        license_key: licenseKey
+                    })
                 });
+                
+                showProgress(80);
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    showProgress(100);
+                    
+                    // Try to parse error response
+                    let errorData;
+                    try {
+                        errorData = await response.json();
+                    } catch (e) {
+                        errorData = { error: 'Server error' };
+                    }
+                    
+                    // Handle specific error codes
+                    if (errorData.code === 'LICENSE_EXPIRED') {
+                        showStatus('expired');
+                    } else if (errorData.code === 'MACHINE_MISMATCH') {
+                        showStatus('invalidMachine');
+                    } else if (errorData.code === 'LICENSE_NOT_FOUND') {
+                        showStatus('error', 'License key not found. Please verify your license key.');
+                    } else if (errorData.code === 'RATE_LIMITED') {
+                        showStatus('error', 'Too many activation attempts. Please try again later.');
+                    } else if (errorData.code === 'NETWORK_ERROR') {
+                        showStatus('networkError');
+                    } else {
+                        const errorMsg = errorData.error || errorData.details || 'License activation failed. Please verify your license key and try again.';
+                        showStatus('error', errorMsg);
+                    }
+                    
+                    // Re-enable form
+                    activateBtn.disabled = false;
+                    licenseInput.disabled = false;
+                    btnText.textContent = 'Activate License';
+                    return;
+                }
+                
+                // Response was OK, data already parsed above
+                if (data.success || data.message?.includes('successfully')) {
+                    showProgress(100);
+                    showStatus('activationSuccess');
+                    
+                    // Success - redirect after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = '/app?activated=' + Date.now();
+                    }, 2000);
+                } else {
+                    // This shouldn't happen with proper error handling, but just in case
+                    showProgress(100);
+                    const errorMsg = data.error || data.details || 'License activation failed. Please try again.';
+                    showStatus('error', errorMsg);
+                    
+                    // Re-enable form
+                    activateBtn.disabled = false;
+                    licenseInput.disabled = false;
+                    btnText.textContent = 'Activate License';
+                }
+            } catch (error) {
+                console.error('Activation error:', error);
+                showProgress(100);
+                
+                // Check if it's a network error
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    showStatus('networkError');
+                } else {
+                    showStatus('error', 'An unexpected error occurred. Please try again.');
+                }
+                
+                // Re-enable form
+                activateBtn.disabled = false;
+                licenseInput.disabled = false;
+                btnText.textContent = 'Activate License';
+            }
+        });
+        
+        // License format validation
+        function isValidLicenseFormat(licenseKey) {
+            const patterns = [
+                /^ISX1M[A-Z0-9]{15,}$/,
+                /^ISX3M[A-Z0-9]{15,}$/,
+                /^ISX6M[A-Z0-9]{15,}$/,
+                /^ISX1Y[A-Z0-9]{15,}$/
+            ];
+            return patterns.some(pattern => pattern.test(licenseKey));
         }
+        
+        // Check existing license on page load
+        async function checkExistingLicense() {
+            showStatus('checking');
+            showProgress(30);
+            
+            try {
+                const response = await fetch('/api/license/status', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                showProgress(70);
+                
+                if (!response.ok) {
+                    // Handle specific HTTP errors
+                    if (response.status === 428) {
+                        // Precondition Required - no license activated
+                        showProgress(100);
+                        showStatus('noLicense');
+                        licenseInput.focus();
+                        return;
+                    } else if (response.status === 503) {
+                        // Service Unavailable - network error
+                        showProgress(100);
+                        showStatus('networkError');
+                        return;
+                    }
+                    // For other errors, just clear and continue
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                showProgress(100);
+                
+                // Log the response for debugging
+                console.debug('License status response:', data);
+                
+                if (data.license_status === 'active' || data.license_status === 'valid') {
+                    let content = data.message || statusMessages.validLicense.content;
+                    if (data.days_left && data.days_left > 0) {
+                        content += `<br><small class="text-muted">Valid for ${data.days_left} more days</small>`;
+                    }
+                    showStatus('validLicense', content);
+                    
+                    // Auto redirect after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = '/app?auto=' + Date.now();
+                    }, 2000);
+                } else if (data.license_status === 'expired') {
+                    showStatus('expired', data.message || statusMessages.expired.content);
+                } else if (data.license_status === 'not_activated' || data.license_status === 'error') {
+                    showStatus('noLicense');
+                    licenseInput.focus();
+                } else if (data.license_status === 'critical') {
+                    // License about to expire
+                    let content = data.message || `Your license expires in ${data.days_left} days. Please renew soon.`;
+                    showStatus('warning', content);
+                    // Still redirect but with warning
+                    setTimeout(() => {
+                        window.location.href = '/app?warning=' + Date.now();
+                    }, 3000);
+                } else if (data.license_status === 'warning') {
+                    // License expiring within 30 days
+                    let content = data.message || `Your license expires in ${data.days_left} days.`;
+                    showStatus('warning', content);
+                    // Still redirect
+                    setTimeout(() => {
+                        window.location.href = '/app?warning=' + Date.now();
+                    }, 3000);
+                } else {
+                    // Unknown status, show no license
+                    console.warn('Unknown license status:', data.license_status);
+                    showStatus('noLicense');
+                    licenseInput.focus();
+                }
+            } catch (error) {
+                console.error('License check error:', error);
+                showProgress(100);
+                
+                // Check if it's a network error
+                if (error.message && error.message.includes('fetch')) {
+                    showStatus('networkError');
+                } else {
+                    // Don't show error on initial check, just show no license
+                    showStatus('noLicense');
+                    licenseInput.focus();
+                }
+            }
+        }
+        
+        // Helper functions for help links
+        function showPricingInfo() {
+            const content = `
+                <strong>Available License Options:</strong><br>
+                • 1 Month (ISX1M): $29.99<br>
+                • 3 Months (ISX3M): $79.99 <span class="text-success">(Save 11%)</span><br>
+                • 6 Months (ISX6M): $149.99 <span class="text-success">(Save 17%)</span><br>
+                • 1 Year (ISX1Y): $279.99 <span class="text-success">(Save 22%)</span><br><br>
+                Contact our sales team for enterprise pricing.
+            `;
+            showStatus('info', content);
+        }
+        
+        function showHowToActivate() {
+            const content = `
+                <strong>How to activate your license:</strong><br>
+                1. Purchase a license from our sales team<br>
+                2. You'll receive a license key via email<br>
+                3. Enter the key in the field above<br>
+                4. Click "Activate License"<br>
+                5. You'll be redirected to the platform<br><br>
+                Need help? Contact support@iraqiinvestor.com
+            `;
+            showStatus('info', content);
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkExistingLicense();
+        });
     </script>
 </body>
-</html> 
+</html>

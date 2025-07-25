@@ -29,12 +29,14 @@ func GetPaths() (*Paths, error) {
 	
 	// All paths are relative to the executable directory
 	// This ensures the application works correctly whether run from dev/ or release/
+	// Following industry standards: all data files go under data/ directory
+	dataDir := filepath.Join(exeDir, "data")
 	paths := &Paths{
 		ExecutableDir: exeDir,
 		WebDir:        filepath.Join(exeDir, "web"),
 		StaticDir:     filepath.Join(exeDir, "web", "static"),
-		DownloadsDir:  filepath.Join(exeDir, "downloads"),
-		ReportsDir:    filepath.Join(exeDir, "reports"),
+		DownloadsDir:  filepath.Join(dataDir, "downloads"),
+		ReportsDir:    filepath.Join(dataDir, "reports"),
 		LogsDir:       filepath.Join(exeDir, "logs"),
 		LicenseFile:   filepath.Join(exeDir, "license.dat"),
 	}
@@ -44,7 +46,10 @@ func GetPaths() (*Paths, error) {
 
 // EnsureDirectories creates all required directories if they don't exist
 func (p *Paths) EnsureDirectories() error {
+	// Create data directory first (parent of downloads and reports)
+	dataDir := filepath.Dir(p.DownloadsDir)
 	directories := []string{
+		dataDir,
 		p.DownloadsDir,
 		p.ReportsDir,
 		p.LogsDir,

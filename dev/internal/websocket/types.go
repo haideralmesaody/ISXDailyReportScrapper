@@ -3,16 +3,18 @@ package websocket
 // Message types
 const (
 	// Core message types
-	TypeOutput         = "output"
-	TypeDataUpdate     = "data_update"
-	TypePipelineStatus = "pipeline_status"
-	TypePipelineReset  = "pipeline_reset"
-	TypePipelineComplete = "pipeline_complete"
-	TypeProgress       = "progress"
-	TypeStatus         = "status"
-	TypeError          = "error"
-	TypeConnection     = "connection"
-	TypeRefresh        = "refresh" // Deprecated - use data_update instead
+	TypeOutput           = "output"
+	TypeDataUpdate       = "data_update"
+	TypePipelineStatus   = "pipeline:status"      // Changed to frontend format
+	TypePipelineProgress = "pipeline:progress"    // Changed to frontend format
+	TypePipelineReset    = "pipeline:reset"       // Changed to frontend format
+	TypePipelineComplete = "pipeline:complete"    // Changed to frontend format
+	TypeProgress         = "progress"
+	TypeStatus           = "status"
+	TypeError            = "error"
+	TypeConnection       = "connection"
+	TypeLog              = "log"
+	TypeRefresh          = "refresh" // Deprecated - use data_update instead
 )
 
 // Message levels
@@ -45,7 +47,7 @@ const (
 	SubtypeTickerSummary  = "ticker_summary"
 	SubtypeCombinedData   = "combined_data"
 	SubtypeDailyReport    = "daily_report"
-	SubtypeIndexData      = "index_data"
+	SubtypeIndexes        = "indexes"
 	SubtypeTickerHistory  = "ticker_history"
 	SubtypeAll            = "all"
 )

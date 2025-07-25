@@ -1,11 +1,14 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -36,6 +39,21 @@ type Logger struct {
 	logger     *log.Logger
 	component  string
 	categories map[string]bool
+	jsonFormat bool
+	writers    map[string]io.Writer
+	mu         sync.RWMutex
+}
+
+// LogEntry represents a structured log entry
+type LogEntry struct {
+	Timestamp  string                 `json:"timestamp"`
+	Level      string                 `json:"level"`
+	Category   string                 `json:"category,omitempty"`
+	Component  string                 `json:"component,omitempty"`
+	Message    string                 `json:"message"`
+	File       string                 `json:"file,omitempty"`
+	Line       int                    `json:"line,omitempty"`
+	Metadata   map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // NewLogger creates a new logger instance
@@ -89,38 +107,6 @@ func NewLoggerWithLevel(level LogLevel) *Logger {
 	}
 }
 
-// formatMessage creates a formatted log message with timestamp and context
-func (l *Logger) formatMessage(level, category, format string, v ...interface{}) string {
-	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
-	message := fmt.Sprintf(format, v...)
-	
-	// Get caller information for debug mode
-	callerInfo := ""
-	if l.level <= DEBUG {
-		_, file, line, ok := runtime.Caller(3)
-		if ok {
-			// Extract just the filename
-			parts := strings.Split(file, "/")
-			if len(parts) > 0 {
-				file = parts[len(parts)-1]
-			}
-			callerInfo = fmt.Sprintf(" [%s:%d]", file, line)
-		}
-	}
-	
-	// Build the log message
-	component := ""
-	if l.component != "" {
-		component = fmt.Sprintf(" [%s]", l.component)
-	}
-	
-	categoryStr := ""
-	if category != "" {
-		categoryStr = fmt.Sprintf(" [%s]", category)
-	}
-	
-	return fmt.Sprintf("[%s] [%s]%s%s%s %s", timestamp, level, categoryStr, component, callerInfo, message)
-}
 
 // shouldLog checks if a message should be logged based on level and category
 func (l *Logger) shouldLog(level LogLevel, category string) bool {
@@ -259,4 +245,257 @@ func (l *Logger) LogComplete(category, operation string) {
 func (l *Logger) LogProgress(category, operation string, current, total int) {
 	percentage := float64(current) / float64(total) * 100
 	l.DebugCategory(category, "%s progress: %d/%d (%.1f%%)", operation, current, total, percentage)
+}
+
+// Global logger instance with file support
+var (
+	globalLogger     *Logger
+	globalLoggerOnce sync.Once
+	fileWriters      map[string]*LogWriter
+	fileWritersMu    sync.Mutex
+	currentLogDir    string
+)
+
+// InitializeFileLogging sets up file-based logging
+func InitializeFileLogging(logDir string) error {
+	fileWritersMu.Lock()
+	defer fileWritersMu.Unlock()
+
+	// Store current log directory
+	currentLogDir = logDir
+
+	// Create log directory
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		return fmt.Errorf("failed to create log directory: %w", err)
+	}
+
+	// Initialize file writers
+	fileWriters = make(map[string]*LogWriter)
+
+	// Create app.log writer
+	appWriter, err := NewLogWriter(logDir, "app.log")
+	if err != nil {
+		return fmt.Errorf("failed to create app.log writer: %w", err)
+	}
+	fileWriters["app"] = appWriter
+
+	// Create error.log writer
+	errorWriter, err := NewLogWriter(logDir, "error.log")
+	if err != nil {
+		return fmt.Errorf("failed to create error.log writer: %w", err)
+	}
+	fileWriters["error"] = errorWriter
+
+	// Create debug.log writer if debug mode is enabled
+	if os.Getenv("ISX_DEBUG") == "true" {
+		debugWriter, err := NewLogWriter(logDir, "debug.log")
+		if err != nil {
+			return fmt.Errorf("failed to create debug.log writer: %w", err)
+		}
+		fileWriters["debug"] = debugWriter
+	}
+
+	// Create access.log writer
+	accessWriter, err := NewLogWriter(logDir, "access.log")
+	if err != nil {
+		return fmt.Errorf("failed to create access.log writer: %w", err)
+	}
+	fileWriters["access"] = accessWriter
+
+	// Update global logger
+	globalLoggerOnce.Do(func() {
+		globalLogger = NewLogger()
+		globalLogger.EnableFileLogging()
+	})
+
+	return nil
+}
+
+// CloseFileLogging closes all file writers
+func CloseFileLogging() {
+	fileWritersMu.Lock()
+	defer fileWritersMu.Unlock()
+
+	for _, writer := range fileWriters {
+		writer.Close()
+	}
+	fileWriters = nil
+}
+
+// EnableFileLogging enables file output for the logger
+func (l *Logger) EnableFileLogging() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if fileWriters == nil {
+		return
+	}
+
+	// Create multi-writer for app.log and stdout
+	if appWriter, ok := fileWriters["app"]; ok {
+		multiWriter := NewMultiWriter(os.Stdout, appWriter)
+		l.logger = log.New(multiWriter, "", 0)
+	}
+}
+
+// SetJSONFormat enables JSON output format
+func (l *Logger) SetJSONFormat(enabled bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.jsonFormat = enabled
+}
+
+// logToFile writes to specific log files based on level
+func (l *Logger) logToFile(level LogLevel, message string, entry *LogEntry) {
+	fileWritersMu.Lock()
+	defer fileWritersMu.Unlock()
+
+	if fileWriters == nil {
+		return
+	}
+
+	// Write to error.log for ERROR level
+	if level >= ERROR && fileWriters["error"] != nil {
+		if l.jsonFormat && entry != nil {
+			if data, err := json.Marshal(entry); err == nil {
+				fileWriters["error"].Write(append(data, '\n'))
+			}
+		} else {
+			fileWriters["error"].Write([]byte(message + "\n"))
+		}
+	}
+
+	// Write to debug.log for DEBUG level
+	if level == DEBUG && fileWriters["debug"] != nil {
+		if l.jsonFormat && entry != nil {
+			if data, err := json.Marshal(entry); err == nil {
+				fileWriters["debug"].Write(append(data, '\n'))
+			}
+		} else {
+			fileWriters["debug"].Write([]byte(message + "\n"))
+		}
+	}
+}
+
+// formatMessage creates a formatted log message with timestamp and context
+func (l *Logger) formatMessage(level, category, format string, v ...interface{}) string {
+	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
+	message := fmt.Sprintf(format, v...)
+	
+	// Create structured entry if JSON format is enabled
+	if l.jsonFormat {
+		entry := &LogEntry{
+			Timestamp: timestamp,
+			Level:     level,
+			Category:  category,
+			Component: l.component,
+			Message:   message,
+		}
+
+		// Get caller information for debug mode
+		if l.level <= DEBUG {
+			_, file, line, ok := runtime.Caller(3)
+			if ok {
+				// Extract just the filename
+				parts := strings.Split(file, "/")
+				if len(parts) > 0 {
+					file = parts[len(parts)-1]
+				}
+				entry.File = file
+				entry.Line = line
+			}
+		}
+
+		// Log to appropriate files
+		l.logToFile(l.levelFromString(level), "", entry)
+
+		// Still return text format for stdout
+	}
+	
+	// Get caller information for debug mode
+	callerInfo := ""
+	if l.level <= DEBUG {
+		_, file, line, ok := runtime.Caller(3)
+		if ok {
+			// Extract just the filename
+			parts := strings.Split(file, "/")
+			if len(parts) > 0 {
+				file = parts[len(parts)-1]
+			}
+			callerInfo = fmt.Sprintf(" [%s:%d]", file, line)
+		}
+	}
+	
+	// Build the log message
+	component := ""
+	if l.component != "" {
+		component = fmt.Sprintf(" [%s]", l.component)
+	}
+	
+	categoryStr := ""
+	if category != "" {
+		categoryStr = fmt.Sprintf(" [%s]", category)
+	}
+	
+	formattedMsg := fmt.Sprintf("[%s] [%s]%s%s%s %s", timestamp, level, categoryStr, component, callerInfo, message)
+	
+	// Log to file as well
+	l.logToFile(l.levelFromString(level), formattedMsg, nil)
+	
+	return formattedMsg
+}
+
+// levelFromString converts string level to LogLevel
+func (l *Logger) levelFromString(level string) LogLevel {
+	switch level {
+	case "DEBUG":
+		return DEBUG
+	case "INFO":
+		return INFO
+	case "WARN":
+		return WARN
+	case "ERROR":
+		return ERROR
+	default:
+		return INFO
+	}
+}
+
+// GetGlobalLogger returns the global logger instance
+func GetGlobalLogger() *Logger {
+	globalLoggerOnce.Do(func() {
+		globalLogger = NewLogger()
+	})
+	return globalLogger
+}
+
+// LogHTTPRequest logs HTTP request details
+func (l *Logger) LogHTTPRequest(method, path string, statusCode int, duration time.Duration) {
+	fileWritersMu.Lock()
+	defer fileWritersMu.Unlock()
+
+	if fileWriters != nil && fileWriters["access"] != nil {
+		timestamp := time.Now().Format("2006-01-02 15:04:05.000")
+		logEntry := fmt.Sprintf("[%s] %s %s %d %v\n", timestamp, method, path, statusCode, duration)
+		fileWriters["access"].Write([]byte(logEntry))
+	}
+	
+	// Log 404s to separate file for easy analysis
+	if statusCode == 404 && fileWriters != nil {
+		if fileWriters["404"] == nil {
+			// Create 404 log writer if it doesn't exist
+			if logWriter404, err := NewLogWriter(currentLogDir, "404"); err == nil {
+				fileWriters["404"] = logWriter404
+			}
+		}
+		
+		if fileWriters["404"] != nil {
+			timestamp := time.Now().Format("2006-01-02 15:04:05.000")
+			log404Entry := fmt.Sprintf("[%s] 404 NOT FOUND: %s %s (%v)\n", timestamp, method, path, duration)
+			fileWriters["404"].Write([]byte(log404Entry))
+		}
+	}
+	
+	// Also log to main logger
+	l.InfoCategory(CategoryHTTP, "%s %s - %d (%v)", method, path, statusCode, duration)
 }

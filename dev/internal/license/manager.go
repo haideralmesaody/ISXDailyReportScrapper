@@ -103,22 +103,24 @@ func min(a, b int) int {
 // getBuiltInConfig returns the embedded Google Sheets configuration
 // Credentials are compiled directly into the binary for self-contained deployment
 func getBuiltInConfig() GoogleSheetsConfig {
-	// SECURITY NOTE: This function loads credentials from an external source
-	// The credentials are not embedded directly in the binary for security reasons
-	// Instead, they are loaded from credentials_real.go which is git-ignored
+	// Production credentials are loaded from embedded file or environment
+	// during build process. For development, use credentials.json file
+	// or set ISX_CREDENTIALS environment variable.
 	
-	// NOTE: This is a placeholder implementation
-	// The actual credentials loading is done in credentials_real.go during build
-	// SECURITY: Load credentials from environment or external file
-	// This prevents embedding sensitive data in the repository
+	// Placeholder for embedded credentials - replaced during build
+	// To use this package, create a service account credentials JSON file
+	// and either:
+	// 1. Set ISX_CREDENTIALS environment variable with the JSON content
+	// 2. Place credentials.json in the same directory as the executable
+	// 3. Replace this placeholder during build process
 	serviceAccountJSON := os.Getenv("ISX_CREDENTIALS")
 	if serviceAccountJSON == "" {
-		// Try to load from credentials file during runtime
+		// Try to load from file if environment variable not set
 		if credData, err := os.ReadFile("credentials.json"); err == nil {
 			serviceAccountJSON = string(credData)
 		} else {
-			// Return empty config if no credentials available
-			return GoogleSheetsConfig{}
+			// Use placeholder that will fail validation
+			serviceAccountJSON = `{"type": "service_account", "project_id": "PLACEHOLDER"}`
 		}
 	}
 

@@ -19,12 +19,12 @@ class ISXApplication {
      */
     async init() {
         if (this.initialized) {
-            console.warn('Application already initialized');
+            window.ISXLogger.warn(LogCategory.SYSTEM, 'Application already initialized');
             return;
         }
 
         try {
-            console.log('Initializing ISX Analytics Platform...');
+            window.ISXLogger.info(LogCategory.SYSTEM, 'Initializing ISX Analytics Platform...');
             
             // Initialize core components
             this.initCore();
@@ -35,14 +35,9 @@ class ISXApplication {
             // Initialize UI components
             this.initComponents();
             
-            // Check license first
-            const licenseValid = await this.checkLicense();
-            
-            if (!licenseValid) {
-                // Show license activation page
-                await this.showLicensePage();
-                return;
-            }
+            // Skip license check on main app - trust server-side validation
+            // License validation is handled by the /license page
+            // Users reaching /app have already been validated
             
             // Load layout components
             await this.loadLayoutComponents();
@@ -52,6 +47,14 @@ class ISXApplication {
             
             // Connect WebSocket
             this.connectWebSocket();
+            
+            // Synchronize initial connection status after layout loading
+            // This prevents the connection indicator from getting stuck in "Connecting..." state
+            setTimeout(() => {
+                const currentStatus = this.components.websocket.getConnectionStatus();
+                console.log('[Main] Initial connection status check:', currentStatus);
+                this.updateConnectionIndicator(currentStatus, !currentStatus);
+            }, 100);
             
             // Load initial section
             await this.loadSection('scraper');
@@ -86,6 +89,9 @@ class ISXApplication {
         
         // Initialize template loader
         this.components.templateLoader = new TemplateLoader();
+        
+        // Initialize stage adapter
+        this.components.stageAdapter = new StageAdapter();
         
         console.log('Core modules initialized');
     }
@@ -156,6 +162,12 @@ class ISXApplication {
             }
         } catch (error) {
             console.error('Failed to load layout components:', error);
+            
+            // Use enhanced error display
+            if (window.errorDisplay) {
+                window.errorDisplay.showError(error, { showDetails: true });
+            }
+            
             this.addOutput(`Failed to load layout: ${error.message}`, 'error');
             throw error;
         }
@@ -179,12 +191,8 @@ class ISXApplication {
             dataUpdateManager.handleUpdate(message);
         });
 
-        websocket.onMessage('pipeline', (message) => {
-            eventBus.emit(ISX_EVENTS.PIPELINE_STATUS, message);
-            this.handlePipelineMessage(message);
-        });
         
-        // Handle pipeline progress messages
+        // Handle pipeline progress messages - register both old and new formats
         websocket.onMessage('progress', (message) => {
             this.handlePipelineProgress(message);
         });
@@ -193,22 +201,159 @@ class ISXApplication {
             this.handlePipelineProgress(message);
         });
         
+        websocket.onMessage('pipeline:progress', (message) => {
+            this.handlePipelineProgress(message);
+        });
+        
         websocket.onMessage('pipeline_complete', (message) => {
             this.handlePipelineComplete(message);
         });
         
-        // Handle connection status messages
+        websocket.onMessage('pipeline:complete', (message) => {
+            this.handlePipelineComplete(message);
+        });
+        
+        // Handle connection messages from server
         websocket.onMessage('connection', (message) => {
-            console.log('WebSocket connection message:', message);
-            if (message.status === 'connected') {
+            console.log('Connection message received:', message);
+            const data = message.data || message;
+            if (data.status === 'connected') {
+                // Server confirmed connection
                 this.updateConnectionIndicator(true);
+                this.addOutput('WebSocket connected to server', 'success');
             }
         });
         
-        // Handle pipeline status messages
+        // Handle pipeline status messages - register both old and new formats
         websocket.onMessage('pipeline_status', (message) => {
-            console.log('Pipeline status:', message);
-            eventBus.emit('pipeline:status', message.data || message);
+            const data = message.data || message;
+            const transformed = this.components.stageAdapter.transformMessage(data);
+            console.log('Pipeline status:', { original: data, transformed });
+        });
+        
+        websocket.onMessage('pipeline:status', (message) => {
+            const data = message.data || message;
+            const transformed = this.components.stageAdapter.transformMessage(data);
+            console.log('Pipeline status:', { original: data, transformed });
+            
+            // Emit transformed status
+            eventBus.emit('pipeline:status', transformed);
+            
+            // Update individual stages if stages data is present
+            if (transformed.stages) {
+                for (const [stageId, stageData] of Object.entries(transformed.stages)) {
+                    eventBus.emit('pipeline:progress', {
+                        stage: stageId,
+                        status: stageData.status,
+                        progress: stageData.progress || 0,
+                        message: stageData.message || ''
+                    });
+                }
+            }
+        });
+        
+        // Handle pipeline reset messages - register both old and new formats
+        websocket.onMessage('pipeline_reset', (message) => {
+            console.log('Pipeline reset:', message);
+            eventBus.emit('pipeline:reset', message.data || message);
+            this.addOutput('Pipeline reset - initializing...', 'info');
+        });
+        
+        // Register new format for pipeline reset
+        websocket.onMessage('pipeline:reset', (message) => {
+            console.log('Pipeline reset (new format):', message);
+            eventBus.emit('pipeline:reset', message.data || message);
+            this.addOutput('Pipeline reset - initializing...', 'info');
+        });
+        
+        // Handle pipeline start messages (new format only)
+        websocket.onMessage('pipeline:start', (message) => {
+            console.log('Pipeline start:', message);
+            const data = message.data || message;
+            const stage = data.stage || 'unknown';
+            eventBus.emit('pipeline:start', data);
+            this.addOutput(`Starting ${stage} stage...`, 'info');
+            
+            // Update stage status
+            if (data.stage) {
+                const stageElements = {
+                    'scrape': 'scrape-status',
+                    'process': 'process-status',
+                    'index': 'index-status',
+                    'complete': 'complete-status'
+                };
+                
+                const statusEl = document.getElementById(stageElements[data.stage]);
+                if (statusEl) {
+                    statusEl.textContent = 'Active';
+                    statusEl.className = 'stage-status active';
+                    
+                    // Remove active class from other stages
+                    Object.entries(stageElements).forEach(([key, id]) => {
+                        if (key !== data.stage) {
+                            const el = document.getElementById(id);
+                            if (el && el.classList.contains('active')) {
+                                el.textContent = 'Inactive';
+                                el.className = 'stage-status';
+                            }
+                        }
+                    });
+                }
+            }
+        });
+        
+        // Handle error messages
+        websocket.onMessage('error', (message) => {
+            const data = message.data || message;
+            console.error('WebSocket error:', data);
+            
+            // Use enhanced error display for WebSocket errors
+            if (window.errorDisplay) {
+                const errorObj = {
+                    type: data.error_code || '/errors/websocket',
+                    title: data.title || 'WebSocket Error',
+                    status: data.status || 500,
+                    detail: data.detail || data.message || 'An error occurred',
+                    instance: window.location.pathname,
+                    stage: data.stage || 'system',
+                    hint: data.hint
+                };
+                
+                window.errorDisplay.showError(errorObj, {
+                    showDetails: true,
+                    dismissDelay: 15000 // WebSocket errors stay longer
+                });
+            }
+            
+            // Still log to output console for debugging
+            const errorMsg = data.message || 'An error occurred';
+            const hint = data.hint || '';
+            const stage = data.stage || 'system';
+            
+            this.addOutput(`[${stage}] ${errorMsg}`, 'error');
+            if (hint) {
+                this.addOutput(`Hint: ${hint}`, 'warning');
+            }
+            
+            // Emit error event for other components
+            eventBus.emit('error:occurred', data);
+        });
+        
+        // Handle status messages
+        websocket.onMessage('status', (message) => {
+            const data = message.data || message;
+            console.log('Status update:', data);
+            
+            // Update application status
+            const status = data.status || 'unknown';
+            const statusMessage = data.message || '';
+            
+            if (statusMessage) {
+                this.addOutput(`Status: ${statusMessage}`, 'info');
+            }
+            
+            // Emit status event
+            eventBus.emit('status:update', { status, message: statusMessage });
         });
         
         // Handle output messages
@@ -218,7 +363,68 @@ class ISXApplication {
         });
 
         websocket.onMessage('log', (message) => {
-            this.addOutput(message.data ? message.data.message : message.message, message.data ? message.data.level : message.level || 'info');
+            const content = message.data ? message.data.message : message.message;
+            const level = message.data ? message.data.level : message.level || 'info';
+            
+            // Check if this is a scraper output message
+            if (content && content.includes('[SCRAPER OUTPUT]')) {
+                // Extract the actual scraper message
+                const scraperMsg = content.replace('[SCRAPER OUTPUT]', '').trim();
+                
+                // Parse scraper progress messages
+                if (scraperMsg.includes('[DOWNLOAD]') || scraperMsg.includes('[SUCCESS]') || scraperMsg.includes('[NAVIGATE]')) {
+                    this.addOutput(scraperMsg, 'info');
+                    
+                    // Also emit progress event for pipeline visualization
+                    this.components.eventBus.emit('pipeline:progress', {
+                        stage: 'scrape',
+                        status: 'active',
+                        message: scraperMsg
+                    });
+                } else if (scraperMsg.includes('[COMPLETE]') || scraperMsg.includes('Download Complete')) {
+                    this.addOutput(scraperMsg, 'success');
+                    this.components.eventBus.emit('pipeline:progress', {
+                        stage: 'scrape',
+                        status: 'completed',
+                        message: 'Scraping completed successfully'
+                    });
+                } else if (scraperMsg.includes('[ERROR]')) {
+                    this.addOutput(scraperMsg, 'error');
+                    this.components.eventBus.emit('pipeline:progress', {
+                        stage: 'scrape',
+                        status: 'error',
+                        message: scraperMsg
+                    });
+                } else {
+                    this.addOutput(scraperMsg, level);
+                }
+            } else {
+                this.addOutput(content, level);
+            }
+        });
+        
+        // Handle info, success, and warning message types
+        websocket.onMessage('info', (message) => {
+            const content = message.message || message.data || message;
+            this.addOutput(content, 'info');
+            // Show progress if scraping
+            if (message.command === 'scrape' || message.command === 'process') {
+                this.updateProgress(content);
+            }
+        });
+        
+        websocket.onMessage('success', (message) => {
+            const content = message.message || message.data || message;
+            this.addOutput(content, 'success');
+            // Update progress for successful operations
+            if (message.command === 'scrape' || message.command === 'process') {
+                this.updateProgress(content, 'success');
+            }
+        });
+        
+        websocket.onMessage('warning', (message) => {
+            const content = message.message || message.data || message;
+            this.addOutput(content, 'warning');
         });
 
         // UI state changes
@@ -291,6 +497,7 @@ class ISXApplication {
      * Connect WebSocket
      */
     connectWebSocket() {
+        // Let WebSocket manager handle all status updates
         this.components.websocket.connect();
     }
 
@@ -299,6 +506,9 @@ class ISXApplication {
      */
     async loadInitialData() {
         try {
+            // Small delay to ensure API is ready
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
             // Load license status
             const licenseStatus = await this.components.api.getLicenseStatus();
             this.updateLicenseStatus(licenseStatus);
@@ -349,6 +559,18 @@ class ISXApplication {
             console.log(`Section loaded: ${sectionName}`);
         } catch (error) {
             console.error(`Failed to load section ${sectionName}:`, error);
+            
+            // Use enhanced error display
+            if (window.errorDisplay) {
+                window.errorDisplay.showError({
+                    type: '/errors/section-load',
+                    title: `Failed to load section: ${sectionName}`,
+                    status: 500,
+                    detail: error.message,
+                    instance: window.location.pathname
+                });
+            }
+            
             this.addOutput(`Failed to load section: ${error.message}`, 'error');
         }
     }
@@ -433,12 +655,34 @@ class ISXApplication {
      */
     handlePipelineProgress(message) {
         const data = message.data || message;
-        if (data.stage && data.message) {
-            this.addOutput(`[${data.stage}] ${data.message}`, 'info');
+        
+        // Transform the message using stage adapter
+        const transformed = this.components.stageAdapter.transformMessage(data);
+        
+        // Log for debugging
+        console.log('Pipeline progress:', { original: data, transformed });
+        
+        // Display progress message if available
+        if (transformed.stage && transformed.message) {
+            this.addOutput(`[${transformed.stage}] ${transformed.message}`, 'info');
         }
         
-        // Update pipeline visualization
-        this.components.eventBus.emit('pipeline:progress', data);
+        // Extract stage status from the message
+        let stageStatus = 'active';
+        if (transformed.status) {
+            stageStatus = transformed.status;
+        } else if (transformed.progress >= 100) {
+            stageStatus = 'completed';
+        }
+        
+        // Update pipeline visualization with transformed data
+        this.components.eventBus.emit('pipeline:progress', {
+            stage: transformed.stage,
+            status: stageStatus,
+            progress: transformed.progress || 0,
+            message: transformed.message || '',
+            metadata: transformed.metadata || {}
+        });
     }
     
     /**
@@ -474,6 +718,20 @@ class ISXApplication {
             this.addOutput('Scraping started...', 'info');
         } catch (error) {
             console.error('Scraping error:', error);
+            
+            // Use enhanced error display
+            if (window.errorDisplay && error instanceof APIError) {
+                window.errorDisplay.showError(error);
+            } else if (window.errorDisplay) {
+                window.errorDisplay.showError({
+                    type: '/errors/operation',
+                    title: 'Scraping Failed',
+                    status: 500,
+                    detail: error.message,
+                    instance: '/api/scrape'
+                });
+            }
+            
             this.addOutput(`Scraping failed: ${error.message}`, 'error');
         }
     }
@@ -486,6 +744,21 @@ class ISXApplication {
             await this.components.api.startProcessing();
             this.addOutput('Processing started...', 'info');
         } catch (error) {
+            console.error('Processing error:', error);
+            
+            // Use enhanced error display
+            if (window.errorDisplay && error instanceof APIError) {
+                window.errorDisplay.showError(error);
+            } else if (window.errorDisplay) {
+                window.errorDisplay.showError({
+                    type: '/errors/operation',
+                    title: 'Processing Failed',
+                    status: 500,
+                    detail: error.message,
+                    instance: '/api/process'
+                });
+            }
+            
             this.addOutput(`Processing failed: ${error.message}`, 'error');
         }
     }
@@ -498,6 +771,21 @@ class ISXApplication {
             await this.components.api.startIndexExtraction();
             this.addOutput('Index extraction started...', 'info');
         } catch (error) {
+            console.error('Index extraction error:', error);
+            
+            // Use enhanced error display
+            if (window.errorDisplay && error instanceof APIError) {
+                window.errorDisplay.showError(error);
+            } else if (window.errorDisplay) {
+                window.errorDisplay.showError({
+                    type: '/errors/operation',
+                    title: 'Index Extraction Failed',
+                    status: 500,
+                    detail: error.message,
+                    instance: '/api/indexcsv'
+                });
+            }
+            
             this.addOutput(`Index extraction failed: ${error.message}`, 'error');
         }
     }
@@ -583,17 +871,28 @@ class ISXApplication {
     /**
      * Update connection indicator
      */
-    updateConnectionIndicator(connected) {
+    updateConnectionIndicator(connected, connecting = false) {
         const indicator = document.getElementById('connectionStatus');
         const connectionText = document.getElementById('connectionText');
         
         if (indicator) {
-            const statusClass = connected ? 'status-connected' : 'status-disconnected';
+            let statusClass;
+            if (connecting) {
+                statusClass = 'status-connecting';
+            } else {
+                statusClass = connected ? 'status-connected' : 'status-disconnected';
+            }
             indicator.className = `status-indicator ${statusClass}`;
         }
         
         if (connectionText) {
-            connectionText.textContent = connected ? 'Connected' : 'Disconnected';
+            let text;
+            if (connecting) {
+                text = 'Connecting...';
+            } else {
+                text = connected ? 'Connected' : 'Disconnected';
+            }
+            connectionText.textContent = text;
         }
     }
 
@@ -612,30 +911,60 @@ class ISXApplication {
      * Get license status HTML
      */
     getLicenseStatusHTML(status) {
-        if (status.is_valid) {
-            const daysText = status.days_left === 1 ? 'day' : 'days';
-            const alertClass = status.days_left <= 7 ? 'alert-warning' : 'alert-success';
-            const icon = status.days_left <= 7 ? 'fa-exclamation-triangle' : 'fa-check-circle';
+        // Handle LicenseStatusResponse format
+        const licenseStatus = status.license_status || status.status;
+        const daysLeft = status.days_left || 0;
+        const message = status.message || '';
+        
+        // Determine if license is active based on status
+        const isActive = licenseStatus === 'active' || licenseStatus === 'valid';
+        
+        if (isActive) {
+            const daysText = daysLeft === 1 ? 'day' : 'days';
+            const alertClass = daysLeft <= 7 ? 'alert-warning' : 'alert-success';
+            const icon = daysLeft <= 7 ? 'fa-exclamation-triangle' : 'fa-check-circle';
             
             return `
                 <div class="alert ${alertClass} alert-sm mb-0">
                     <div class="d-flex align-items-center">
                         <i class="fas ${icon} me-2"></i>
                         <div>
-                            <strong>License Active</strong> - ${status.days_left} ${daysText} remaining
-                            ${status.days_left <= 7 ? '<br><small>Contact Iraqi Investor to renew</small>' : ''}
+                            <strong>License Active</strong> - ${daysLeft} ${daysText} remaining
+                            ${daysLeft <= 7 ? '<br><small>Contact Iraqi Investor to renew</small>' : ''}
                         </div>
                     </div>
                 </div>
             `;
         } else {
+            // Map status to display text
+            let displayStatus = licenseStatus;
+            switch(licenseStatus) {
+                case 'not_activated':
+                    displayStatus = 'No License';
+                    break;
+                case 'expired':
+                    displayStatus = 'License Expired';
+                    break;
+                case 'critical':
+                    displayStatus = 'License Critical';
+                    break;
+                case 'warning':
+                    displayStatus = 'License Warning';
+                    break;
+                case 'error':
+                    displayStatus = 'License Error';
+                    break;
+                default:
+                    displayStatus = licenseStatus || 'No License';
+            }
+            
             return `
                 <div class="alert alert-danger alert-sm mb-0">
                     <div class="d-flex align-items-center">
                         <i class="fas fa-times-circle me-2"></i>
                         <div>
-                            <strong>${status.status || 'No License'}</strong><br>
-                            <small>${status.message || 'Please activate a license'}</small>
+                            <strong>${displayStatus}</strong><br>
+                            <small>${message || 'Please activate a license'}</small>
                         </div>
                     </div>
                 </div>
@@ -683,6 +1012,54 @@ class ISXApplication {
         // Emit event for other components
         this.components.eventBus.emit('ui:output', { message, type, timestamp });
     }
+    
+    /**
+     * Update progress indicator for scraping/processing
+     */
+    updateProgress(message, status = 'info') {
+        const progressElement = document.getElementById('processProgress');
+        const progressBar = document.querySelector('#processProgress .progress-bar');
+        const progressText = document.querySelector('#processProgress .progress-text');
+        const progressDetails = document.getElementById('progressDetails');
+        
+        if (!progressElement) return;
+        
+        // Show progress indicator
+        progressElement.style.display = 'block';
+        
+        // Update progress details
+        if (progressDetails) {
+            progressDetails.textContent = message;
+        }
+        
+        // Update progress bar based on message content
+        if (message.includes('Starting')) {
+            progressBar.style.width = '10%';
+            progressText.textContent = 'Starting...';
+        } else if (message.includes('Downloading') || message.includes('download')) {
+            progressBar.style.width = '30%';
+            progressText.textContent = 'Downloading...';
+        } else if (message.includes('Processing') || message.includes('process')) {
+            progressBar.style.width = '60%';
+            progressText.textContent = 'Processing...';
+        } else if (message.includes('Index extraction') || message.includes('indices')) {
+            progressBar.style.width = '80%';
+            progressText.textContent = 'Extracting indices...';
+        } else if (message.includes('completed') || status === 'success') {
+            progressBar.style.width = '100%';
+            progressText.textContent = 'Complete!';
+            progressBar.classList.remove('progress-bar-animated');
+            progressBar.classList.add('bg-success');
+            
+            // Hide progress after 3 seconds
+            setTimeout(() => {
+                progressElement.style.display = 'none';
+                progressBar.style.width = '0%';
+                progressBar.classList.add('progress-bar-animated');
+                progressBar.classList.remove('bg-success');
+            }, 3000);
+        }
+    }
 
     /**
      * Escape HTML to prevent XSS
@@ -702,14 +1079,30 @@ class ISXApplication {
      * Handle initialization error
      */
     handleInitializationError(error) {
-        const errorElement = document.createElement('div');
-        errorElement.className = 'alert alert-danger m-3';
-        errorElement.innerHTML = `
-            <h5>Application Initialization Failed</h5>
-            <p>${error.message}</p>
-            <button onclick="location.reload()" class="btn btn-danger btn-sm">Reload Page</button>
-        `;
-        document.body.prepend(errorElement);
+        // Use enhanced error display if available
+        if (window.errorDisplay) {
+            window.errorDisplay.showError({
+                type: '/errors/initialization',
+                title: 'Application Initialization Failed',
+                status: 500,
+                detail: error.message,
+                instance: window.location.pathname,
+                hint: 'Try reloading the page or contact support if the problem persists'
+            }, {
+                autoDismiss: false,
+                showDetails: true
+            });
+        } else {
+            // Fallback to basic error display
+            const errorElement = document.createElement('div');
+            errorElement.className = 'alert alert-danger m-3';
+            errorElement.innerHTML = `
+                <h5>Application Initialization Failed</h5>
+                <p>${error.message}</p>
+                <button onclick="location.reload()" class="btn btn-danger btn-sm">Reload Page</button>
+            `;
+            document.body.prepend(errorElement);
+        }
     }
 
     /**
@@ -1247,6 +1640,29 @@ class ISXApplication {
         }
     }
 }
+
+// Global error handling
+window.addEventListener('error', (event) => {
+    if (window.apiService && window.apiService.reportClientError) {
+        window.apiService.reportClientError('JAVASCRIPT_ERROR', event.message, {
+            filename: event.filename,
+            lineno: event.lineno,
+            colno: event.colno,
+            stack: event.error ? event.error.stack : null
+        });
+    }
+    console.error('Global JavaScript error:', event);
+});
+
+// Global unhandled promise rejection handling
+window.addEventListener('unhandledrejection', (event) => {
+    if (window.apiService && window.apiService.reportClientError) {
+        window.apiService.reportClientError('UNHANDLED_PROMISE_REJECTION', event.reason.toString(), {
+            stack: event.reason.stack
+        });
+    }
+    console.error('Unhandled promise rejection:', event);
+});
 
 // Initialize application when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {

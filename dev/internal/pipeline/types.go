@@ -39,13 +39,13 @@ const (
 	ModeFull        = "full"
 )
 
-// WebSocket event types
+// WebSocket event types - using frontend format
 const (
-	EventTypePipelineStatus   = "pipeline_status"
-	EventTypePipelineProgress = "pipeline_progress"
-	EventTypePipelineComplete = "pipeline_complete"
-	EventTypePipelineError    = "pipeline_error"
-	EventTypePipelineReset    = "pipeline_reset"
+	EventTypePipelineStatus   = "pipeline:status"
+	EventTypePipelineProgress = "pipeline:progress"
+	EventTypePipelineComplete = "pipeline:complete"
+	EventTypePipelineError    = "pipeline:error"
+	EventTypePipelineReset    = "pipeline:reset"
 )
 
 // Default timeouts

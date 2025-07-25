@@ -9,20 +9,27 @@ import (
 	"time"
 
 	"isxcli/internal/pipeline"
-	"isxcli/internal/websocket"
+	ws "isxcli/internal/websocket"
 )
 
 var debugMode = os.Getenv("ISX_DEBUG") == "true"
 
-// WebSocketAdapter adapts the pipeline.WebSocketHub interface to the existing websocket.Hub
+// CommandResponse represents the response from a command execution
+type CommandResponse struct {
+	Success bool   `json:"success"`
+	Output  string `json:"output"`
+	Error   string `json:"error,omitempty"`
+}
+
+// WebSocketAdapter adapts the pipeline.WebSocketHub interface to the existing ws.Manager
 type WebSocketAdapter struct {
-	hub *websocket.Hub
+	manager *ws.Manager
 }
 
 // NewWebSocketAdapter creates a new adapter
-func NewWebSocketAdapter(hub *websocket.Hub) *WebSocketAdapter {
+func NewWebSocketAdapter(manager *ws.Manager) *WebSocketAdapter {
 	return &WebSocketAdapter{
-		hub: hub,
+		manager: manager,
 	}
 }
 
@@ -39,19 +46,56 @@ func (w *WebSocketAdapter) BroadcastUpdate(eventType, stage, status string, meta
 	// Ensure stdout is flushed for log visibility
 	os.Stdout.Sync()
 	
-	// The existing hub expects BroadcastUpdate with these parameters
-	w.hub.BroadcastUpdate(eventType, stage, status, metadata)
+	// The event types are already in frontend format now (pipeline:progress, etc)
+	// So we just use them directly
+	frontendEventType := eventType
+	
+	// Transform stage ID from backend to frontend format
+	frontendStage := stage
+	stageMapping := map[string]string{
+		"scraping":   "scrape",
+		"processing": "process",
+		"indices":    "index",
+		"analysis":   "complete",
+	}
+	if mapped, ok := stageMapping[stage]; ok {
+		frontendStage = mapped
+	}
+	
+	// Transform metadata to include frontend stage ID
+	if metadataMap, ok := metadata.(map[string]interface{}); ok {
+		// Add the frontend stage ID to metadata if not present
+		if _, hasStage := metadataMap["stage"]; !hasStage && frontendStage != "" {
+			metadataMap["stage"] = frontendStage
+		} else if existingStage, hasStage := metadataMap["stage"].(string); hasStage {
+			// Transform existing stage ID
+			if mapped, ok := stageMapping[existingStage]; ok {
+				metadataMap["stage"] = mapped
+			}
+		}
+		metadata = metadataMap
+	}
+	
+	// Use the manager to broadcast the update
+	w.manager.Broadcast(ws.Message{
+		Type:    frontendEventType,
+		Stage:   frontendStage,
+		Message: status,
+		Data:    metadata,
+	})
 }
 
 // PipelineLogger adapts the common.Logger to the pipeline.Logger interface
 type PipelineLogger struct {
-	source string
+	source    string
+	wsManager *ws.Manager
 }
 
 // NewPipelineLogger creates a new pipeline logger
-func NewPipelineLogger(source string) *PipelineLogger {
+func NewPipelineLogger(source string, wsManager *ws.Manager) *PipelineLogger {
 	return &PipelineLogger{
-		source: source,
+		source:    source,
+		wsManager: wsManager,
 	}
 }
 
@@ -64,20 +108,35 @@ func (l *PipelineLogger) Debug(format string, v ...interface{}) {
 
 // Info logs an info message
 func (l *PipelineLogger) Info(format string, v ...interface{}) {
-	log.Printf("[INFO] [%s] %s", l.source, fmt.Sprintf(format, v...))
-	broadcastMessage("info", fmt.Sprintf(format, v...), l.source)
+	message := fmt.Sprintf(format, v...)
+	log.Printf("[INFO] [%s] %s", l.source, message)
+	if l.wsManager != nil {
+		l.wsManager.SendLog(ws.LevelInfo, message, map[string]interface{}{
+			"source": l.source,
+		})
+	}
 }
 
 // Warn logs a warning message
 func (l *PipelineLogger) Warn(format string, v ...interface{}) {
-	log.Printf("[WARN] [%s] %s", l.source, fmt.Sprintf(format, v...))
-	broadcastMessage("warning", fmt.Sprintf(format, v...), l.source)
+	message := fmt.Sprintf(format, v...)
+	log.Printf("[WARN] [%s] %s", l.source, message)
+	if l.wsManager != nil {
+		l.wsManager.SendLog(ws.LevelWarning, message, map[string]interface{}{
+			"source": l.source,
+		})
+	}
 }
 
 // Error logs an error message
 func (l *PipelineLogger) Error(format string, v ...interface{}) {
-	log.Printf("[ERROR] [%s] %s", l.source, fmt.Sprintf(format, v...))
-	broadcastMessage("error", fmt.Sprintf(format, v...), l.source)
+	message := fmt.Sprintf(format, v...)
+	log.Printf("[ERROR] [%s] %s", l.source, message)
+	if l.wsManager != nil {
+		l.wsManager.SendLog(ws.LevelError, message, map[string]interface{}{
+			"source": l.source,
+		})
+	}
 }
 
 // PipelineEventHandler handles pipeline events and converts them to the existing format
@@ -102,9 +161,9 @@ func ConvertPipelineResponse(resp *pipeline.PipelineResponse) CommandResponse {
 }
 
 // SendPipelineUpdate sends a pipeline update in the format expected by the frontend
-func SendPipelineUpdate(pipelineID string, resp *pipeline.PipelineResponse) {
+func SendPipelineUpdate(hub pipeline.WebSocketHub, pipelineID string, resp *pipeline.PipelineResponse) {
 	// Send overall pipeline status
-	wsHub.BroadcastUpdate("pipeline_status", "", "", map[string]interface{}{
+	hub.BroadcastUpdate(ws.TypePipelineStatus, "", "", map[string]interface{}{
 		"pipeline_id": pipelineID,
 		"status":      string(resp.Status),
 		"duration":    resp.Duration.Seconds(),
@@ -113,7 +172,7 @@ func SendPipelineUpdate(pipelineID string, resp *pipeline.PipelineResponse) {
 	
 	// Send individual stage updates
 	for stageID, stage := range resp.Stages {
-		wsHub.BroadcastUpdate("pipeline_progress", "", "", map[string]interface{}{
+		hub.BroadcastUpdate(ws.TypePipelineProgress, "", "", map[string]interface{}{
 			"pipeline_id": pipelineID,
 			"stage":       stageID,
 			"status":      string(stage.Status),
@@ -154,7 +213,7 @@ func formatError(err error) interface{} {
 }
 
 // MonitorPipelineProgress monitors a pipeline and sends progress updates
-func MonitorPipelineProgress(pipelineID string, manager *pipeline.Manager) {
+func MonitorPipelineProgress(hub pipeline.WebSocketHub, pipelineID string, manager *pipeline.Manager) {
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 	
@@ -168,7 +227,7 @@ func MonitorPipelineProgress(pipelineID string, manager *pipeline.Manager) {
 		// Send progress updates for active stages
 		for _, stage := range state.GetActiveStages() {
 			// Send in the format the frontend expects for progress messages
-			wsHub.BroadcastUpdate("progress", "", "", map[string]interface{}{
+			hub.BroadcastUpdate(ws.TypeProgress, "", "", map[string]interface{}{
 				"stage":       stage.ID,
 				"percentage":  stage.Progress,
 				"message":     stage.Message,
@@ -182,7 +241,7 @@ func MonitorPipelineProgress(pipelineID string, manager *pipeline.Manager) {
 		   state.Status == pipeline.PipelineStatusFailed ||
 		   state.Status == pipeline.PipelineStatusCancelled {
 			// Send final status
-			wsHub.BroadcastUpdate("pipeline_complete", "", "", map[string]interface{}{
+			hub.BroadcastUpdate(ws.TypePipelineComplete, "", "", map[string]interface{}{
 				"pipeline_id": pipelineID,
 				"status":      string(state.Status),
 				"duration":    state.Duration().Seconds(),

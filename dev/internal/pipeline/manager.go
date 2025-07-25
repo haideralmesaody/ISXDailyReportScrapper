@@ -129,6 +129,19 @@ func (m *Manager) executeSequential(ctx context.Context, state *PipelineState, s
 				continue
 			}
 			
+			// Check if previous stages are actually complete (for sequential execution)
+			if i > 0 {
+				prevStage := stages[i-1]
+				prevState := state.GetStage(prevStage.ID())
+				if prevState != nil && prevState.Status != StageStatusCompleted && prevState.Status != StageStatusSkipped {
+					m.logger.Error("Previous stage %s not completed (status: %s), cannot start %s", 
+						prevStage.ID(), prevState.Status, stage.ID())
+					stageState.Skip(fmt.Sprintf("Previous stage %s not completed", prevStage.ID()))
+					m.sendStageUpdate(state, stageState)
+					continue
+				}
+			}
+			
 			m.logger.Info("Executing stage %s (%d/%d)", stage.ID(), i+1, len(stages))
 			if err := m.executeStage(ctx, state, stage); err != nil {
 				m.logger.Error("Stage %s failed: %v", stage.ID(), err)
@@ -139,7 +152,13 @@ func (m *Manager) executeSequential(ctx context.Context, state *PipelineState, s
 				}
 				m.logger.Warn("Stage %s failed but continuing: %v", stage.ID(), err)
 			} else {
-				m.logger.Info("Stage %s completed successfully", stage.ID())
+				// Verify stage actually completed
+				updatedState := state.GetStage(stage.ID())
+				if updatedState.Status == StageStatusCompleted {
+					m.logger.Info("Stage %s completed successfully", stage.ID())
+				} else {
+					m.logger.Warn("Stage %s finished but status is %s", stage.ID(), updatedState.Status)
+				}
 			}
 		}
 	}
@@ -194,6 +213,12 @@ func (m *Manager) executeStage(ctx context.Context, pipelineState *PipelineState
 		// Start stage
 		stageState.Start()
 		m.sendStageUpdate(pipelineState, stageState)
+		
+		// Send pipeline:start event for frontend
+		m.hub.BroadcastUpdate("pipeline:start", stage.ID(), "active", map[string]interface{}{
+			"stage":       stage.ID(),
+			"pipeline_id": pipelineState.ID,
+		})
 
 		// Execute stage
 		m.logger.Info("Calling Execute for stage %s (attempt %d)", stage.ID(), attempt)
@@ -206,6 +231,15 @@ func (m *Manager) executeStage(ctx context.Context, pipelineState *PipelineState
 			m.logger.Info("Stage %s executed successfully in %v", stage.ID(), duration)
 			stageState.Complete()
 			m.sendStageUpdate(pipelineState, stageState)
+			
+			// Send completion event for frontend
+			m.hub.BroadcastUpdate(EventTypePipelineComplete, stage.ID(), string(StageStatusCompleted), map[string]interface{}{
+				"stage":       stage.ID(),
+				"status":      "completed",
+				"duration":    duration.Seconds(),
+				"pipeline_id": pipelineState.ID,
+			})
+			
 			return nil
 		}
 		

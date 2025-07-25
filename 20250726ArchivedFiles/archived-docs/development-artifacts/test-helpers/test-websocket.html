@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        #log { border: 1px solid #ccc; padding: 10px; height: 400px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Connection Test</h1>
+    <button onclick="testWebSocket()">Test WebSocket Connection</button>
+    <button onclick="clearLog()">Clear Log</button>
+    <div id="log"></div>
+
+    <script>
+        function log(message, className = '') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = className;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function testWebSocket() {
+            log('Starting WebSocket test...', 'info');
+            
+            const ws = new WebSocket('ws://localhost:8080/ws');
+            
+            ws.onopen = function() {
+                log('✅ WebSocket connected successfully!', 'success');
+                log('Sending test message...', 'info');
+                ws.send(JSON.stringify({type: 'test', data: 'Hello from test client'}));
+                
+                // Send heartbeat
+                log('Sending heartbeat...', 'info');
+                ws.send(JSON.stringify({type: 'heartbeat'}));
+            };
+            
+            ws.onerror = function(error) {
+                log(`❌ WebSocket error: ${error}`, 'error');
+                console.error('WebSocket error:', error);
+            };
+            
+            ws.onmessage = function(event) {
+                log(`📨 Message received: ${event.data}`, 'info');
+            };
+            
+            ws.onclose = function(event) {
+                if (event.wasClean) {
+                    log(`🔌 WebSocket closed cleanly (code=${event.code}, reason=${event.reason})`, 'info');
+                } else {
+                    log(`❌ WebSocket connection died`, 'error');
+                }
+            };
+            
+            // Store reference for console access
+            window.testWs = ws;
+            log('WebSocket stored as window.testWs for console access', 'info');
+        }
+    </script>
+</body>
+</html>

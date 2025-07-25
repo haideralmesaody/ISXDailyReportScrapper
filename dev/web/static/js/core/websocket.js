@@ -14,6 +14,7 @@ class WebSocketManager {
         this.reconnectDelay = 1000;
         this.heartbeatInterval = null;
         this.connectionStatusCallback = null;
+        this.messageAdapter = new MessageAdapter();
     }
 
     /**
@@ -26,8 +27,16 @@ class WebSocketManager {
         try {
             this.ws = new WebSocket(wsUrl);
             this.setupEventHandlers();
+            
+            // Set a timeout to mark as disconnected if connection doesn't open
+            this.connectionTimeout = setTimeout(() => {
+                if (!this.isConnected) {
+                    window.ISXLogger.warn(LogCategory.WEBSOCKET, 'WebSocket connection timeout');
+                    this.updateConnectionStatus(false);
+                }
+            }, 5000); // 5 second timeout
         } catch (error) {
-            console.error('Failed to create WebSocket connection:', error);
+            window.ISXLogger.error(LogCategory.WEBSOCKET, 'Failed to create WebSocket connection:', error);
             this.handleConnectionError();
         }
     }
@@ -37,9 +46,19 @@ class WebSocketManager {
      */
     setupEventHandlers() {
         this.ws.onopen = () => {
-            console.log('WebSocket connected');
+            window.ISXLogger.info(LogCategory.WEBSOCKET, 'WebSocket connected');
+            console.log('[WebSocket] onopen event fired, WebSocket readyState:', this.ws.readyState);
             this.isConnected = true;
             this.reconnectAttempts = 0;
+            
+            // Clear connection timeout
+            if (this.connectionTimeout) {
+                clearTimeout(this.connectionTimeout);
+                this.connectionTimeout = null;
+            }
+            
+            // Log status change for debugging
+            console.log('[WebSocket] Status changing from disconnected to connected');
             this.updateConnectionStatus(true);
             this.startHeartbeat();
         };
@@ -49,7 +68,8 @@ class WebSocketManager {
         };
 
         this.ws.onclose = (event) => {
-            console.log('WebSocket disconnected:', event.code, event.reason);
+            console.log('[WebSocket] Disconnected:', event.code, event.reason);
+            console.log('[WebSocket] Status changing from connected to disconnected');
             this.isConnected = false;
             this.updateConnectionStatus(false);
             this.stopHeartbeat();
@@ -70,13 +90,32 @@ class WebSocketManager {
      */
     handleMessage(event) {
         try {
-            const message = JSON.parse(event.data);
+            const rawMessage = JSON.parse(event.data);
+            
+            // Normalize message format
+            const message = this.messageAdapter.normalizeMessage(rawMessage);
+            
+            // Log connection-related messages for debugging
+            if (message.type === 'connection' || message.type === 'status') {
+                console.log('[WebSocket] Received message:', message.type, message);
+            }
             
             // Route message to appropriate handler
             if (this.handlers.has(message.type)) {
                 this.handlers.get(message.type)(message);
             } else {
-                console.warn('No handler for message type:', message.type);
+                // Try legacy handlers for backward compatibility
+                if (rawMessage.type === 'stage_progress' && this.handlers.has('pipeline_progress')) {
+                    this.handlers.get('pipeline_progress')(message);
+                } else if (rawMessage.type === 'refresh' && this.handlers.has('data_update')) {
+                    // Convert refresh to data_update
+                    message.type = 'data_update';
+                    message.subtype = 'all';
+                    message.action = 'refresh';
+                    this.handlers.get('data_update')(message);
+                } else {
+                    console.warn('No handler for message type:', message.type);
+                }
             }
         } catch (error) {
             console.error('Failed to parse WebSocket message:', error);
@@ -113,7 +152,15 @@ class WebSocketManager {
      * @param {boolean} connected - Connection status
      */
     updateConnectionStatus(connected) {
+        // Log all status updates for debugging
+        console.log(`[WebSocket] updateConnectionStatus called with connected=${connected}`);
+        const previousStatus = this.isConnected;
         this.isConnected = connected;
+        
+        if (previousStatus !== connected) {
+            console.log(`[WebSocket] Connection status changed: ${previousStatus} -> ${connected}`);
+        }
+        
         if (this.connectionStatusCallback) {
             this.connectionStatusCallback(connected);
         }
@@ -124,6 +171,13 @@ class WebSocketManager {
      */
     handleConnectionError() {
         this.isConnected = false;
+        
+        // Clear connection timeout if exists
+        if (this.connectionTimeout) {
+            clearTimeout(this.connectionTimeout);
+            this.connectionTimeout = null;
+        }
+        
         this.updateConnectionStatus(false);
         this.stopHeartbeat();
     }

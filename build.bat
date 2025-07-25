@@ -1,207 +1,417 @@
 @echo off
-echo ================================================
-echo ISX Daily Reports Scraper - Current Release Build
-echo Enhanced v2.0.0 with Market Movers & Pipeline Manager
-echo ================================================
+setlocal enabledelayedexpansion
+
+:: Set build timestamp
+set BUILD_TIME=%date% %time%
+echo ==========================================
+echo ISX Daily Reports Scrapper - Build Script
+echo Build started at: %BUILD_TIME%
+echo ==========================================
 echo.
 
-REM Clean previous builds
-echo 🧹 Cleaning previous builds...
-del /q isxcli.exe 2>nul
-del /q web-licensed.exe 2>nul
-del /q process.exe 2>nul
-del /q indexcsv.exe 2>nul
-del /q market-movers.exe 2>nul
+:: Check prerequisites
+echo [CHECKING] Go installation...
+go version >nul 2>&1
+if errorlevel 1 (
+    echo [FAILED] Go is not installed or not in PATH
+    echo         Please install Go from https://golang.org/
+    exit /b 1
+)
+for /f "tokens=3" %%v in ('go version') do set GO_VERSION=%%v
+echo [SUCCESS] Found Go %GO_VERSION%
+echo.
 
-REM Build main CLI application
-echo ✅ Building main CLI application...
-cd ..\..\cmd
-if exist isxcli.go (
-    go build -o ..\..\isxcli.exe .
-    if %ERRORLEVEL% neq 0 (
-        echo ❌ Failed to build main CLI application
-        exit /b 1
-    )
-    echo ✓ Main CLI built successfully
-) else (
-    echo ⚠️  Main CLI not found, skipping...
+:: Preserve existing data
+set PRESERVE_LICENSE=0
+if exist release\license.dat (
+    echo [INFO] Found existing license.dat - preserving it
+    copy release\license.dat license_backup.dat >nul 2>&1
+    set PRESERVE_LICENSE=1
 )
 
-REM Build enhanced licensed web application
-echo ✅ Building enhanced licensed web application...
-cd ..\..\cmd\web-licensed
-if exist main.go (
-    go build -o ..\..\..\web-licensed.exe .
-    if %ERRORLEVEL% neq 0 (
-        echo ❌ Failed to build enhanced web application
-        exit /b 1
-    )
-    echo ✓ Enhanced web application built successfully
-) else (
-    echo ⚠️  Enhanced web application not found, checking legacy path...
-    cd ..\..\cmd\web-licensed-legacy
-    if exist main.go (
-        go build -o ..\..\..\web-licensed.exe .
-        if %ERRORLEVEL% neq 0 (
-            echo ❌ Failed to build legacy web application
-            exit /b 1
-        )
-        echo ✓ Legacy web application built successfully
-    )
+:: Clean release directory
+echo [CLEANING] Removing old build artifacts...
+if exist release\web (
+    rmdir /s /q release\web
+    echo [CLEANED] release\web
+)
+if exist release\data (
+    rmdir /s /q release\data
+    echo [CLEANED] release\data
+)
+if exist release\logs (
+    rmdir /s /q release\logs
+    echo [CLEANED] release\logs
+)
+echo.
+
+:: Create directory structure
+echo [CREATING] Directory structure...
+mkdir release\web\static\js\core 2>nul
+mkdir release\web\static\js\services 2>nul
+mkdir release\web\static\js\components 2>nul
+mkdir release\web\static\css 2>nul
+mkdir release\web\static\images 2>nul
+mkdir release\web\templates\layout 2>nul
+mkdir release\data\downloads 2>nul
+mkdir release\data\reports 2>nul
+mkdir release\logs 2>nul
+mkdir release\config 2>nul
+echo [SUCCESS] Directory structure created
+echo.
+
+:: Restore license if it existed
+if %PRESERVE_LICENSE%==1 (
+    copy license_backup.dat release\license.dat >nul 2>&1
+    del license_backup.dat >nul 2>&1
+    echo [RESTORED] license.dat
+    echo.
 )
 
-REM Build processing tools
-echo ✅ Building processing tools...
-cd ..\..\cmd\process
-if exist main.go (
-    go build -o ..\..\..\process.exe .
-    if %ERRORLEVEL% neq 0 (
-        echo ❌ Failed to build process tool
-        exit /b 1
-    )
-    echo ✓ Process tool built successfully
+:: Update dependencies
+echo [UPDATING] Go module dependencies...
+cd dev
+echo [DEBUG] Running go mod tidy...
+go mod tidy
+if errorlevel 1 (
+    echo [WARNING] Could not update dependencies - continuing anyway
+    echo.
 ) else (
-    echo ⚠️  Process tool not found, skipping...
+    echo [SUCCESS] Dependencies updated
 )
+echo.
 
-REM Build CSV indexing tool
-echo ✅ Building CSV indexing tools...
-cd ..\..\cmd\indexcsv
-if exist main.go (
-    go build -o ..\..\..\indexcsv.exe .
-    if %ERRORLEVEL% neq 0 (
-        echo ❌ Failed to build indexcsv tool
-        exit /b 1
-    )
-    echo ✓ IndexCSV tool built successfully
-) else (
-    echo ⚠️  IndexCSV tool not found, skipping...
-)
+:: Build executables
+echo ======== BUILDING EXECUTABLES ========
+set BUILD_FAILED=0
 
-REM Build market movers processing tool
-echo ✅ Building market movers processing tool...
-cd ..\..\cmd\market-movers
-if exist main.go (
-    go build -o ..\..\..\market-movers.exe .
-    if %ERRORLEVEL% neq 0 (
-        echo ❌ Failed to build market movers tool
-        exit /b 1
-    )
-    echo ✓ Market Movers tool built successfully
+:: Build flags for Windows - simple and effective
+set GOFLAGS=-mod=readonly
+set CGO_ENABLED=0
+
+:: Build scraper
+echo.
+echo [BUILDING] scraper.exe...
+go build -ldflags "-s -w" -o ..\release\scraper.exe ./cmd/scraper
+if errorlevel 1 (
+    echo [FAILED] scraper.exe build failed!
+    set BUILD_FAILED=1
 ) else (
-    echo ⚠️  Market Movers tool not found, checking dev path...
-    cd ..\..\dev\cmd\market-movers
-    if exist main.go (
-        go build -o ..\..\..\..\market-movers.exe .
-        if %ERRORLEVEL% neq 0 (
-            echo ❌ Failed to build dev market movers tool
-            exit /b 1
-        )
-        echo ✓ Dev Market Movers tool built successfully
+    if exist ..\release\scraper.exe (
+        for %%A in (..\release\scraper.exe) do set SIZE=%%~zA
+        set /a SIZE_KB=!SIZE!/1024
+        echo [SUCCESS] scraper.exe built successfully (!SIZE_KB! KB^)
     ) else (
-        echo ⚠️  Market Movers tool not available
+        echo [FAILED] scraper.exe not found after build
+        set BUILD_FAILED=1
     )
 )
 
-REM Build pipeline manager
-echo ✅ Building pipeline manager...
-cd ..\..\cmd\pipeline-manager
-if exist main.go (
-    go build -o ..\..\..\pipeline-manager.exe .
-    if %ERRORLEVEL% neq 0 (
-        echo ❌ Failed to build pipeline manager
-        exit /b 1
-    )
-    echo ✓ Pipeline Manager built successfully
+:: Build process
+echo.
+echo [BUILDING] process.exe...
+go build -ldflags "-s -w" -o ..\release\process.exe ./cmd/process
+if errorlevel 1 (
+    echo [FAILED] process.exe build failed!
+    set BUILD_FAILED=1
 ) else (
-    echo ⚠️  Pipeline Manager not found, checking dev path...
-    cd ..\..\dev\cmd\pipeline-manager
-    if exist main.go (
-        go build -o ..\..\..\..\pipeline-manager.exe .
-        if %ERRORLEVEL% neq 0 (
-            echo ❌ Failed to build dev pipeline manager
-            exit /b 1
-        )
-        echo ✓ Dev Pipeline Manager built successfully
+    if exist ..\release\process.exe (
+        for %%A in (..\release\process.exe) do set SIZE=%%~zA
+        set /a SIZE_KB=!SIZE!/1024
+        echo [SUCCESS] process.exe built successfully (!SIZE_KB! KB^)
     ) else (
-        echo ⚠️  Pipeline Manager not available
+        echo [FAILED] process.exe not found after build
+        set BUILD_FAILED=1
     )
 )
 
-REM Build license management tools
-echo ✅ Building license management tools...
-cd ..\..\cmd\license-generator
-if exist main.go (
-    go build -o ..\..\..\license-generator.exe .
-    if %ERRORLEVEL% neq 0 (
-        echo ❌ Failed to build license generator
-        exit /b 1
+:: Build indexcsv
+echo.
+echo [BUILDING] indexcsv.exe...
+go build -ldflags "-s -w" -o ..\release\indexcsv.exe ./cmd/indexcsv
+if errorlevel 1 (
+    echo [FAILED] indexcsv.exe build failed!
+    set BUILD_FAILED=1
+) else (
+    if exist ..\release\indexcsv.exe (
+        for %%A in (..\release\indexcsv.exe) do set SIZE=%%~zA
+        set /a SIZE_KB=!SIZE!/1024
+        echo [SUCCESS] indexcsv.exe built successfully (!SIZE_KB! KB^)
+    ) else (
+        echo [FAILED] indexcsv.exe not found after build
+        set BUILD_FAILED=1
     )
-    echo ✓ License generator built successfully
-) else (
-    echo ⚠️  License generator not found, skipping...
 )
 
-REM Build WebSocket enhanced tools
-echo ✅ Building WebSocket enhanced tools...
-cd ..\..\cmd\websocket-server
-if exist main.go (
-    go build -o ..\..\..\websocket-server.exe .
-    if %ERRORLEVEL% neq 0 (
-        echo ❌ Failed to build WebSocket server
-        exit /b 1
+:: Build web-licensed (with more detailed error reporting)
+echo.
+echo [BUILDING] web-licensed.exe...
+echo [INFO] This may take longer as it includes the web server components...
+go build -ldflags "-s -w" -o ..\release\web-licensed.exe ./cmd/web-licensed 2>build_web.log
+if errorlevel 1 (
+    echo [FAILED] web-licensed.exe build failed!
+    echo.
+    echo [ERROR] Build output:
+    type build_web.log
+    set BUILD_FAILED=1
+    del build_web.log 2>nul
+) else (
+    if exist ..\release\web-licensed.exe (
+        for %%A in (..\release\web-licensed.exe) do set SIZE=%%~zA
+        set /a SIZE_KB=!SIZE!/1024
+        echo [SUCCESS] web-licensed.exe built successfully (!SIZE_KB! KB^)
+        del build_web.log 2>nul
+    ) else (
+        echo [FAILED] web-licensed.exe not found after build
+        set BUILD_FAILED=1
     )
-    echo ✓ WebSocket Server built successfully
-) else (
-    echo ⚠️  WebSocket Server not available
 )
 
-REM Copy built files to release directory
-echo.
-echo 📦 Copying built files to release directory...
-if not exist ..\..\release mkdir ..\..\release
-copy /y isxcli.exe ..\..\release\ 2>nul
-copy /y web-licensed.exe ..\..\release\ 2>nul
-copy /y process.exe ..\..\release\ 2>nul
-copy /y indexcsv.exe ..\..\release\ 2>nul
-copy /y market-movers.exe ..\..\release\ 2>nul
-copy /y pipeline-manager.exe ..\..\release\ 2>nul
-copy /y license-generator.exe ..\..\release\ 2>nul
+cd ..
 
-REM Verify builds
-echo.
-echo 🔍 Verifying builds...
-if exist ..\..\release\web-licensed.exe (
-    echo ✓ web-licensed.exe [Enhanced v2.0.0] - READY
-) else (
-    echo ❌ web-licensed.exe - MISSING
+:: Check if any builds failed
+if %BUILD_FAILED%==1 (
+    echo.
+    echo [ERROR] One or more executables failed to build
+    echo        Check the error messages above
+    exit /b 1
 )
 
-if exist ..\..\release\process.exe (
-    echo ✓ process.exe - READY
-) else (
-    echo ❌ process.exe - MISSING
+:: Copy configuration and documentation
+echo.
+echo ======== COPYING CONFIGURATION ========
+
+:: Copy configuration files
+echo [COPYING] Configuration files...
+if exist dev\config.yaml (
+    copy dev\config.yaml release\config\config.yaml.example >nul 2>&1
+    echo [SUCCESS] config.yaml.example
 )
 
-if exist ..\..\release\indexcsv.exe (
-    echo ✓ indexcsv.exe - READY
+if exist credentials.json.example (
+    copy credentials.json.example release\credentials.json.example >nul 2>&1
+    echo [SUCCESS] credentials.json.example
+)
+
+if exist sheets-config.json.example (
+    copy sheets-config.json.example release\sheets-config.json.example >nul 2>&1
+    echo [SUCCESS] sheets-config.json.example
+)
+
+:: Copy web assets
+echo.
+echo ======== COPYING WEB ASSETS ========
+
+:: Copy HTML files
+echo.
+echo [COPYING] HTML files...
+set HTML_COUNT=0
+for %%f in (dev\web\*.html) do (
+    copy "%%f" "release\web\" >nul 2>&1
+    if errorlevel 1 (
+        echo [FAILED] Could not copy %%~nxf
+    ) else (
+        echo [SUCCESS] Copied %%~nxf
+        set /a HTML_COUNT+=1
+    )
+)
+echo [INFO] Copied %HTML_COUNT% HTML files
+
+:: Copy static directory
+echo.
+echo [COPYING] Static assets...
+xcopy /E /I /Y /Q dev\web\static release\web\static >nul 2>&1
+if errorlevel 1 (
+    echo [FAILED] Could not copy static directory
+    set BUILD_FAILED=1
 ) else (
-    echo ❌ indexcsv.exe - MISSING
+    :: Count files in static
+    set STATIC_COUNT=0
+    for /r release\web\static %%f in (*) do set /a STATIC_COUNT+=1
+    echo [SUCCESS] Copied static directory (%STATIC_COUNT% files^)
+)
+
+:: Copy templates
+echo.
+echo [COPYING] Templates...
+xcopy /E /I /Y /Q dev\web\templates release\web\templates >nul 2>&1
+if errorlevel 1 (
+    echo [FAILED] Could not copy templates directory
+    set BUILD_FAILED=1
+) else (
+    :: Count template files
+    set TEMPLATE_COUNT=0
+    for /r release\web\templates %%f in (*.html) do set /a TEMPLATE_COUNT+=1
+    echo [SUCCESS] Copied templates directory (%TEMPLATE_COUNT% files^)
+)
+
+:: Copy batch scripts
+echo.
+echo [COPYING] Batch scripts...
+if exist start-server.bat (
+    copy start-server.bat release\start-server.bat >nul 2>&1
+    echo [SUCCESS] start-server.bat
+)
+
+:: Final verification
+echo.
+echo ======== BUILD VERIFICATION ========
+echo.
+echo === Executables ===
+set VERIFY_FAILED=0
+
+for %%f in (scraper.exe process.exe indexcsv.exe web-licensed.exe) do (
+    if exist release\%%f (
+        for %%A in (release\%%f) do set SIZE=%%~zA
+        set /a SIZE_KB=!SIZE!/1024
+        echo [OK] %%f ^(!SIZE_KB! KB^)
+    ) else (
+        echo [MISSING] %%f
+        set VERIFY_FAILED=1
+    )
 )
 
 echo.
-echo ================================================
-echo Current Release Build Complete!
-echo ================================================
+echo === Web Assets ===
+set WEB_ASSETS_OK=0
+
+if exist release\web\index.html (
+    echo [OK] index.html
+    set /a WEB_ASSETS_OK+=1
+) else (
+    echo [MISSING] index.html
+    set VERIFY_FAILED=1
+)
+
+if exist release\web\license.html (
+    echo [OK] license.html
+    set /a WEB_ASSETS_OK+=1
+) else (
+    echo [MISSING] license.html
+    set VERIFY_FAILED=1
+)
+
+:: Check static directory structure
+set STATIC_COUNT=0
+for /r release\web\static %%f in (*) do set /a STATIC_COUNT+=1
+if !STATIC_COUNT! GTR 0 (
+    echo [OK] Static assets (!STATIC_COUNT! files^)
+    set /a WEB_ASSETS_OK+=1
+) else (
+    echo [MISSING] Static assets
+    set VERIFY_FAILED=1
+)
+
+:: Check templates directory structure
+set TEMPLATE_COUNT=0
+for /r release\web\templates %%f in (*.html) do set /a TEMPLATE_COUNT+=1
+if !TEMPLATE_COUNT! GTR 0 (
+    echo [OK] Templates (!TEMPLATE_COUNT! files^)
+    set /a WEB_ASSETS_OK+=1
+) else (
+    echo [MISSING] Templates
+    set VERIFY_FAILED=1
+)
+
+:: Check configuration files
 echo.
-echo Built components:
-echo - ✅ web-licensed.exe (Enhanced v2.0.0)
-echo - ✅ process.exe (Data processing)
-echo - ✅ indexcsv.exe (CSV indexing)
-echo - ✅ market-movers.exe (Market analysis)
-echo - ✅ pipeline-manager.exe (Pipeline management)
-echo - ✅ license tools (License management)
+echo === Configuration ===
+if exist release\credentials.json.example (
+    echo [OK] credentials.json.example
+) else (
+    echo [MISSING] credentials.json.example
+)
+
+if exist release\sheets-config.json.example (
+    echo [OK] sheets-config.json.example
+) else (
+    echo [MISSING] sheets-config.json.example
+)
+
+:: Check directories
 echo.
-echo All components ready for testing!
+echo === Directories ===
+if exist release\data\downloads (
+    echo [OK] Downloads directory
+) else (
+    echo [MISSING] Downloads directory
+    set VERIFY_FAILED=1
+)
+
+if exist release\data\reports (
+    echo [OK] Reports directory
+) else (
+    echo [MISSING] Reports directory
+    set VERIFY_FAILED=1
+)
+
+if exist release\logs (
+    echo [OK] Logs directory
+) else (
+    echo [MISSING] Logs directory
+    set VERIFY_FAILED=1
+)
+
+:: Build summary
 echo.
-pause
+echo ==========================================
+set BUILD_STATUS=SUCCESS
+
+if %VERIFY_FAILED%==1 (
+    set BUILD_STATUS=FAILED
+    echo BUILD STATUS: !BUILD_STATUS!
+    echo.
+    echo Some files are missing from the build.
+    echo Please check the errors above.
+    exit /b 1
+) else if %BUILD_FAILED%==1 (
+    set BUILD_STATUS=PARTIAL_SUCCESS
+    echo BUILD STATUS: !BUILD_STATUS!
+    echo.
+    echo Build completed with some errors.
+    echo Check the warnings above.
+) else (
+    echo BUILD STATUS: !BUILD_STATUS!
+    echo.
+    echo All components built successfully!
+    echo.
+    echo QUICK START:
+    echo   cd release
+    echo   start-server.bat
+    echo.
+    echo Or run directly:
+    echo   cd release
+    echo   web-licensed.exe
+    echo.
+    echo WEB INTERFACE:
+    echo   http://localhost:8080
+    echo.
+    echo CONFIGURATION:
+    echo   1. Copy credentials.json.example to credentials.json
+    echo   2. Configure your Google Sheets API credentials
+    echo   3. Set up sheets-config.json for sheet mappings
+    echo.
+    echo DIRECTORY STRUCTURE:
+    echo   release\
+    echo     web-licensed.exe    (Main web server)
+    echo     scraper.exe         (Data scraper)
+    echo     process.exe         (Data processor)
+    echo     indexcsv.exe        (Index extractor)
+    echo     web\                (Web interface files)
+    echo     data\               (Data files)
+    echo       downloads\        (Downloaded Excel files)
+    echo       reports\          (Generated CSV reports)
+    echo     logs\               (Application logs)
+    echo     config\             (Configuration files)
+    echo.
+    echo DEFAULT PATHS:
+    echo   - Scraper saves to: data\downloads
+    echo   - Processor reads from: data\downloads
+    echo   - Processor saves to: data\reports
+    echo   - Index extractor saves to: data\reports\indexes.csv
+)
+echo.
+echo Build completed at: %date% %time%
+echo ==========================================
+
+endlocal
