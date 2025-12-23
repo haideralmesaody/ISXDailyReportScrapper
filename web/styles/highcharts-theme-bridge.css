@@ -1,0 +1,254 @@
+/**
+ * Highcharts Theme Bridge - SSOT Implementation
+ * 
+ * Maps the app's CSS variable system to Highcharts CSS variables.
+ * Provides icon color control for proper light/dark mode theming.
+ * 
+ * The app's theme system (defined in globals.css) is the Single Source of Truth.
+ * This file acts as a bridge, translating those variables for Highcharts compatibility.
+ */
+
+/* ========================================
+   Icon Color Variables - Light Theme
+   ======================================== */
+:root {
+  /* Icon colors for dynamic theming with currentColor */
+  --highcharts-icon-color: #4a5568;
+  --highcharts-icon-hover-color: #2d3748;
+  --highcharts-icon-active-color: #1a202c;
+  --highcharts-icon-disabled-color: #a0aec0;
+  
+  /* Map Highcharts neutral colors to our theme */
+  --highcharts-neutral-color-3: var(--highcharts-background-secondary);
+  --highcharts-neutral-color-5: var(--highcharts-border-color);
+  --highcharts-neutral-color-10: var(--highcharts-background-hover);
+  --highcharts-neutral-color-20: var(--highcharts-text-muted);
+  --highcharts-neutral-color-40: var(--highcharts-background-hover);
+  --highcharts-neutral-color-60: var(--highcharts-accent-color);
+  --highcharts-neutral-color-80: var(--highcharts-text-color);
+  --highcharts-neutral-color-100: var(--highcharts-accent-dark);
+  
+  /* Additional Highcharts variables */
+  --highcharts-background-color: var(--background);
+  --highcharts-strong-color: var(--highcharts-text-color);
+}
+
+/* ========================================
+   Icon Color Variables - Dark Theme
+   ======================================== */
+.dark {
+  /* Icon colors for dark mode */
+  --highcharts-icon-color: #cbd5e0;
+  --highcharts-icon-hover-color: #e2e8f0;
+  --highcharts-icon-active-color: #f7fafc;
+  --highcharts-icon-disabled-color: #4a5568;
+  
+  /* Map Highcharts neutral colors to our dark theme */
+  --highcharts-neutral-color-3: var(--highcharts-background-secondary);
+  --highcharts-neutral-color-5: var(--highcharts-border-color);
+  --highcharts-neutral-color-10: var(--highcharts-background-hover);
+  --highcharts-neutral-color-20: var(--highcharts-text-muted);
+  --highcharts-neutral-color-40: var(--highcharts-background-hover);
+  --highcharts-neutral-color-60: var(--highcharts-accent-color);
+  --highcharts-neutral-color-80: var(--highcharts-text-color);
+  --highcharts-neutral-color-100: var(--highcharts-accent-light);
+  
+  /* Additional Highcharts variables */
+  --highcharts-background-color: var(--background);
+  --highcharts-strong-color: var(--highcharts-text-color);
+}
+
+/* ========================================
+   Stock Tools Icon Styling
+   Using currentColor from SVGs
+   ======================================== */
+
+/* Base icon color for all stock tools buttons */
+.highcharts-stocktools-toolbar button,
+.highcharts-menu-item-btn,
+.highcharts-button {
+  color: var(--highcharts-icon-color);
+  transition: color 0.2s ease;
+}
+
+/* Apply color to SVG elements that use currentColor */
+.highcharts-stocktools-toolbar button svg,
+.highcharts-menu-item-btn svg,
+.highcharts-button svg {
+  color: inherit;
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+/* Hover state */
+.highcharts-stocktools-toolbar button:hover,
+.highcharts-menu-item-btn:hover,
+.highcharts-button:hover {
+  color: var(--highcharts-icon-hover-color);
+  background-color: var(--highcharts-background-hover);
+}
+
+/* Active/Selected state */
+.highcharts-stocktools-toolbar button.highcharts-active,
+.highcharts-menu-item-btn.highcharts-active,
+.highcharts-button.highcharts-active,
+.highcharts-button-pressed {
+  color: var(--highcharts-icon-active-color);
+  background-color: var(--highcharts-accent-color) !important;
+}
+
+/* Disabled state */
+.highcharts-stocktools-toolbar button:disabled,
+.highcharts-menu-item-btn:disabled,
+.highcharts-button:disabled {
+  color: var(--highcharts-icon-disabled-color);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ========================================
+   Toolbar & Panel Styling
+   ======================================== */
+
+/* Stock tools toolbar container */
+.highcharts-stocktools-toolbar {
+  background: var(--highcharts-background-secondary);
+  border: 1px solid var(--highcharts-border-color);
+  border-radius: 4px;
+  padding: 5px;
+  box-shadow: var(--highcharts-shadow);
+}
+
+/* Bindings wrapper (left toolbar) */
+.highcharts-bindings-wrapper {
+  background: var(--highcharts-background-secondary);
+  border-right: 1px solid var(--highcharts-border-color);
+}
+
+.highcharts-bindings-wrapper button {
+  background-color: transparent;
+  border: none;
+  color: var(--highcharts-icon-color);
+  transition: all 0.2s ease;
+}
+
+.highcharts-bindings-wrapper button:hover {
+  background-color: var(--highcharts-background-hover);
+  color: var(--highcharts-icon-hover-color);
+}
+
+/* Submenu styling */
+.highcharts-submenu-wrapper {
+  background: var(--highcharts-background-secondary);
+  border: 1px solid var(--highcharts-border-color);
+  box-shadow: var(--highcharts-shadow);
+}
+
+/* ========================================
+   Popup & Annotation Toolbar
+   ======================================== */
+
+/* Popup styling */
+.highcharts-popup {
+  background: var(--highcharts-popup-background) !important;
+  border: 1px solid var(--highcharts-border-color) !important;
+  color: var(--highcharts-text-color) !important;
+  box-shadow: var(--highcharts-shadow) !important;
+}
+
+.highcharts-popup input,
+.highcharts-popup textarea,
+.highcharts-popup select {
+  background: var(--background);
+  border: 1px solid var(--highcharts-border-color);
+  color: var(--highcharts-text-color);
+}
+
+/* Annotation toolbar */
+.highcharts-annotation-toolbar {
+  background: var(--highcharts-popup-background);
+  border: 1px solid var(--highcharts-border-color);
+  box-shadow: var(--highcharts-shadow);
+}
+
+.highcharts-annotation-toolbar button {
+  color: var(--highcharts-icon-color);
+  background: transparent;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.highcharts-annotation-toolbar button:hover {
+  color: var(--highcharts-icon-hover-color);
+  background: var(--highcharts-background-hover);
+}
+
+/* ========================================
+   Special Cases & Fixes
+   ======================================== */
+
+/* Ensure proper layering */
+.highcharts-stocktools-wrapper {
+  z-index: 10;
+}
+
+.highcharts-popup {
+  z-index: 11;
+}
+
+.highcharts-annotation-toolbar {
+  z-index: 12;
+}
+
+/* Fix separator visibility */
+.highcharts-separator {
+  background: var(--highcharts-border-color) !important;
+  opacity: 0.3;
+}
+
+/* Ensure button symbols use the icon color */
+.highcharts-button-symbol {
+  fill: var(--highcharts-icon-color);
+  stroke: var(--highcharts-icon-color);
+}
+
+/* Range selector buttons */
+.highcharts-range-selector-buttons text {
+  fill: var(--highcharts-text-color) !important;
+}
+
+.highcharts-range-selector-buttons .highcharts-button {
+  fill: var(--highcharts-background-secondary);
+  stroke: var(--highcharts-border-color);
+}
+
+.highcharts-range-selector-buttons .highcharts-button:hover {
+  fill: var(--highcharts-background-hover);
+}
+
+.highcharts-range-selector-buttons .highcharts-button-pressed {
+  fill: var(--highcharts-accent-color);
+}
+
+/* Navigator handles */
+.highcharts-navigator-handle {
+  fill: var(--highcharts-background-secondary);
+  stroke: var(--highcharts-border-color);
+}
+
+/* Scrollbar styling */
+.highcharts-scrollbar-track {
+  fill: var(--highcharts-background-secondary);
+  stroke: var(--highcharts-border-color);
+}
+
+.highcharts-scrollbar-thumb {
+  fill: var(--highcharts-accent-color);
+  stroke: var(--highcharts-accent-dark);
+}
+
+/* ========================================
+   Remove Legacy Fixes (no longer needed)
+   ======================================== */
+
+/* Removed filter/invert hacks since we now use currentColor */

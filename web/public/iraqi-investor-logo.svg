@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- Background circle for better contrast -->
+  <circle cx="200" cy="200" r="180" fill="#f8f6f0" stroke="none"/>
+  
+  <!-- Iraq map silhouette as bull body -->
+  <g transform="translate(90, 120)">
+    <!-- Main bull body -->
+    <path d="M20 60 C50 45, 80 50, 110 55 C130 60, 150 65, 160 80 C165 90, 170 100, 168 115 C166 130, 160 145, 150 160 C140 175, 130 185, 110 190 C90 195, 70 193, 50 190 C30 185, 10 175, 5 160 C0 145, 2 130, 5 115 C8 100, 15 85, 20 60 Z" 
+          fill="#2d5a3d" stroke="#1a3d2b" stroke-width="2"/>
+    
+    <!-- Bull head -->
+    <ellipse cx="15" cy="75" rx="25" ry="20" fill="#2d5a3d"/>
+    
+    <!-- Bull horns -->
+    <path d="M5 60 Q-2 50, 2 45 Q8 50, 10 55" fill="#2d5a3d"/>
+    <path d="M20 60 Q27 50, 25 45 Q19 50, 17 55" fill="#2d5a3d"/>
+    
+    <!-- Bull legs -->
+    <rect x="25" y="180" width="8" height="20" fill="#2d5a3d" rx="4"/>
+    <rect x="40" y="180" width="8" height="20" fill="#2d5a3d" rx="4"/>
+    <rect x="110" y="180" width="8" height="20" fill="#2d5a3d" rx="4"/>
+    <rect x="125" y="180" width="8" height="20" fill="#2d5a3d" rx="4"/>
+    
+    <!-- Bull tail -->
+    <path d="M170 120 Q185 110, 180 135 Q175 145, 170 140" fill="#2d5a3d"/>
+    
+    <!-- Upward trending arrow (red) -->
+    <g transform="translate(140, 40)">
+      <path d="M10 30 L15 15 L20 30 M15 15 L15 45" stroke="#c53030" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M8 25 L15 15 L22 25" fill="#c53030" stroke="#c53030" stroke-width="2"/>
+    </g>
+    
+    <!-- Decorative elements for dynamism -->
+    <g transform="translate(150, 60)" opacity="0.7">
+      <path d="M0 0 L8 -3 L6 3 Z" fill="#c53030"/>
+      <path d="M12 5 L20 2 L18 8 Z" fill="#c53030"/>
+      <path d="M8 15 L16 12 L14 18 Z" fill="#c53030"/>
+    </g>
+  </g>
+  
+  <!-- Company name text -->
+  <g>
+    <text x="200" y="320" text-anchor="middle" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#2d5a3d" letter-spacing="1px">
+      THE IRAQI
+    </text>
+    <text x="200" y="355" text-anchor="middle" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#2d5a3d" letter-spacing="1px">
+      INVESTOR
+    </text>
+  </g>
+  
+  <!-- Subtle decorative elements -->
+  <g opacity="0.3">
+    <circle cx="80" cy="80" r="3" fill="#2d5a3d"/>
+    <circle cx="320" cy="80" r="3" fill="#2d5a3d"/>
+    <circle cx="80" cy="320" r="3" fill="#2d5a3d"/>
+    <circle cx="320" cy="320" r="3" fill="#2d5a3d"/>
+  </g>
+</svg>

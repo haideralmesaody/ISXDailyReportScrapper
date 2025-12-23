@@ -1,0 +1,36 @@
+# ISX Daily Reports Scrapper Code Owners
+# These owners will be requested for review when someone opens a pull request
+
+# Global owners (for all files)
+* @project-maintainer
+
+# Backend (Go) code
+/api/ @backend-team @project-maintainer
+/api/cmd/ @backend-lead
+/api/internal/license/ @security-team @backend-lead
+/api/internal/security/ @security-team
+
+# Frontend (React/Next.js) code
+/web/ @frontend-team @project-maintainer
+/web/app/ @frontend-lead
+/web/components/ @frontend-team
+/web/lib/ @frontend-lead
+
+# Documentation
+/docs/ @documentation-team @project-maintainer
+*.md @documentation-team
+
+# Configuration and deployment
+/scripts/ @devops-team
+/config/ @devops-team
+/.github/ @devops-team @project-maintainer
+Makefile @devops-team
+build.go @backend-lead @devops-team
+
+# Security-sensitive files
+.env.example @security-team
+/api/internal/security/ @security-team
+/api/internal/license/ @security-team @backend-lead
+
+# License and legal
+LICENSE @project-maintainer

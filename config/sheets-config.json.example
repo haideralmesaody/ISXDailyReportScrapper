@@ -1,0 +1,15 @@
+{
+  "sheet_id": "your-google-sheet-id-here",
+  "sheet_name": "License Data",
+  "api_key": "your-google-sheets-api-key-if-not-using-service-account",
+  "use_service_account": true,
+  "service_account_file": "credentials.json",
+  "ranges": {
+    "license_data": "A:Z",
+    "users": "Users!A:Z",
+    "activations": "Activations!A:Z"
+  },
+  "cache_ttl": "30m",
+  "retry_attempts": 3,
+  "timeout": "10s"
+}

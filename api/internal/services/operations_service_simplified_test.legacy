@@ -1,0 +1,21 @@
+//go:build service_legacy_tests
+// +build service_legacy_tests
+
+package services
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"isxcli/internal/config"
+	"isxcli/internal/license"
+	licenseErrors "isxcli/internal/errors"
+	"isxcli/internal/operations"
+)
+

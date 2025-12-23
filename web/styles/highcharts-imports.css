@@ -1,0 +1,23 @@
+/**
+ * Highcharts Official CSS Imports
+ * 
+ * This file imports the official Highcharts CSS files needed for
+ * stock tools icons and annotations popup styling.
+ * 
+ * These imports provide the icon definitions that were missing
+ * when trying to use custom SVG paths.
+ */
+
+/* Import stock tools GUI CSS - provides icon definitions */
+@import './highcharts-gui.css';
+
+/* Import annotations popup CSS - provides popup styling */
+@import './highcharts-popup.css';
+
+/* Import stock overrides CSS - provides icon background rules and theme overrides */
+@import './highcharts-stock-overrides.css';
+
+/* 
+ * Note: These files use Highcharts CSS variables that we'll
+ * map to our theme system in highcharts-theme-bridge.css
+ */

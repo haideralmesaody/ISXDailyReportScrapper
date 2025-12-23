@@ -1,0 +1,970 @@
+/**
+ * Highcharts Stock Custom Overrides
+ * Dynamic theme support using CSS variables
+ * Works alongside official highcharts-gui.css and highcharts-popup.css
+ * Uses centralized CSS variables managed by the theme system
+ */
+
+/* Global Font Settings for Highcharts */
+.highcharts-container {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif !important;
+}
+
+/* Range Selector Buttons - Fix text rendering */
+.highcharts-range-selector-buttons text,
+.highcharts-range-input text,
+.highcharts-range-selector-group text,
+.highcharts-input-group text,
+.highcharts-button text,
+.highcharts-button-box {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  text-rendering: optimizeLegibility !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+/* Range selector button styling */
+.highcharts-range-selector-buttons .highcharts-button {
+  fill: var(--highcharts-button-fill, #f7f7f7) !important;
+  stroke: var(--highcharts-button-stroke, #cccccc) !important;
+  cursor: pointer !important;
+}
+
+.highcharts-range-selector-buttons .highcharts-button:hover {
+  fill: var(--highcharts-button-hover-fill, #e6e6e6) !important;
+}
+
+.highcharts-range-selector-buttons .highcharts-button.highcharts-button-pressed {
+  fill: var(--highcharts-button-pressed-fill, #e6ebf5) !important;
+  font-weight: 500 !important;
+}
+
+/* Stock Tools Styling - Icons loaded from Highcharts CDN */
+
+/* Container Styles */
+.highcharts-chart-container {
+  min-height: 400px;
+  height: 100%;
+  position: relative;
+}
+
+@media screen and (max-width: 600px) {
+  .highcharts-chart-container {
+    min-height: 300px;
+  }
+}
+
+/* Fullscreen mode support - Preserve current theme */
+.highcharts-fullscreen {
+  position: fixed !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 9999 !important;
+  background: var(--background) !important;  /* Use current theme background */
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Explicit theme preservation in fullscreen - Use :root selector for better detection */
+:root:not(.dark) .highcharts-fullscreen,
+html:not(.dark) .highcharts-fullscreen,
+.highcharts-fullscreen.highcharts-light {
+  background: #ffffff !important;
+}
+
+:root.dark .highcharts-fullscreen,
+html.dark .highcharts-fullscreen,
+.highcharts-fullscreen.highcharts-dark {
+  background: #0f1419 !important;
+}
+
+/* Ensure the container inside fullscreen fills the space */
+.highcharts-fullscreen .highcharts-container {
+  height: 100vh !important;
+  width: 100vw !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+/* Ensure the chart wrapper fills fullscreen */
+.highcharts-fullscreen .chart {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  position: relative !important;
+}
+
+/* Fix SVG to fill container in fullscreen */
+.highcharts-fullscreen svg.highcharts-root {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Ensure stock tools remain visible in fullscreen */
+.highcharts-fullscreen .highcharts-bindings-wrapper {
+  z-index: 10000;
+}
+
+/* Stock tools toolbar using CSS variables */
+.highcharts-bindings-wrapper {
+  background: transparent;
+}
+
+.highcharts-stocktools-toolbar li {
+  background-color: var(--highcharts-background-secondary) !important;
+  border-color: var(--highcharts-border-color);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.highcharts-stocktools-toolbar li:hover {
+  background-color: var(--highcharts-background-hover) !important;
+  border-color: var(--highcharts-accent-color);
+}
+
+.highcharts-stocktools-toolbar li.highcharts-active,
+.highcharts-stocktools-toolbar .highcharts-active,
+.highcharts-stocktools-toolbar .highcharts-button-pressed {
+  background-color: var(--highcharts-accent-color) !important;
+  border-color: var(--highcharts-accent-light);
+}
+
+/* Stock tools toolbar button styling */
+.highcharts-stocktools-toolbar .highcharts-menu-item-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* Active/selected state */
+.highcharts-menu-item-btn.highcharts-active {
+  background-color: var(--highcharts-accent-color) !important;
+  opacity: 1 !important;
+}
+
+/* SVG icons styling from CDN */
+.highcharts-menu-item-btn svg,
+.highcharts-button svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+/* Icon hover effects */
+.highcharts-menu-item-btn:hover {
+  opacity: 1;
+  background-color: var(--highcharts-background-hover);
+}
+
+/* Submenu using CSS variables */
+.highcharts-submenu-wrapper {
+  background: var(--highcharts-popup-background);
+  border-color: var(--highcharts-border-color);
+  box-shadow: var(--highcharts-shadow);
+  transition: all 0.2s ease;
+}
+
+.highcharts-submenu-wrapper .highcharts-menu-item-btn {
+  background: var(--highcharts-background-secondary);
+  border-color: var(--highcharts-border-color);
+  color: var(--highcharts-text-color);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.highcharts-submenu-wrapper .highcharts-menu-item-btn:hover {
+  background: var(--highcharts-background-hover);
+  border-color: var(--highcharts-accent-color);
+}
+
+/* Popup using CSS variables */
+.highcharts-popup {
+  background: var(--highcharts-popup-background);
+  border-color: var(--highcharts-border-color);
+  color: var(--highcharts-text-color);
+  box-shadow: var(--highcharts-shadow);
+}
+
+.highcharts-popup-fields input,
+.highcharts-popup-fields select,
+.highcharts-popup-fields textarea {
+  background: var(--highcharts-input-background);
+  border-color: var(--highcharts-border-color);
+  color: var(--highcharts-text-color);
+  transition: border-color 0.2s ease;
+}
+
+.highcharts-popup-fields input:focus,
+.highcharts-popup-fields select:focus,
+.highcharts-popup-fields textarea:focus {
+  border-color: var(--highcharts-accent-color);
+  outline: none;
+}
+
+.highcharts-popup-close {
+  color: var(--highcharts-text-muted);
+  transition: all 0.2s ease;
+}
+
+.highcharts-popup-close:hover {
+  background: var(--highcharts-background-hover);
+  color: var(--highcharts-text-color);
+}
+
+/* Annotation toolbar using CSS variables */
+.highcharts-annotation-toolbar {
+  background: var(--highcharts-popup-background);
+  border-color: var(--highcharts-border-color);
+  box-shadow: var(--highcharts-shadow);
+}
+
+.highcharts-annotation-toolbar button {
+  background: var(--highcharts-background-secondary);
+  border-color: var(--highcharts-border-color);
+  color: var(--highcharts-text-color);
+  transition: all 0.2s ease;
+}
+
+.highcharts-annotation-toolbar button:hover {
+  background: var(--highcharts-background-hover);
+  border-color: var(--highcharts-accent-color);
+}
+
+.highcharts-annotation-toolbar button:active,
+.highcharts-annotation-toolbar button.highcharts-active {
+  background: var(--highcharts-accent-color);
+  color: var(--highcharts-text-inverse);
+}
+
+/* Context menu using CSS variables */
+.highcharts-contextmenu {
+  background: var(--highcharts-popup-background);
+  border-color: var(--highcharts-border-color);
+  box-shadow: var(--highcharts-shadow);
+}
+
+.highcharts-contextmenu .highcharts-menu-item {
+  color: var(--highcharts-text-color);
+  transition: background-color 0.2s ease;
+}
+
+.highcharts-contextmenu .highcharts-menu-item:hover {
+  background: var(--highcharts-background-hover);
+}
+
+.highcharts-contextmenu .highcharts-menu-item:active {
+  background: var(--highcharts-accent-color);
+  color: var(--highcharts-text-inverse);
+}
+
+/* Ensure toolbar is visible and properly styled */
+.highcharts-stocktools-toolbar,
+.highcharts-bindings-wrapper {
+  z-index: 10;
+}
+
+/* GUI wrapper using CSS variables */
+.highcharts-bindings-wrapper ul {
+  background: transparent;
+}
+
+/* Separator visibility using CSS variables */
+.highcharts-separator {
+  background-color: var(--highcharts-border-color) !important;
+  height: 1px !important;
+  margin: 5px 2px !important;
+}
+
+/* Fix for GUI button visibility */
+.highcharts-stocktools-toolbar li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Removed duplicate icon styles - consolidated above */
+
+/* Range selector using CSS variables */
+.highcharts-range-selector-buttons .highcharts-button {
+  fill: var(--highcharts-background-secondary) !important;
+  stroke: var(--highcharts-border-color) !important;
+  transition: all 0.2s ease;
+}
+
+.highcharts-range-selector-buttons .highcharts-button:hover {
+  fill: var(--highcharts-background-hover) !important;
+  stroke: var(--highcharts-accent-color) !important;
+}
+
+.highcharts-range-selector-buttons .highcharts-button-pressed,
+.highcharts-range-selector-buttons .highcharts-button.highcharts-active {
+  fill: var(--highcharts-accent-color) !important;
+  stroke: var(--highcharts-accent-light) !important;
+}
+
+.highcharts-range-selector-buttons text {
+  fill: var(--highcharts-text-color) !important;
+  font-weight: 500;
+}
+
+.highcharts-range-selector-buttons .highcharts-button-pressed text,
+.highcharts-range-selector-buttons .highcharts-button.highcharts-active text {
+  fill: var(--highcharts-text-inverse) !important;
+}
+
+.highcharts-input-group input {
+  background: var(--highcharts-input-background) !important;
+  border: 1px solid var(--highcharts-border-color) !important;
+  color: var(--highcharts-text-color) !important;
+  padding: 4px 8px;
+  transition: border-color 0.2s ease;
+}
+
+.highcharts-input-group input:focus {
+  border-color: var(--highcharts-accent-color) !important;
+  outline: none;
+}
+
+.highcharts-range-input text {
+  fill: var(--highcharts-text-muted) !important;
+}
+
+/* Enhanced Navigator UX - Professional financial chart standards */
+.highcharts-navigator-mask-inside {
+  fill: var(--highcharts-navigator-mask) !important;
+  fill-opacity: 0.15 !important;
+  cursor: move;  /* Indicate draggable area - no !important to prevent conflicts */
+}
+
+.highcharts-navigator-outline {
+  stroke: var(--highcharts-border-color) !important;
+  stroke-opacity: 0.5 !important;
+  stroke-width: 1 !important;
+  transition: stroke 0.2s ease, stroke-width 0.2s ease;
+}
+
+/* Navigator handles - professional UX */
+.highcharts-navigator-handle {
+  fill: var(--highcharts-background-secondary) !important;
+  fill-opacity: 0.8 !important;
+  stroke: var(--highcharts-accent-color) !important;
+  stroke-opacity: 0.6 !important;
+  cursor: ew-resize;  /* Horizontal resize cursor */
+  transition: all 0.2s ease;
+}
+
+.highcharts-navigator-handle:hover {
+  fill: var(--highcharts-accent-color) !important;
+  fill-opacity: 0.9 !important;
+  stroke-opacity: 0.8 !important;
+  transform: scaleX(1.2);  /* Slightly enlarge on hover */
+}
+
+/* Active dragging state */
+.highcharts-navigator-handle.highcharts-dragging,
+.highcharts-navigator-handle:active {
+  cursor: grabbing;
+  transform: scaleX(1.3);
+  fill: var(--highcharts-accent-light) !important;
+}
+
+/* Navigator series - ensure visibility */
+.highcharts-navigator-series {
+  pointer-events: none;  /* Series should not interfere with dragging */
+}
+
+/* Visual feedback when hovering navigator */
+.highcharts-navigator:hover .highcharts-navigator-outline {
+  stroke-width: 2 !important;
+  stroke: var(--highcharts-accent-color) !important;
+  stroke-opacity: 0.7 !important;
+}
+
+.highcharts-navigator-series .highcharts-graph {
+  stroke: var(--highcharts-accent-color) !important;
+  stroke-width: 1 !important;
+}
+
+.highcharts-navigator-series .highcharts-area {
+  fill: var(--highcharts-navigator-area) !important;
+  fill-opacity: 0.15 !important;  /* Very transparent area fill */
+}
+
+/* Dark mode navigator - Even more transparent */
+.dark .highcharts-navigator-mask-inside,
+[data-theme="dark"] .highcharts-navigator-mask-inside {
+  fill-opacity: 0.1 !important;  /* Extra transparent in dark mode */
+}
+
+.dark .highcharts-navigator-series .highcharts-area,
+[data-theme="dark"] .highcharts-navigator-series .highcharts-area {
+  fill-opacity: 0.1 !important;  /* Extra transparent in dark mode */
+}
+
+.dark .highcharts-navigator-outline,
+[data-theme="dark"] .highcharts-navigator-outline {
+  stroke-opacity: 0.4 !important;
+}
+
+.dark .highcharts-navigator-handle,
+[data-theme="dark"] .highcharts-navigator-handle {
+  fill-opacity: 0.7 !important;
+  stroke-opacity: 0.5 !important;
+}
+
+/* Navigator interaction hierarchy */
+.highcharts-navigator {
+  pointer-events: all;
+}
+
+.highcharts-navigator-mask-inside {
+  pointer-events: all;
+}
+
+.highcharts-navigator-handle,
+.highcharts-navigator-handle-left,
+.highcharts-navigator-handle-right {
+  pointer-events: all;
+}
+
+.highcharts-navigator-mask-outside,
+.highcharts-navigator-outline {
+  pointer-events: none;  /* Don't interfere with interaction */
+}
+
+/* Scrollbar using CSS variables */
+.highcharts-scrollbar-thumb {
+  fill: var(--highcharts-scrollbar-thumb);
+  stroke: var(--highcharts-scrollbar-thumb);
+  transition: fill 0.2s ease, stroke 0.2s ease;
+}
+
+.highcharts-scrollbar-thumb:hover {
+  fill: var(--highcharts-scrollbar-thumb-hover);
+  stroke: var(--highcharts-scrollbar-thumb-hover);
+}
+
+.highcharts-scrollbar-button {
+  fill: var(--highcharts-background-secondary);
+  stroke: var(--highcharts-border-color);
+}
+
+.highcharts-scrollbar-arrow {
+  fill: var(--highcharts-text-muted);
+}
+
+.highcharts-scrollbar-track {
+  fill: var(--highcharts-scrollbar-track);
+  stroke: var(--highcharts-scrollbar-track);
+}
+
+/* Tooltip using CSS variables */
+.highcharts-tooltip-box {
+  fill: var(--highcharts-tooltip-background);
+  stroke: var(--highcharts-border-color);
+  filter: drop-shadow(var(--highcharts-shadow));
+}
+
+.highcharts-tooltip text {
+  fill: var(--highcharts-tooltip-text);
+}
+
+.highcharts-tooltip .highcharts-header {
+  fill: var(--highcharts-text-color);
+  font-weight: 600;
+}
+
+/* Loading using CSS variables */
+.highcharts-loading {
+  background-color: var(--highcharts-loading-background);
+}
+
+.highcharts-loading-inner {
+  color: var(--highcharts-text-color);
+}
+
+/* Ensure proper layering */
+.highcharts-container {
+  position: relative;
+}
+
+.highcharts-stocktools-wrapper {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+}
+
+/* Fix button icons in stock tools - removed conflicting rule */
+
+/* Ensure submenu items are clickable */
+.highcharts-submenu-item-btn {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/* Fix measure tool visibility */
+.highcharts-label-annotation {
+  pointer-events: none;
+}
+
+.highcharts-annotation-shapes path {
+  cursor: pointer;
+}
+
+/* Crosshair using CSS variables */
+.highcharts-crosshair {
+  stroke: var(--highcharts-crosshair-color) !important;
+  stroke-width: 1px;
+  stroke-dasharray: 3, 3;
+  opacity: 0.8;
+}
+
+/* Axis elements using CSS variables */
+.highcharts-axis-labels text {
+  fill: var(--highcharts-text-muted) !important;
+}
+
+.highcharts-axis-title {
+  fill: var(--highcharts-text-color) !important;
+}
+
+.highcharts-axis-line,
+.highcharts-tick {
+  stroke: var(--highcharts-border-color) !important;
+}
+
+.highcharts-grid-line {
+  stroke: var(--highcharts-grid-line) !important;
+  opacity: 0.8;
+}
+
+.highcharts-minor-grid-line {
+  stroke: var(--highcharts-grid-line) !important;
+  opacity: 0.4;
+}
+
+/* Legend using CSS variables */
+.highcharts-legend-box {
+  fill: var(--highcharts-legend-background);
+  stroke: var(--highcharts-border-color);
+}
+
+.highcharts-legend-item text {
+  fill: var(--highcharts-text-color) !important;
+}
+
+.highcharts-legend-item:hover text {
+  fill: var(--highcharts-accent-color) !important;
+}
+
+.highcharts-legend-item-hidden text {
+  fill: var(--highcharts-text-muted) !important;
+}
+
+/* Data labels using CSS variables */
+.highcharts-data-label text {
+  fill: var(--highcharts-text-color) !important;
+}
+
+.highcharts-data-label-box {
+  fill: var(--highcharts-data-label-background);
+  stroke: var(--highcharts-border-color);
+}
+
+/* Credits using CSS variables */
+.highcharts-credits {
+  fill: var(--highcharts-text-muted) !important;
+}
+
+/* Zoom controls using CSS variables */
+.highcharts-reset-zoom {
+  fill: var(--highcharts-background-secondary) !important;
+  stroke: var(--highcharts-border-color) !important;
+}
+
+.highcharts-reset-zoom:hover {
+  fill: var(--highcharts-background-hover) !important;
+  stroke: var(--highcharts-accent-color) !important;
+}
+
+.highcharts-reset-zoom text {
+  fill: var(--highcharts-text-color) !important;
+}
+
+/* Selection box using CSS variables */
+.highcharts-selection-box {
+  fill: var(--highcharts-selection-fill);
+  stroke: var(--highcharts-accent-color);
+  stroke-width: 2px;
+}
+
+/* Button states for all interactive elements */
+.highcharts-button {
+  transition: all 0.2s ease;
+}
+
+.highcharts-button:hover {
+  filter: brightness(1.1);
+}
+
+.highcharts-button:active {
+  filter: brightness(0.9);
+}
+
+/* Drag handles for annotations */
+.highcharts-drag-box-default {
+  fill: var(--highcharts-accent-color);
+  stroke: var(--highcharts-accent-light);
+  opacity: 0.8;
+}
+
+.highcharts-drag-box-default:hover {
+  opacity: 1;
+}
+
+/* ========== COMPREHENSIVE THEMING FIXES ========== */
+
+/* Hamburger menu (export button) theming */
+.highcharts-contextbutton,
+.highcharts-button.highcharts-contextbutton {
+  fill: var(--highcharts-background-secondary) !important;
+  stroke: var(--highcharts-border-color) !important;
+}
+
+.highcharts-contextbutton:hover {
+  fill: var(--highcharts-background-hover) !important;
+  stroke: var(--highcharts-accent-color) !important;
+}
+
+/* Menu dropdown theming */
+.highcharts-menu,
+.highcharts-contextmenu {
+  background: var(--highcharts-popup-background) !important;
+  border: 1px solid var(--highcharts-border-color) !important;
+  box-shadow: var(--highcharts-shadow) !important;
+}
+
+.highcharts-menu-item {
+  background: transparent !important;
+  color: var(--highcharts-text-color) !important;
+}
+
+.highcharts-menu-item:hover {
+  background: var(--highcharts-background-hover) !important;
+}
+
+/* Technical indicators popup - ensure visibility */
+.highcharts-popup.highcharts-popup-indicators,
+.highcharts-popup-stocktools,
+div.highcharts-popup {
+  background: var(--highcharts-popup-background) !important;
+  border: 1px solid var(--highcharts-border-color) !important;
+  box-shadow: var(--highcharts-shadow) !important;
+  backdrop-filter: blur(10px);
+}
+
+/* Range selector specific fixes */
+.highcharts-range-selector-group text {
+  fill: var(--highcharts-text-color) !important;
+}
+
+.highcharts-input-group text {
+  fill: var(--highcharts-text-muted) !important;
+}
+
+.highcharts-input-group input,
+.highcharts-range-selector input[type="text"] {
+  background: var(--highcharts-input-background) !important;
+  border: 1px solid var(--highcharts-border-color) !important;
+  color: var(--highcharts-text-color) !important;
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+}
+
+.highcharts-input-group input:focus {
+  border-color: var(--highcharts-accent-color) !important;
+  outline: 2px solid var(--highcharts-accent-light) !important;
+  outline-offset: -1px !important;
+}
+
+/* Range selector button fixes */
+.highcharts-range-selector-buttons .highcharts-button {
+  fill: var(--highcharts-background-secondary) !important;
+  stroke: var(--highcharts-border-color) !important;
+  cursor: pointer !important;
+}
+
+.highcharts-range-selector-buttons .highcharts-button:hover {
+  fill: var(--highcharts-background-hover) !important;
+  stroke: var(--highcharts-accent-color) !important;
+}
+
+.highcharts-range-selector-buttons .highcharts-button-pressed {
+  fill: var(--highcharts-accent-color) !important;
+  stroke: var(--highcharts-accent-dark) !important;
+}
+
+.highcharts-range-selector-buttons .highcharts-button text {
+  fill: var(--highcharts-text-color) !important;
+}
+
+.highcharts-range-selector-buttons .highcharts-button-pressed text {
+  fill: var(--highcharts-text-inverse) !important;
+}
+
+/* Stock tools toolbar theming */
+.highcharts-stocktools-toolbar {
+  background: var(--highcharts-background-secondary) !important;
+  border: 1px solid var(--highcharts-border-color) !important;
+}
+
+.highcharts-stocktools-toolbar button {
+  background: transparent !important;
+  border: none !important;
+}
+
+.highcharts-stocktools-toolbar button:hover {
+  background: var(--highcharts-background-hover) !important;
+}
+
+.highcharts-stocktools-toolbar button.highcharts-active {
+  background: var(--highcharts-accent-color) !important;
+}
+
+/* Navigator (mini chart) theming */
+.highcharts-navigator-outline {
+  stroke: var(--highcharts-border-color) !important;
+}
+
+.highcharts-navigator-handle {
+  fill: var(--highcharts-accent-color) !important;
+  stroke: var(--highcharts-accent-dark) !important;
+}
+
+.highcharts-navigator-mask-inside {
+  fill: var(--hc-navigator-mask) !important;
+}
+
+/* Scrollbar theming */
+.highcharts-scrollbar-track {
+  fill: var(--hc-scrollbar-track) !important;
+  stroke: var(--highcharts-border-color) !important;
+}
+
+.highcharts-scrollbar-thumb {
+  fill: var(--hc-scrollbar-thumb) !important;
+  stroke: var(--highcharts-border-color) !important;
+}
+
+/* Tooltip improvements */
+.highcharts-tooltip-box {
+  fill: var(--hc-tooltip-bg) !important;
+  stroke: var(--hc-tooltip-border) !important;
+  stroke-width: 1 !important;
+  filter: drop-shadow(var(--highcharts-shadow)) !important;
+}
+
+.highcharts-tooltip text {
+  fill: var(--hc-tooltip-text) !important;
+}
+
+/* Ensure all buttons respect theme */
+.highcharts-button-box {
+  fill: var(--highcharts-background-secondary) !important;
+  stroke: var(--highcharts-border-color) !important;
+}
+
+.highcharts-button-symbol {
+  stroke: var(--highcharts-text-color) !important;
+  fill: var(--highcharts-text-color) !important;
+}
+
+/* Indicator list items in popup */
+.highcharts-indicator-list li,
+.highcharts-popup-lhs-col li {
+  background: transparent;
+  color: var(--highcharts-text-color) !important;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.highcharts-indicator-list li:hover,
+.highcharts-popup-lhs-col li:hover {
+  background: var(--highcharts-background-hover) !important;
+}
+
+/* Menu items with icons */
+.highcharts-menu-item {
+  transition: all 0.2s ease;
+}
+
+.highcharts-menu-item .highcharts-menu-item-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--highcharts-text-color);
+}
+
+.highcharts-menu-item:hover .highcharts-menu-item-btn {
+  background: var(--highcharts-background-hover);
+  border-color: var(--highcharts-accent-color);
+}
+
+/* Dropdown menus */
+.highcharts-dropdown-menu {
+  background: var(--highcharts-popup-background);
+  border: 1px solid var(--highcharts-border-color);
+  box-shadow: var(--highcharts-shadow);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.highcharts-dropdown-menu .highcharts-menu-item {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--highcharts-border-color);
+}
+
+.highcharts-dropdown-menu .highcharts-menu-item:last-child {
+  border-bottom: none;
+}
+
+.highcharts-dropdown-menu .highcharts-menu-item:hover {
+  background: var(--highcharts-background-hover);
+}
+
+/* Table elements in popups */
+.highcharts-popup table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.highcharts-popup th,
+.highcharts-popup td {
+  border: 1px solid var(--highcharts-border-color);
+  padding: 8px;
+  text-align: left;
+}
+
+.highcharts-popup th {
+  background: var(--highcharts-background-secondary);
+  font-weight: 600;
+}
+
+.highcharts-popup tr:nth-child(even) {
+  background: var(--highcharts-background-secondary);
+}
+
+.highcharts-popup tr:hover {
+  background: var(--highcharts-background-hover);
+}
+
+/* Form elements in popups */
+.highcharts-popup label {
+  color: var(--highcharts-text-color);
+  font-weight: 500;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.highcharts-popup input[type="checkbox"],
+.highcharts-popup input[type="radio"] {
+  accent-color: var(--highcharts-accent-color);
+}
+
+.highcharts-popup button {
+  background: var(--highcharts-accent-color);
+  color: var(--highcharts-text-inverse);
+  border: 1px solid var(--highcharts-accent-color);
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.highcharts-popup button:hover {
+  background: var(--highcharts-accent-dark);
+  border-color: var(--highcharts-accent-dark);
+}
+
+.highcharts-popup button:disabled {
+  background: var(--highcharts-background-secondary);
+  color: var(--highcharts-text-muted);
+  border-color: var(--highcharts-border-color);
+  cursor: not-allowed;
+}
+
+.highcharts-popup button.secondary {
+  background: transparent;
+  color: var(--highcharts-text-color);
+  border-color: var(--highcharts-border-color);
+}
+
+.highcharts-popup button.secondary:hover {
+  background: var(--highcharts-background-hover);
+}
+
+/* Tabs in popups */
+.highcharts-popup .highcharts-tab-container {
+  border-bottom: 1px solid var(--highcharts-border-color);
+  margin-bottom: 16px;
+}
+
+.highcharts-popup .highcharts-tab {
+  background: transparent;
+  color: var(--highcharts-text-muted);
+  border: none;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.highcharts-popup .highcharts-tab:hover {
+  color: var(--highcharts-text-color);
+}
+
+.highcharts-popup .highcharts-tab.active {
+  color: var(--highcharts-accent-color);
+  border-bottom-color: var(--highcharts-accent-color);
+}
+
+/* Progress bars */
+.highcharts-progress-bar {
+  background: var(--highcharts-background-secondary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.highcharts-progress-bar-fill {
+  background: var(--highcharts-accent-color);
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+/* Scrollbars in menus */
+.highcharts-menu::-webkit-scrollbar {
+  width: 8px;
+}
+
+.highcharts-menu::-webkit-scrollbar-track {
+  background: var(--highcharts-scrollbar-track);
+}
+
+.highcharts-menu::-webkit-scrollbar-thumb {
+  background: var(--highcharts-scrollbar-thumb);
+  border-radius: 4px;
+}
+
+.highcharts-menu::-webkit-scrollbar-thumb:hover {
+  background: var(--highcharts-scrollbar-thumb-hover);
+}

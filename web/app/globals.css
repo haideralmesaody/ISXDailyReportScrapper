@@ -1,0 +1,689 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Import Highcharts official CSS for stock tools icons */
+@import '../styles/highcharts-imports.css';
+
+/* Bridge Highcharts variables to our theme system */
+@import '../styles/highcharts-theme-bridge.css';
+
+@layer base {
+  :root {
+    /* Iraqi Investor Brand Colors */
+    --background: 40 6% 97%;        /* #f8f6f0 - Logo background off-white */
+    --foreground: 222.2 84% 4.9%;
+    --card: 40 6% 97%;              /* #f8f6f0 - Consistent with logo */
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 40 6% 97%;           /* #f8f6f0 - Consistent theming */
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 143 32% 26%;        /* Iraqi Investor forest green #2d5a3d */
+    --primary-foreground: 210 40% 98%;
+    --secondary: 138 40% 18%;      /* Iraqi Investor darker green #1a3d2b */
+    --secondary-foreground: 210 40% 98%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 0 62% 49%;           /* Iraqi Investor bull red #c53030 */
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 143 32% 26%;           /* Iraqi Investor primary green for focus rings */
+    --radius: 0.5rem;
+    
+    /* Iraqi Investor custom variables */
+    --investor-primary: 143 32% 26%;     /* #2d5a3d */
+    --investor-secondary: 138 40% 18%;   /* #1a3d2b */
+    --investor-accent: 0 62% 49%;        /* #c53030 */
+    
+    /* Status colors for operations */
+    --success: 142 71% 45%;              /* Green for success states */
+    --warning: 38 92% 50%;               /* Yellow/Amber for warnings */
+    --error: 0 84% 60%;                  /* Red for errors */
+    --info: 199 89% 48%;                 /* Blue for information */
+    
+    /* Highcharts-specific variables (namespaced with --hc-) */
+    /* These follow the app theme but are isolated to prevent pollution */
+    --hc-background: transparent;
+    --hc-grid-background: hsl(40 6% 97%);  /* Same as --background */
+    --hc-grid-line: hsl(214.3 31.8% 91.4% / 0.3);
+    --hc-axis-line: hsl(214.3 31.8% 91.4%);
+    --hc-candlestick-up: hsl(142 71% 45%);  /* Same as --success */
+    --hc-candlestick-down: hsl(0 84% 60%);  /* Same as --error */
+    --hc-candlestick-up-line: hsl(142 71% 35%);
+    --hc-candlestick-down-line: hsl(0 84% 50%);
+    --hc-volume-color: hsl(199 89% 48% / 0.3);
+    --hc-tooltip-bg: hsl(40 6% 97%);
+    --hc-tooltip-border: hsl(214.3 31.8% 91.4%);
+    --hc-tooltip-text: hsl(222.2 84% 4.9%);
+    --hc-text-primary: hsl(222.2 84% 4.9%);
+    --hc-text-secondary: hsl(215.4 16.3% 46.9%);
+    --hc-text-muted: hsl(215.4 16.3% 60%);
+    --hc-button-fill: hsl(210 40% 96%);
+    --hc-button-hover: hsl(210 40% 90%);
+    --hc-button-text: hsl(222.2 84% 4.9%);
+    --hc-range-selector-bg: hsl(40 6% 97%);
+    --hc-range-selector-border: hsl(214.3 31.8% 91.4%);
+    --hc-range-selector-text: hsl(222.2 84% 4.9%);
+    --hc-navigator-series: hsl(143 32% 26% / 0.3);
+    --hc-navigator-mask: hsl(199 89% 48% / 0.1);
+    --hc-scrollbar-track: hsl(210 40% 96%);
+    --hc-scrollbar-thumb: hsl(215.4 16.3% 46.9% / 0.5);
+    --hc-indicator-sma: hsl(199 89% 48%);
+    --hc-indicator-ema: hsl(38 92% 50%);
+    --hc-indicator-bollinger: hsl(280 65% 60%);
+    --hc-indicator-macd: hsl(142 71% 45%);
+    --hc-indicator-rsi: hsl(0 84% 60%);
+    
+    /* Highcharts popup and GUI theming variables for light theme */
+    --highcharts-background-color: #ffffff;
+    --highcharts-neutral-color-3: #f7f7f7;
+    --highcharts-neutral-color-10: #e6e6e6;
+    --highcharts-neutral-color-20: #cccccc;
+    --highcharts-neutral-color-40: #999999;
+    --highcharts-neutral-color-60: #666666;
+    --highcharts-neutral-color-80: #333333;
+    --highcharts-neutral-color-100: #000000;
+    --highcharts-highlight-color-80: #335cad;
+    
+    /* Complete Highcharts theming variables for light theme */
+    --highcharts-popup-background: rgba(255, 255, 255, 0.98);
+    --highcharts-input-background: #ffffff;
+    --highcharts-border-color: hsl(214.3 31.8% 91.4%);
+    --highcharts-text-color: hsl(222.2 84% 4.9%);
+    --highcharts-text-muted: hsl(215.4 16.3% 46.9%);
+    --highcharts-text-inverse: #ffffff;
+    --highcharts-accent-color: hsl(143 32% 40%); /* Iraqi Investor green */
+    --highcharts-accent-light: hsl(143 32% 50%);
+    --highcharts-accent-dark: hsl(143 32% 30%);
+    --highcharts-background-hover: hsl(210 40% 96%);
+    --highcharts-background-secondary: hsl(40 6% 97%);
+    --highcharts-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    --highcharts-icon-filter: none;
+    --highcharts-icon-filter-hover: brightness(0.8);
+
+    /* Centralized Panel System Tokens */
+    --panel-max-width: 480px;
+    --panel-min-width: 320px;
+    --panel-margin: 16px;
+    --panel-padding: 24px;
+    --panel-border-radius: 12px;
+
+    /* Panel Spacing Tokens */
+    --panel-spacing-sm: 8px;
+    --panel-spacing-md: 16px;
+    --panel-spacing-lg: 24px;
+    --panel-spacing-xl: 32px;
+
+    /* Panel Visual Tokens */
+    --panel-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    --panel-backdrop: rgba(0, 0, 0, 0.1);
+    --panel-z-index: 50;
+
+    /* Responsive Breakpoints */
+    --panel-breakpoint-sm: 640px;   /* Mobile */
+    --panel-breakpoint-md: 1024px;  /* Tablet */
+    --panel-breakpoint-lg: 1280px;  /* Desktop */
+
+    /* Focus System Tokens */
+    --focus-width: 2px;
+    --focus-offset: 2px;
+    --focus-color: hsl(var(--primary));
+    --focus-shadow: 0 0 0 3px hsl(var(--primary) / 0.2);
+
+    /* High Contrast Mode Focus Tokens */
+    --focus-width-high-contrast: 3px;
+    --focus-shadow-high-contrast: 0 0 0 4px hsl(var(--primary) / 0.3);
+
+    /* Interactive State Tokens */
+    --panel-button-hover-transform: scale(1.02);
+    --panel-button-active-transform: scale(0.98);
+    --panel-transition-duration: 0.2s;
+    --panel-transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Viewport-aware panel sizing tokens (legacy - will be deprecated) */
+    --panel-legacy-max-width: min(90vw, 600px);
+    --panel-legacy-min-width: clamp(320px, 70vw, 600px);
+    --panel-legacy-max-height: 80vh;
+    --panel-legacy-content-height: calc(80vh - 120px);
+    --panel-backdrop-z: 40; /* Legacy - will be deprecated */
+    --panel-z: 50;          /* Legacy - will be deprecated */
+    --panel-shadow-safe: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 143 50% 45%;        /* Lighter Iraqi Investor green for dark mode */
+    --primary-foreground: 222.2 84% 4.9%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 0 75% 60%;           /* Lighter Iraqi Investor red for dark mode */
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 143 50% 45%;           /* Lighter Iraqi Investor green for focus rings */
+    
+    /* Iraqi Investor dark mode custom variables */
+    --investor-primary: 143 50% 45%;     /* Lighter green for dark mode */
+    --investor-secondary: 138 45% 25%;   /* Lighter secondary for dark mode */
+    --investor-accent: 0 75% 60%;        /* Lighter red for dark mode */
+    
+    /* Status colors for operations (dark mode) */
+    --success: 142 71% 55%;              /* Lighter green for dark mode */
+    --warning: 38 92% 60%;               /* Lighter yellow for dark mode */
+    --error: 0 84% 70%;                  /* Lighter red for dark mode */
+    --info: 199 89% 58%;                 /* Lighter blue for dark mode */
+    
+    /* Highcharts dark mode variables (namespaced with --hc-) */
+    --hc-background: transparent;
+    --hc-grid-background: hsl(222.2 84% 4.9%);  /* Same as dark --background */
+    --hc-grid-line: hsl(217.2 32.6% 17.5% / 0.3);
+    --hc-axis-line: hsl(217.2 32.6% 17.5%);
+    --hc-candlestick-up: hsl(142 71% 55%);  /* Same as dark --success */
+    --hc-candlestick-down: hsl(0 84% 65%);  /* Slightly darker than --error for contrast */
+    --hc-candlestick-up-line: hsl(142 71% 45%);
+    --hc-candlestick-down-line: hsl(0 84% 55%);
+    --hc-volume-color: hsl(199 89% 58% / 0.3);
+    --hc-tooltip-bg: hsl(222.2 47% 11%);
+    --hc-tooltip-border: hsl(217.2 32.6% 17.5%);
+    --hc-tooltip-text: hsl(210 40% 98%);
+    --hc-text-primary: hsl(210 40% 98%);
+    --hc-text-secondary: hsl(215 20.2% 65.1%);
+    --hc-text-muted: hsl(215 20.2% 50%);
+    --hc-button-fill: hsl(217.2 32.6% 17.5%);
+    --hc-button-hover: hsl(217.2 32.6% 22%);
+    --hc-button-text: hsl(210 40% 98%);
+    --hc-range-selector-bg: hsl(222.2 47% 11%);
+    --hc-range-selector-border: hsl(217.2 32.6% 17.5%);
+    --hc-range-selector-text: hsl(210 40% 98%);
+    --hc-navigator-series: hsl(143 50% 45% / 0.3);
+    --hc-navigator-mask: hsl(199 89% 58% / 0.1);
+    --hc-scrollbar-track: hsl(217.2 32.6% 17.5%);
+    --hc-scrollbar-thumb: hsl(215 20.2% 65.1% / 0.5);
+    --hc-indicator-sma: hsl(199 89% 58%);
+    --hc-indicator-ema: hsl(38 92% 60%);
+    --hc-indicator-bollinger: hsl(280 65% 70%);
+    --hc-indicator-macd: hsl(142 71% 55%);
+    --hc-indicator-rsi: hsl(0 84% 70%);
+    
+    /* Highcharts popup and GUI theming variables for dark theme */
+    --highcharts-background-color: #1a1f2e;
+    --highcharts-neutral-color-3: #2d3748;
+    --highcharts-neutral-color-10: #374151;
+    --highcharts-neutral-color-20: #4b5563;
+    --highcharts-neutral-color-40: #6b7280;
+    --highcharts-neutral-color-60: #9ca3af;
+    --highcharts-neutral-color-80: #d1d5db;
+    --highcharts-neutral-color-100: #f3f4f6;
+    --highcharts-highlight-color-80: #60a5fa;
+    
+    /* Complete Highcharts theming variables for dark theme */
+    --highcharts-popup-background: rgba(26, 31, 46, 0.98);
+    --highcharts-input-background: hsl(222.2 47% 15%);
+    --highcharts-border-color: hsl(217.2 32.6% 25%);
+    --highcharts-text-color: hsl(210 40% 98%);
+    --highcharts-text-muted: hsl(215 20.2% 65.1%);
+    --highcharts-text-inverse: hsl(222.2 84% 4.9%);
+    --highcharts-accent-color: hsl(143 50% 45%); /* Brighter green for dark */
+    --highcharts-accent-light: hsl(143 50% 55%);
+    --highcharts-accent-dark: hsl(143 50% 35%);
+    --highcharts-background-hover: hsl(217.2 32.6% 22%);
+    --highcharts-background-secondary: hsl(222.2 47% 11%);
+    --highcharts-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+    --highcharts-icon-filter: invert(0.85) brightness(1.2);  /* Properly invert black icons to white */
+    --highcharts-icon-filter-hover: invert(1) brightness(1.3);
+
+    /* Viewport-aware panel sizing tokens (dark mode) */
+    --panel-max-width: min(90vw, 600px);
+    --panel-min-width: clamp(320px, 70vw, 600px);
+    --panel-max-height: 80vh;
+    --panel-content-height: calc(80vh - 120px); /* Panel height minus header/footer */
+    --panel-backdrop-z: 40;
+    --panel-z: 50;
+    --panel-border-radius: 0.75rem;
+    --panel-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+    --panel-shadow-safe: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.08);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  /* Custom scrollbars */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-secondary;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/50 rounded-md;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/70;
+  }
+}
+
+@layer components {
+  /* High-contrast focus indicators for keyboard navigation */
+  .focus-visible,
+  [data-focus-visible] {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Enhanced focus indicators for panel interactive elements */
+  .panel-button:focus-visible {
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.2);
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
+
+  /* Skip link for accessibility */
+  .skip-link {
+    position: absolute;
+    top: -40px;
+    left: 6px;
+    background: hsl(var(--primary));
+    color: white;
+    padding: 8px;
+    text-decoration: none;
+    border-radius: 4px;
+    z-index: 100;
+    transition: top 0.3s;
+  }
+
+  .skip-link:focus {
+    top: 6px;
+  }
+
+  /* Ensure focus indicators are visible in all themes */
+  @media (prefers-contrast: high) {
+    .focus-visible,
+    [data-focus-visible] {
+      outline-width: 3px;
+      outline-color: hsl(var(--primary));
+    }
+
+    .panel-button:focus-visible {
+      outline-width: 3px;
+      box-shadow: 0 0 0 4px hsl(var(--primary) / 0.3);
+    }
+  }
+
+  /* Centralized Panel System Classes */
+  .panel-base {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--panel-border-radius);
+    box-shadow: var(--panel-shadow);
+    padding: var(--panel-padding);
+    max-width: var(--panel-max-width);
+    width: min(85vw, var(--panel-max-width));
+    margin: var(--panel-margin);
+  }
+
+  /* Responsive Panel Behavior */
+  .panel-responsive {
+    width: clamp(320px, 80vw, var(--panel-max-width));
+    max-height: clamp(300px, 70vh, 700px);
+  }
+
+  /* Mobile-first responsive adjustments */
+  @media (max-width: 640px) {
+    .panel-responsive {
+      width: calc(100vw - calc(2 * var(--panel-margin)));
+      max-width: none;
+      margin: var(--panel-margin);
+      padding: var(--panel-spacing-md);
+    }
+  }
+
+  /* Tablet styles */
+  @media (min-width: 640px) {
+    .panel-responsive {
+      width: min(90vw, var(--panel-max-width));
+      padding: var(--panel-padding);
+    }
+  }
+
+  /* Desktop styles */
+  @media (min-width: 1024px) {
+    .panel-responsive {
+      width: var(--panel-max-width);
+    }
+  }
+
+  /* Panel Position Variants */
+  .panel-position-center {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: var(--panel-z-index);
+  }
+
+  .panel-position-left {
+    position: fixed;
+    top: 50%;
+    left: var(--panel-margin);
+    transform: translateY(-50%);
+    z-index: var(--panel-z-index);
+  }
+
+  .panel-position-right {
+    position: fixed;
+    top: 50%;
+    right: var(--panel-margin);
+    transform: translateY(-50%);
+    z-index: var(--panel-z-index);
+  }
+
+  /* Panel Interactive States */
+  .panel-button {
+    transition: transform var(--panel-transition-duration) var(--panel-transition-easing);
+  }
+
+  .panel-button:hover {
+    transform: var(--panel-button-hover-transform);
+  }
+
+  .panel-button:active {
+    transform: var(--panel-button-active-transform);
+  }
+
+  /* Enhanced focus indicators */
+  .panel-button:focus-visible {
+    box-shadow: var(--focus-shadow);
+    outline: var(--focus-width) solid var(--focus-color);
+    outline-offset: var(--focus-offset);
+  }
+
+  /* High contrast mode focus support */
+  @media (prefers-contrast: high) {
+    .panel-button:focus-visible {
+      outline-width: var(--focus-width-high-contrast);
+      box-shadow: var(--focus-shadow-high-contrast);
+    }
+  }
+
+  /* Touch-friendly targets */
+  @media (pointer: coarse) {
+    .panel-button {
+      min-height: 44px;
+      min-width: 44px;
+      padding: 12px 16px;
+    }
+  }
+
+  /* Mouse-optimized interactions */
+  @media (pointer: fine) {
+    .panel-button {
+      min-height: 32px;
+      padding: 8px 12px;
+    }
+  }
+
+  /* Iraqi Investor specific component styles */
+  .investor-card {
+    @apply bg-card border border-border/50 rounded-lg shadow-sm;
+  }
+  
+  .investor-input {
+    @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  
+  .investor-button {
+    @apply inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+  }
+  
+  .investor-button-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90;
+  }
+  
+  .investor-button-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80;
+  }
+  
+  .investor-button-outline {
+    @apply border border-input bg-background hover:bg-accent hover:text-accent-foreground;
+  }
+  
+  /* Keep ISX classes for backward compatibility */
+  .isx-card { @apply investor-card; }
+  .isx-input { @apply investor-input; }
+  .isx-button { @apply investor-button; }
+  .isx-button-primary { @apply investor-button-primary; }
+  .isx-button-secondary { @apply investor-button-secondary; }
+  .isx-button-outline { @apply investor-button-outline; }
+  
+  /* Market data specific styles */
+  .market-positive {
+    @apply text-green-600 dark:text-green-400;
+  }
+  
+  .market-negative {
+    @apply text-red-600 dark:text-red-400;
+  }
+  
+  .market-neutral {
+    @apply text-muted-foreground;
+  }
+  
+  .market-change-bg-positive {
+    @apply bg-green-50 border-green-200 dark:bg-green-950/50 dark:border-green-800;
+  }
+  
+  .market-change-bg-negative {
+    @apply bg-red-50 border-red-200 dark:bg-red-950/50 dark:border-red-800;
+  }
+  
+  /* Loading animations */
+  .isx-pulse {
+    @apply animate-pulse bg-muted/50 rounded;
+  }
+  
+  .isx-spin {
+    @apply animate-spin;
+  }
+  
+  /* Striped progress animation for indeterminate states */
+  @keyframes slide-stripe {
+    0% { background-position: 0 0; }
+    100% { background-position: 40px 0; }
+  }
+  
+  .animate-slide-stripe {
+    animation: slide-stripe 1s linear infinite;
+  }
+}
+
+@layer utilities {
+  /* ISX specific utilities */
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  /* Screen reader only */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  
+  /* Focus styles for accessibility */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+  }
+  
+  /* Iraqi Investor layout utilities */
+  .investor-container {
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+  
+  .investor-section {
+    @apply py-8 sm:py-12 lg:py-16;
+  }
+  
+  /* License page specific responsive utilities */
+  .license-grid {
+    @apply grid grid-cols-1 lg:grid-cols-5 gap-8;
+  }
+  
+  .license-main-column {
+    @apply lg:col-span-3 space-y-8;
+  }
+  
+  .license-sidebar-column {
+    @apply lg:col-span-2;
+  }
+  
+  /* Mobile-first responsive utilities */
+  .mobile-stack {
+    @apply flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4;
+  }
+  
+  .mobile-full-width {
+    @apply w-full sm:w-auto;
+  }
+  
+  /* Typography utilities */
+  .investor-heading-1 {
+    @apply text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl;
+  }
+  
+  .investor-heading-2 {
+    @apply text-2xl font-semibold tracking-tight sm:text-3xl;
+  }
+  
+  .investor-heading-3 {
+    @apply text-xl font-semibold tracking-tight sm:text-2xl;
+  }
+  
+  .investor-body {
+    @apply text-base leading-7 text-muted-foreground;
+  }
+  
+  .investor-caption {
+    @apply text-sm text-muted-foreground;
+  }
+  
+  /* Keep ISX classes for backward compatibility */
+  .isx-container { @apply investor-container; }
+  .isx-section { @apply investor-section; }
+  .isx-heading-1 { @apply investor-heading-1; }
+  .isx-heading-2 { @apply investor-heading-2; }
+  .isx-heading-3 { @apply investor-heading-3; }
+  .isx-body { @apply investor-body; }
+  .isx-caption { @apply investor-caption; }
+
+  /* Viewport-aware panel utilities */
+  .panel-viewport-aware {
+    max-width: var(--panel-max-width);
+    min-width: var(--panel-min-width);
+    max-height: var(--panel-max-height);
+    width: var(--panel-min-width);
+  }
+
+  .panel-viewport-centered {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: var(--panel-z);
+  }
+
+  .panel-viewport-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(4px);
+    z-index: var(--panel-backdrop-z);
+  }
+
+  .panel-content-scrollable {
+    max-height: var(--panel-content-height);
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .panel-safe-shadow {
+    box-shadow: var(--panel-shadow-safe);
+  }
+
+  .panel-strong-shadow {
+    box-shadow: var(--panel-shadow);
+  }
+
+  .panel-responsive-radius {
+    border-radius: var(--panel-border-radius);
+  }
+
+  /* Panel overflow handling with custom scrollbar */
+  .panel-scroll-custom {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+
+  .panel-scroll-custom::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .panel-scroll-custom::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .panel-scroll-custom::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+
+  .panel-scroll-custom::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* Zoom-safe touch targets */
+  .panel-touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Focus trap utilities */
+  .panel-focus-trap {
+    outline: none;
+  }
+
+  .panel-focus-trap:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+}

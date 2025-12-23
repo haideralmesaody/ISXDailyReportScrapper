@@ -1,0 +1,41 @@
+--- a/web/components/analysis/TickerList.tsx
++++ b/web/components/analysis/TickerList.tsx
+@@ -11,9 +11,41 @@ interface TickerListProps {
+   tickers: TickerData[]
+   selectedTicker: string | null
+   onTickerSelect: (ticker: string) => void
++  panelWidth?: number // Width of parent panel for responsive columns
+ }
+ 
+ type SortField = 'Ticker' | 'CompanyName' | 'LastPrice' | 'LastDate' | 'ChangePercent'
++
++// Column visibility breakpoints - Priority order: Ticker > Sparkline > Change% > Price > Date > Company
++const COLUMN_BREAKPOINTS = {
++  FULL: 280,        // All columns visible
++  HIDE_COMPANY: 240, // Hide company name first (Priority 6)
++  HIDE_DATE: 220,    // Hide date (Priority 5)
++  HIDE_PRICE: 200,   // Hide price (Priority 4)
++  MINIMAL: 180       // Only ticker (P1), change% (P3), sparkline (P2)
++}
++
++// Calculate visible columns based on panel width
++function getVisibleColumns(width: number) {
++  return {
++    ticker: true,      // Priority 1: ALWAYS visible
++    sparkline: true,   // Priority 2: ALWAYS visible
++    change: true,      // Priority 3: ALWAYS visible
++    price: width >= COLUMN_BREAKPOINTS.HIDE_PRICE,      // Priority 4
++    date: width >= COLUMN_BREAKPOINTS.HIDE_DATE,        // Priority 5
++    company: width >= COLUMN_BREAKPOINTS.HIDE_COMPANY   // Priority 6 (hide first)
++  }
++}
++
++// Get dynamic grid template based on visible columns
++function getGridTemplate(visibleCols: ReturnType<typeof getVisibleColumns>) {
++  if (visibleCols.company && visibleCols.price && visibleCols.date) {
++    return 'minmax(45px, 55px) minmax(90px, 1fr) minmax(55px, 70px) minmax(65px, 80px) minmax(55px, 70px) 35px'
++  }
++  if (visibleCols.price && visibleCols.date) { return 'minmax(50px, 60px) minmax(60px, 80px) minmax(70px, 90px) minmax(60px, 80px) 40px' }
++  if (visibleCols.price) { return 'minmax(55px, 70px) minmax(65px, 85px) minmax(65px, 85px) 45px' }
++  return 'minmax(60px, 80px) minmax(70px, 100px) 50px' // Minimal
++}
