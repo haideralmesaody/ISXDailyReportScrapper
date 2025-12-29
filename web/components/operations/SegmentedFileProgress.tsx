@@ -15,7 +15,7 @@ type FileStatus = 'pending' | 'processing' | 'completed' | 'failed'
 
 interface FileSegment {
   filename: string
-  index: number
+  index?: number
   status: FileStatus
   size_mb?: number
   progress?: number
@@ -24,18 +24,18 @@ interface FileSegment {
 }
 
 interface SegmentedFileProgressProps {
-  totalFiles?: number
-  processedFiles?: number
-  failedFiles?: number
-  currentFile?: string
-  fileStatuses?: FileSegment[]
-  processingSpeedMBps?: number
-  totalSizeMB?: number
-  processedSizeMB?: number
-  estimatedRemainingMs?: number
-  className?: string
-  showDetails?: boolean
-  showIndices?: boolean
+  totalFiles?: number | undefined
+  processedFiles?: number | undefined
+  failedFiles?: number | undefined
+  currentFile?: string | undefined
+  fileStatuses?: FileSegment[] | undefined
+  processingSpeedMBps?: number | undefined
+  totalSizeMB?: number | undefined
+  processedSizeMB?: number | undefined
+  estimatedRemainingMs?: number | undefined
+  className?: string | undefined
+  showDetails?: boolean | undefined
+  showIndices?: boolean | undefined
 }
 
 export function SegmentedFileProgress({
@@ -73,6 +73,20 @@ export function SegmentedFileProgress({
   }, [processedFiles, totalFiles])
 
   const statusCounts = useMemo(() => {
+    if (!segments.length) {
+      const total = typeof totalFiles === 'number' ? totalFiles : 0
+      const processed = typeof processedFiles === 'number' ? processedFiles : 0
+      const failed = typeof failedFiles === 'number' ? failedFiles : 0
+      const pending = Math.max(total - processed - failed, 0)
+
+      return {
+        completed: Math.max(processed, 0),
+        processing: currentFile ? 1 : 0,
+        failed: Math.max(failed, 0),
+        pending
+      }
+    }
+
     const counts = {
       completed: 0,
       processing: 0,

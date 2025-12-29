@@ -25,8 +25,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-import { SegmentedFileProgress } from './SegmentedFileProgress'
 import { ScrapingStageCard } from './ScrapingStageCard'
+import { ProcessingStageCard } from './ProcessingStageCard'
 
 import { IndicesStageCard } from './IndicesStageCard'
 import { LiquidityStageCard } from './LiquidityStageCard'
@@ -881,25 +881,12 @@ export function UnifiedOperationProgress({
                 <p className="text-xs">Scanning for new files to process</p>
               </div>
             ) : (
-              <SegmentedFileProgress
-                totalFiles={stepMetadata?.total_files || 0}
-                processedFiles={stepMetadata?.files_processed || 0}
-                failedFiles={stepMetadata?.failed_files || 0}
-                currentFile={stepMetadata?.current_file}
-                fileList={stepMetadata?.file_list as string[] | undefined}
-                fileStatuses={stepMetadata?.file_statuses as Array<{
-                  filename: string
-                  status: 'pending' | 'processing' | 'completed' | 'failed'
-                  size_mb?: number
-                  progress?: number
-                  error_message?: string
-                  processing_time_ms?: number
-                }> | undefined}
-                processingSpeedMBps={stepMetadata?.processing_speed_mbps}
-                totalSizeMB={stepMetadata?.total_size_mb}
-                processedSizeMB={stepMetadata?.processed_size_mb}
-                estimatedRemainingMs={stepMetadata?.estimated_remaining_ms}
-                showDetails={true}
+              <ProcessingStageCard
+                metadata={stepMetadata}
+                statusMessage={statusMessage}
+                isComplete={isComplete}
+                isFailed={isFailed}
+                variant="progress"
               />
             )
           ) : operationType === 'indices' ? (

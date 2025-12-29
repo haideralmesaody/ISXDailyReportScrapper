@@ -41,6 +41,15 @@ export function ProcessingStageCard({
   const processedFiles = toNumber(metadata?.files_processed);
   const failedFiles = toNumber(metadata?.failed_files) ?? 0;
   const currentFile = metadata?.current_file;
+
+  const totalOutputs =
+    toNumber(metadata?.total_outputs) ??
+    toNumber(metadata?.expected_outputs);
+
+  const generatedOutputs =
+    toNumber(metadata?.files_generated) ??
+    toNumber(metadata?.outputs_generated);
+
   const fileStatuses = metadata?.file_statuses as Array<{
     filename: string;
     status: "pending" | "processing" | "completed" | "failed";
@@ -94,7 +103,7 @@ export function ProcessingStageCard({
               <> with <span className="font-semibold text-foreground">{failedFiles}</span> failures.</>
             )}
           </div>
-          {totalOutputs !== undefined && totalOutputs > 0 && (
+          {totalOutputs !== undefined && totalOutputs > 0 && generatedOutputs !== undefined && (
             <div>
               Generated{" "}
               <span className="font-semibold text-foreground">

@@ -33,8 +33,10 @@ Based on my analysis of the scraping progress components, I will create a profes
 
 ### **Phase 5: Enhance WebSocket Metadata Structure**
 **Update processing stage to send:**
-complete -o bashdefault -o default -o nospace -F __git_wrap__gitk_main gitk
-complete -o bashdefault -o default -o nospace -F __git_wrap__git_main git
+- `total_files`, `files_processed`, `failed_files`, `current_file`
+- `file_statuses[]` (per-file status: pending/processing/completed/failed)
+- `processing_speed_mbps`, `total_size_mb`, `processed_size_mb`, `estimated_remaining_ms`
+- Output generation (optional): `total_outputs`, `files_generated`, `generation_progress_percent`, `generation_file_statuses[]`
 
 ### **Phase 6: Update UnifiedOperationProgress Component**
 - Add processing-specific phase logic
