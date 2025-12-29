@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { SegmentedFileProgress } from "@/components/operations/SegmentedFileProgress";
 import { cn } from "@/lib/utils";
+import type { PipelineContext } from "@/lib/operations/pipeline-context";
+import { calculateFileAggregateProgressPercent, formatProgressPercentLabel } from "@/lib/operations/progress-percent";
 import {
   CheckCircle2,
   AlertCircle,
@@ -14,6 +16,7 @@ import {
 
 interface ProcessingOperationTicketProps {
   operation: any;
+  pipelineContext?: PipelineContext | null;
 }
 
 const normalizeProgress = (value: any): number => {
@@ -50,6 +53,7 @@ const parseDate = (value: any): Date | null => {
 
 export function ProcessingOperationTicket({
   operation,
+  pipelineContext,
 }: ProcessingOperationTicketProps) {
   if (!operation) return null;
 
@@ -94,7 +98,7 @@ export function ProcessingOperationTicket({
       )
       : null;
 
-  const progress = normalizeProgress(
+  const progressFallback = normalizeProgress(
     computedProgress ??
     metadata.progress_percent ??
     processingStep?.progress ??
@@ -133,7 +137,7 @@ export function ProcessingOperationTicket({
               : index === filesGenerated
                 ? "processing"
                 : "pending",
-          progress: index < filesGenerated ? 100 : 0,
+          progress: index < filesGenerated ? 100 : undefined,
           index,
         }));
       }
@@ -144,9 +148,15 @@ export function ProcessingOperationTicket({
       filename:
         status.filename ||
         status.file_name ||
+        status.file ||
+        status.path ||
         status.FileName ||
         status.name ||
         `Output ${index + 1}`,
+      status: normalizeFileStatus(status.status ?? status.state ?? status.Status),
+      progress: normalizeFileProgress(
+        status.progress ?? status.progress_percent ?? status.percent ?? status.Progress,
+      ),
       index,
     }));
   }, [metadata.generation_file_statuses, metadata.file_statuses, totalOutputs, filesGenerated]);
@@ -186,7 +196,47 @@ export function ProcessingOperationTicket({
       : Loader2;
 
   const showSegments = totalFiles > 0;
-  const headerSubtitle = "Stage 2 of 6 • Depends on: Scraping";
+  const headerSubtitle = useMemo(() => {
+    const total = pipelineContext?.totalStages;
+    const num = pipelineContext?.stageNumberById?.processing;
+    const deps = pipelineContext?.dependsOnById?.processing ?? [];
+
+    const dependencyLabel =
+      deps.length > 0
+        ? `Depends on: ${deps
+          .map((dep) => pipelineContext?.stageById?.[dep]?.name || dep)
+          .join(", ")}`
+        : undefined;
+
+    const stageLabel =
+      typeof num === "number" && typeof total === "number" && total > 0
+        ? `Stage ${num} of ${total}`
+        : "Stage 2";
+
+    return dependencyLabel ? `${stageLabel} - ${dependencyLabel}` : stageLabel;
+  }, [pipelineContext]);
+
+  const normalizeFileStatus = (
+    value: any,
+  ): "pending" | "processing" | "completed" | "failed" => {
+    const raw = String(value ?? "").toLowerCase();
+    if (raw === "completed" || raw === "complete" || raw === "done" || raw === "success") {
+      return "completed";
+    }
+    if (raw === "failed" || raw === "error") return "failed";
+    if (raw === "processing" || raw === "in_progress" || raw === "running") {
+      return "processing";
+    }
+    return "pending";
+  };
+
+  const normalizeFileProgress = (value: any): number | undefined => {
+    if (value === null || value === undefined) return undefined;
+    const num = typeof value === "number" ? value : Number(value);
+    if (!Number.isFinite(num)) return undefined;
+    return Math.min(100, Math.max(0, num));
+  };
+
   const normalizedFileStatuses = useMemo(() => {
     const raw = metadata.file_statuses;
     if (!Array.isArray(raw)) {
@@ -203,7 +253,7 @@ export function ProcessingOperationTicket({
                 : index === filesProcessed
                   ? "processing"
                   : "pending",
-          progress: index < filesProcessed ? 100 : 0,
+          progress: index < filesProcessed ? 100 : undefined,
           index,
         }));
       }
@@ -214,12 +264,54 @@ export function ProcessingOperationTicket({
       filename:
         status.filename ||
         status.file_name ||
+        status.file ||
+        status.path ||
         status.FileName ||
         status.name ||
         `File ${index + 1}`,
+      status: normalizeFileStatus(status.status ?? status.state ?? status.Status),
+      progress: normalizeFileProgress(
+        status.progress ?? status.progress_percent ?? status.percent ?? status.Progress,
+      ),
       index,
     }));
-  }, [metadata.file_statuses, metadata.file_list, totalFiles, filesProcessed, failedFiles]);
+  }, [
+    metadata.file_statuses,
+    metadata.file_list,
+    totalFiles,
+    filesProcessed,
+    failedFiles,
+  ]);
+
+  const inputProgressPercent = useMemo(() => {
+    const aggregateFromStatuses = calculateFileAggregateProgressPercent({
+      totalFiles,
+      fileStatuses: normalizedFileStatuses,
+    });
+
+    if (typeof aggregateFromStatuses === "number") return aggregateFromStatuses;
+    return progressFallback;
+  }, [totalFiles, normalizedFileStatuses, progressFallback]);
+
+  const inputProgressLabel = useMemo(
+    () => formatProgressPercentLabel(inputProgressPercent),
+    [inputProgressPercent],
+  );
+
+  const outputProgressPercent = useMemo(() => {
+    const aggregateFromStatuses = calculateFileAggregateProgressPercent({
+      totalFiles: totalOutputs,
+      fileStatuses: generationStatuses,
+    });
+
+    if (typeof aggregateFromStatuses === "number") return aggregateFromStatuses;
+    return generationProgress;
+  }, [totalOutputs, generationStatuses, generationProgress]);
+
+  const outputProgressLabel = useMemo(
+    () => formatProgressPercentLabel(outputProgressPercent),
+    [outputProgressPercent],
+  );
 
   return (
     <Card className="overflow-hidden border-muted/60">
@@ -244,7 +336,7 @@ export function ProcessingOperationTicket({
           <div>
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>Input files</span>
-              <span className="font-semibold text-foreground">{progress}%</span>
+              <span className="font-semibold text-foreground">{inputProgressLabel}</span>
             </div>
             {showSegments ? (
               <SegmentedFileProgress
@@ -257,7 +349,7 @@ export function ProcessingOperationTicket({
                 showIndices={false}
               />
             ) : (
-              <Progress value={progress} className="mt-1 h-2" />
+              <Progress value={inputProgressPercent} className="mt-1 h-2" />
             )}
           </div>
 
@@ -266,7 +358,7 @@ export function ProcessingOperationTicket({
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>Outputs generated</span>
                 <span className="font-semibold text-foreground">
-                  {generationProgress}%
+                  {outputProgressLabel}
                 </span>
               </div>
               <SegmentedFileProgress

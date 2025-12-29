@@ -7,6 +7,7 @@ import { LiquidityStageCard } from "@/components/operations/LiquidityStageCard";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import StageTelemetryTicket from "@/components/operations/StageTelemetryTicket";
+import type { PipelineContext } from "@/lib/operations/pipeline-context";
 
 interface OperationTicketsProps {
   operations: any[];
@@ -14,6 +15,7 @@ interface OperationTicketsProps {
   resolveOperationType: (op: any) => string | undefined;
   getScrapingTelemetry?: (operationId: string) => any;
   onConfigureOperation: (type: any) => void;
+  pipelineContext?: PipelineContext | null;
 }
 
 export function OperationTickets({
@@ -22,6 +24,7 @@ export function OperationTickets({
   resolveOperationType,
   getScrapingTelemetry,
   onConfigureOperation,
+  pipelineContext,
 }: OperationTicketsProps) {
   // Memoize operations processing to prevent TDZ errors
   const processedOperations = useMemo(() => {
@@ -39,6 +42,13 @@ export function OperationTickets({
     });
   }, [operations, resolveOperationType, getScrapingTelemetry]);
 
+  const resolveStageLabel = useCallback((stageId: string, fallbackNumber?: number) => {
+    const total = pipelineContext?.totalStages || (Array.isArray(operationTypes) ? operationTypes.length : 0) || undefined;
+    const number = pipelineContext?.stageNumberById?.[stageId] ?? fallbackNumber;
+    if (!number || !total) return "Stage";
+    return `Stage ${number} of ${total}`;
+  }, [pipelineContext, operationTypes]);
+
   const renderIndicesTicket = useCallback((operation: any) => {
     const step = Array.isArray(operation.steps) ? operation.steps[0] : operation;
     const metadata = step?.metadata || operation?.metadata || {};
@@ -49,7 +59,7 @@ export function OperationTickets({
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Index Extraction</p>
-              <h3 className="text-lg font-semibold">Stage 3 of 6</h3>
+              <h3 className="text-lg font-semibold">{resolveStageLabel("indices", 3)}</h3>
             </div>
             <Badge variant={operation.status === "completed" ? "secondary" : operation.status === "failed" ? "destructive" : "default"}>
               {operation.status || "unknown"}
@@ -61,7 +71,7 @@ export function OperationTickets({
         </CardContent>
       </Card>
     );
-  }, []);
+  }, [resolveStageLabel]);
 
   const renderStageTicket = useCallback((operation: any, opType: string | undefined, scrapingData?: any) => {
     const stageId =
@@ -79,6 +89,7 @@ export function OperationTickets({
             key={`${operation.operation_id}-scraping-ticket`}
             telemetry={scrapingData ?? operation.metadata ?? {}}
             operation={operation}
+            pipelineContext={pipelineContext}
           />
         );
       case "processing":
@@ -86,6 +97,7 @@ export function OperationTickets({
           <ProcessingOperationTicket
             key={`${operation.operation_id}-processing-ticket`}
             operation={operation}
+            pipelineContext={pipelineContext}
           />
         );
       case "indices":
@@ -101,7 +113,7 @@ export function OperationTickets({
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Liquidity Analysis</p>
-                  <h3 className="text-lg font-semibold">Stage 4 of 6</h3>
+                  <h3 className="text-lg font-semibold">{resolveStageLabel("liquidity", 4)}</h3>
                 </div>
                 <Badge variant={operation.status === "completed" ? "secondary" : operation.status === "failed" ? "destructive" : "default"}>
                   {operation.status || "unknown"}
@@ -129,7 +141,7 @@ export function OperationTickets({
           />
         );
     }
-  }, [renderIndicesTicket]);
+  }, [renderIndicesTicket, pipelineContext, resolveStageLabel]);
 
   // Memoize next operation finder to prevent TDZ errors
   const findNextOperation = useCallback((type: string) => {

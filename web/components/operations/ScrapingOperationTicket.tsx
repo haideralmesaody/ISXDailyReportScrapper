@@ -6,6 +6,7 @@ import { SegmentedDayProgress } from "./SegmentedDayProgress";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import type { PipelineContext } from "@/lib/operations/pipeline-context";
 
 const toNumber = (value: any): number | undefined => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -19,11 +20,13 @@ const toNumber = (value: any): number | undefined => {
 interface ScrapingOperationTicketProps {
   telemetry?: ScrapingTelemetry;
   operation?: any;
+  pipelineContext?: PipelineContext | null;
 }
 
 export function ScrapingOperationTicket({
   telemetry,
   operation,
+  pipelineContext,
 }: ScrapingOperationTicketProps) {
   const telem = telemetry ?? {};
   const missingTelemetry = !telemetry || Object.keys(telem).length === 0;
@@ -77,6 +80,15 @@ export function ScrapingOperationTicket({
       ? `Data Collection: ${fromDate} to ${toDate}`
       : "Data Collection");
 
+  const stageLabel = (() => {
+    const total = pipelineContext?.totalStages;
+    const num = pipelineContext?.stageNumberById?.scraping;
+    if (typeof num === "number" && typeof total === "number" && total > 0) {
+      return `Stage ${num} of ${total}`;
+    }
+    return "Stage 1";
+  })();
+
   const metadataForSegments = {
     skipped_files: telem.skipped_files || [],
     stage_id: "scraping",
@@ -94,7 +106,7 @@ export function ScrapingOperationTicket({
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm text-muted-foreground">Stage 1 of 6</p>
+            <p className="text-sm text-muted-foreground">{stageLabel}</p>
             <h3 className="text-lg font-semibold">{title}</h3>
             {fromDate && toDate && (
               <p className="text-xs text-muted-foreground">

@@ -22,6 +22,7 @@ import { HelpButton } from "@/components/guide/HelpButton";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useOperationHistory } from "@/app/operations/useOperationHistory";
 import { OperationErrorBoundary, useErrorBoundary } from "@/components/operations/OperationErrorBoundary";
+import { buildPipelineContext } from "@/lib/operations/pipeline-context";
 
 function OperationSkeletonCard() {
   return (
@@ -118,6 +119,15 @@ export default function OperationsContent() {
     return (operationTypes || []).filter((t) => t.id !== "full_pipeline");
   }, [operationTypes]);
 
+  const pipelineContext = useMemo(() => {
+    try {
+      return buildPipelineContext(filteredOperationTypes as any);
+    } catch (error) {
+      console.warn("Pipeline context build failed:", error);
+      return null;
+    }
+  }, [filteredOperationTypes]);
+
   // Enhanced completion detection and state tracking
   useOperationHistory(operations, toast);
 
@@ -127,7 +137,7 @@ export default function OperationsContent() {
       try {
         setLoading(true);
         const types = await apiClient.getOperationTypes();
-        setOperationTypes(types);
+        setOperationTypes(types.filter((type: any) => !['analysis', 'indicators'].includes(type?.id)));
       } catch (err) {
         const errorMessage = err instanceof Error
           ? err.message
@@ -412,6 +422,7 @@ export default function OperationsContent() {
                     resolveOperationType={resolveOperationType}
                     getScrapingTelemetry={getScrapingTelemetry}
                     onConfigureOperation={handleConfigureOperation}
+                    pipelineContext={pipelineContext}
                   />
                 </OperationErrorBoundary>
               )}

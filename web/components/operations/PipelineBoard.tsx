@@ -9,6 +9,7 @@ import { IndicesStageCard } from "@/components/operations/IndicesStageCard";
 import { Card as ShadCard, CardContent as ShadCardContent, CardHeader as ShadCardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import StageTelemetryTicket from "@/components/operations/StageTelemetryTicket";
+import { buildPipelineContext } from "@/lib/operations/pipeline-context";
 
 interface PipelineBoardProps {
   operations: any[];
@@ -23,6 +24,31 @@ export function PipelineBoard({
   resolveOperationType,
   onConfigureOperation,
 }: PipelineBoardProps) {
+  const pipelineStageTypes = useMemo(() => {
+    return (operationTypes || []).filter((t) => t.id !== "full_pipeline");
+  }, [operationTypes]);
+
+  const pipelineContext = useMemo(() => {
+    try {
+      return buildPipelineContext(pipelineStageTypes as any);
+    } catch (error) {
+      console.warn("Pipeline context build failed:", error);
+      return null;
+    }
+  }, [pipelineStageTypes]);
+
+  const resolveStageLabel = useCallback(
+    (stageId: string, fallbackNumber: number) => {
+      const total = pipelineContext?.totalStages;
+      const num = pipelineContext?.stageNumberById?.[stageId];
+      if (typeof num === "number" && typeof total === "number" && total > 0) {
+        return `Stage ${num} of ${total}`;
+      }
+      return `Stage ${fallbackNumber}`;
+    },
+    [pipelineContext],
+  );
+
   const pipelineOperations = useMemo(() => {
     if (!operations) return [];
     try {
@@ -110,7 +136,7 @@ export function PipelineBoard({
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Index Extraction</p>
-              <h3 className="text-lg font-semibold">Stage 3 of 6</h3>
+              <h3 className="text-lg font-semibold">{resolveStageLabel("indices", 3)}</h3>
             </div>
             <Badge variant={operation.status === "completed" ? "secondary" : operation.status === "failed" ? "destructive" : "default"}>
               {operation.status || "unknown"}
@@ -122,7 +148,7 @@ export function PipelineBoard({
         </ShadCardContent>
       </ShadCard>
     );
-  }, []);
+  }, [resolveStageLabel]);
 
   const renderStageTicket = useCallback((operation: any) => {
     const step = Array.isArray(operation.steps) ? operation.steps[0] : operation;
@@ -141,6 +167,7 @@ export function PipelineBoard({
             key={`${operation.operation_id}-scraping-ticket`}
             telemetry={operation.metadata}
             operation={operation}
+            pipelineContext={pipelineContext}
           />
         );
       case "processing":
@@ -148,6 +175,7 @@ export function PipelineBoard({
           <ProcessingOperationTicket
             key={`${operation.operation_id}-processing-ticket`}
             operation={operation}
+            pipelineContext={pipelineContext}
           />
         );
       case "indices":
@@ -164,7 +192,7 @@ export function PipelineBoard({
           />
         );
     }
-  }, [renderIndicesTicket]);
+  }, [pipelineContext, renderIndicesTicket]);
 
   return (
     <div className="space-y-4">

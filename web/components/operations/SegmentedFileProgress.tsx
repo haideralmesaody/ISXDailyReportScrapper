@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Badge } from '@/components/ui/badge'
 import { Clock, CheckCircle, XCircle, AlertCircle, FileText } from 'lucide-react'
+import { calculateFileAggregateProgressPercent, formatProgressPercentLabel } from '@/lib/operations/progress-percent'
 
 type FileStatus = 'pending' | 'processing' | 'completed' | 'failed'
 
@@ -65,12 +66,21 @@ export function SegmentedFileProgress({
   }, [fileStatuses])
 
   const progress = useMemo(() => {
+    const aggregateFromStatuses = calculateFileAggregateProgressPercent({
+      totalFiles,
+      fileStatuses: segments,
+    })
+
+    if (typeof aggregateFromStatuses === 'number') {
+      return aggregateFromStatuses
+    }
+
     if (typeof processedFiles === 'number' && typeof totalFiles === 'number' && totalFiles > 0) {
       const pct = Math.round((processedFiles / totalFiles) * 100)
       return Math.min(Math.max(pct, 0), 100)
     }
     return undefined
-  }, [processedFiles, totalFiles])
+  }, [processedFiles, totalFiles, segments])
 
   const statusCounts = useMemo(() => {
     if (!segments.length) {
@@ -98,8 +108,12 @@ export function SegmentedFileProgress({
       counts[segment.status]++
     })
 
+    if (typeof totalFiles === 'number' && totalFiles > segments.length) {
+      counts.pending += totalFiles - segments.length
+    }
+
     return counts
-  }, [segments])
+  }, [segments, totalFiles, processedFiles, failedFiles, currentFile])
 
   const formatTimeRemaining = (ms: number) => {
     if (ms <= 0) return 'Unknown'
@@ -151,7 +165,7 @@ export function SegmentedFileProgress({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium">File Processing Progress</span>
-          <span className="text-lg font-bold">{progress !== undefined ? `${progress}%` : '—'}</span>
+          <span className="text-lg font-bold">{formatProgressPercentLabel(progress)}</span>
           {typeof totalFiles === 'number' && (
             <Badge variant="outline" className="text-xs">
               {statusCounts.completed}/{totalFiles} files

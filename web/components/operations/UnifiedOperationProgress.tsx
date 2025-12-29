@@ -165,7 +165,7 @@ interface UnifiedOperationProgressProps {
   }
   onNextOperation?: (type: string) => void
   pipelineMode?: boolean // When true, shows enhanced pipeline features
-  stageNumber?: number    // Stage number in pipeline (1-6)
+  stageNumber?: number    // Stage number in pipeline (1-based)
   totalStages?: number    // Total number of stages in pipeline
   showConnector?: boolean // Show visual connector to next stage
   completedPipeline?: boolean // New: Show as part of completed pipeline
@@ -179,7 +179,7 @@ export function UnifiedOperationProgress({
   onNextOperation,
   pipelineMode = false,
   stageNumber,
-  totalStages = 6,
+  totalStages = getTotalStages(),
   showConnector = false,
   completedPipeline = false, // New
   pipelineMetadata = null,   // New
