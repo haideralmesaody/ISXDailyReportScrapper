@@ -40,22 +40,6 @@ export const STAGE_DEFINITIONS = {
     icon: 'Zap',
     order: 4
   },
-  indicators: {
-    name: 'Indicators Pre-calculation',
-    description: 'Pre-compute indicators for SSOT',
-    category: 'calculation',
-    color: 'pink',
-    icon: 'Activity',
-    order: 6
-  },
-  analysis: {
-    name: 'Technical Analysis',
-    description: 'Comprehensive technical and market analysis',
-    category: 'analysis',
-    color: 'indigo',
-    icon: 'TrendingUp',
-    order: 5
-  },
   full_pipeline: {
     name: 'Full Pipeline',
     description: 'Run all stages in sequence',
@@ -73,8 +57,6 @@ export const OPERATION_TYPE_TO_STAGE: Record<string, keyof typeof STAGE_DEFINITI
   'processing': 'processing',
   'indices': 'indices',
   'liquidity': 'liquidity',
-  'analysis': 'analysis',
-  'indicators': 'indicators',
   'full_pipeline': 'full_pipeline'
 }
 
@@ -113,19 +95,6 @@ export const STAGE_PATTERNS = {
     /liquidity.*metrics/i,
     /market.*liquidity/i
   ],
-  analysis: [
-    /analysis/i,
-    /technical/i,
-    /technical.*analysis/i,
-    /market.*analysis/i
-  ],
-  indicators: [
-    /indicators/i,
-    /indicator/i,
-    /technical.*indicators/i,
-    /ssot/i,
-    /pre.*compute/i
-  ],
   full_pipeline: [
     /pipeline/i,
     /full.*pipeline/i,
@@ -160,18 +129,6 @@ export const STAGE_METRICS = {
     primaryLabel: 'Analysis Files',
     secondaryMetric: 'companies_analyzed',
     secondaryLabel: 'Companies Analyzed'
-  },
-  analysis: {
-    primaryMetric: 'analysis_complete',
-    primaryLabel: 'Analysis Complete',
-    secondaryMetric: 'insights_generated',
-    secondaryLabel: 'Insights Generated'
-  },
-  indicators: {
-    primaryMetric: 'indicators_calculated',
-    primaryLabel: 'Indicators Calculated',
-    secondaryMetric: 'tickers_processed',
-    secondaryLabel: 'Tickers Processed'
   },
   full_pipeline: {
     primaryMetric: 'stages_completed',

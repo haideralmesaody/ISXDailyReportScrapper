@@ -126,9 +126,9 @@ export function useGuideProgress() {
 
   /**
    * Calculate overall progress percentage
-   * Default total: 30 sections (9 main sections - 1 parent "indicators" + 22 individual indicators)
+   * Default total: 8 sections (current guide navigation)
    */
-  const getProgressPercentage = useCallback((totalSections: number = 30) => {
+  const getProgressPercentage = useCallback((totalSections: number = 8) => {
     return Math.round((progress.sectionsCompleted.length / totalSections) * 100)
   }, [progress.sectionsCompleted])
 

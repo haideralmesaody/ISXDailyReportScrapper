@@ -283,7 +283,7 @@ export interface DerivedFields {
 // Base interface for all stage metrics
 export interface StageMetricsInterface {
   // Type discriminator for runtime type checking
-  type: 'scraping' | 'processing' | 'indices' | 'liquidity' | 'indicators'
+  type: 'scraping' | 'processing' | 'indices' | 'liquidity'
   // Common validation method signature
   validate?(): ValidationError[]
   // Summary method for UI display
@@ -356,22 +356,6 @@ export interface LiquidityStageMetrics extends StageMetricsInterface {
   liquid_count: number
 }
 
-// Indicators stage metrics for technical indicator pre-calculation
-export interface IndicatorsStageMetrics extends StageMetricsInterface {
-  type: 'indicators'
-  tickers_processed: number
-  indicators_calculated: number
-  indicator_types: string[]
-  calculation_time: string // ISO duration format
-  data_points_generated: number
-  cache_hit_rate: number // 0-100
-  cache_size: number // bytes
-  ssot_file_size: number // bytes
-  ssot_records: number
-  indicators_by_type: Record<string, number>
-  processing_speed: number // indicators per second
-  memory_usage: number // bytes
-}
 
 // Calendar segment for Iraq market trading days
 export interface CalendarSegment {
@@ -402,7 +386,6 @@ export type StageMetrics =
   | ProcessingStageMetrics
   | IndicesStageMetrics
   | LiquidityStageMetrics
-  | IndicatorsStageMetrics
 
 // Validation error interface
 export interface ValidationError {

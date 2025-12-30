@@ -53,7 +53,7 @@ export function getPipelineStageOrder(): StageId[] {
   try {
     if (!STAGE_DEFINITIONS) {
       console.warn('STAGE_DEFINITIONS is undefined, returning default order')
-      return ['scraping', 'processing', 'indices', 'liquidity', 'analysis', 'indicators']
+      return ['scraping', 'processing', 'indices', 'liquidity']
     }
 
     const order = Object.entries(STAGE_DEFINITIONS)
@@ -61,10 +61,10 @@ export function getPipelineStageOrder(): StageId[] {
       .map(([key]) => key as StageId)
       .filter(id => !['full_pipeline'].includes(id)) // Exclude wrapper operations
 
-    return order.length > 0 ? order : ['scraping', 'processing', 'indices', 'liquidity', 'analysis', 'indicators']
+    return order.length > 0 ? order : ['scraping', 'processing', 'indices', 'liquidity']
   } catch (error) {
     console.warn('getPipelineStageOrder failed, returning default order:', error)
-    return ['scraping', 'processing', 'indices', 'liquidity', 'analysis', 'indicators']
+    return ['scraping', 'processing', 'indices', 'liquidity']
   }
 }
 
@@ -136,8 +136,6 @@ export function extractStageFileCount(operation: any, stageId: StageId): number 
       processing: ['files_processed', 'files_converted', 'total_files'],
       indices: ['indices_extracted', 'files_created'],
       liquidity: ['analysis_files', 'files_generated'],
-      analysis: ['analysis_files', 'reports_generated'],
-      indicators: ['indicators_calculated', 'files_created'],
       full_pipeline: ['files_processed', 'total_files']
     }
 
@@ -170,8 +168,6 @@ export function extractStageFileCount(operation: any, stageId: StageId): number 
       processing: 15,      // Market data processing and CSV conversion
       indices: 1,          // Single index file
       liquidity: 1,        // Single liquidity report
-      indicators: 1,       // Indicators file
-      analysis: 1,         // Analysis report
       full_pipeline: 30    // Combined operations
     }
 
@@ -184,8 +180,6 @@ export function extractStageFileCount(operation: any, stageId: StageId): number 
       processing: 15,
       indices: 1,
       liquidity: 1,
-      analysis: 1,
-      indicators: 1,
       full_pipeline: 30
     }
     return safeDefaults[stageId] || 1

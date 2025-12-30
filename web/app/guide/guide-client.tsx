@@ -10,7 +10,6 @@ import { PipelineSection } from './sections/PipelineSection'
 import { ReportsSection } from './sections/ReportsSection'
 import { LiquidityCalculationsSection } from './sections/LiquidityCalculationsSection'
 import { MarketOverviewSection } from './sections/MarketOverviewSection'
-import { ChartsSection } from './sections/ChartsSection'
 import { StrategySection } from './sections/StrategySection'
 import { QuickReferenceSection } from './sections/QuickReferenceSection'
 import { useGuideProgress } from '@/lib/guide/progress'
@@ -89,6 +88,15 @@ export default function GuideClient() {
     router.push(`/guide?section=${sectionId}`, { scroll: false })
   }, [router])
 
+  // Migrate legacy section IDs (removed sections)
+  useEffect(() => {
+    if (!isHydrated) return
+    if (currentSection === 'charts') {
+      setCurrentSection('strategy')
+      router.replace('/guide?section=strategy', { scroll: false })
+    }
+  }, [currentSection, isHydrated, router])
+
   // Navigation handlers
   const handleNext = useCallback(() => {
     const nextSection = getNextSection(currentSection)
@@ -133,6 +141,11 @@ export default function GuideClient() {
   const section = getSectionById(currentSection)
   const nextSection = getNextSection(currentSection)
   const previousSection = getPreviousSection(currentSection)
+  const optionalSectionProps = {
+    ...(section?.estimatedMinutes !== undefined ? { estimatedMinutes: section.estimatedMinutes } : {}),
+    ...(nextSection ? { onNext: handleNext, nextSectionTitle: nextSection.title } : {}),
+    ...(previousSection ? { onPrevious: handlePrevious, previousSectionTitle: previousSection.title } : {}),
+  }
 
   // Show loading state while hydrating (prevents hydration mismatch)
   if (!isHydrated) {
@@ -187,9 +200,6 @@ export default function GuideClient() {
 
       case 'market-overview':
         return <MarketOverviewSection />
-
-      case 'charts':
-        return <ChartsSection />
 
       case 'strategy':
         return <StrategySection />
@@ -252,15 +262,11 @@ export default function GuideClient() {
             id={section.id}
             title={section.title}
             description={section.description}
-            estimatedMinutes={section.estimatedMinutes || undefined}
             isCompleted={progress.sectionsCompleted.includes(section.id)}
             isBookmarked={progress.bookmarks.includes(section.id)}
             onComplete={handleComplete}
             onBookmark={handleBookmark}
-            onNext={nextSection ? handleNext : undefined}
-            onPrevious={previousSection ? handlePrevious : undefined}
-            nextSectionTitle={nextSection?.title}
-            previousSectionTitle={previousSection?.title}
+            {...optionalSectionProps}
           >
             {renderSectionContent()}
           </GuideSection>

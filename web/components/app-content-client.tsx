@@ -12,7 +12,6 @@ import {
   ShieldCheck,
   Clock,
   TrendingUp,
-  ChartCandlestick,
   Target,
   LayoutGrid,
   BookOpen,
@@ -284,13 +283,6 @@ const navigationItems = [
     href: '/liquidity',
     icon: BarChart3,
     description: 'ISX Hybrid Liquidity Metrics and scoring',
-    requiresLicense: true
-  },
-  {
-    name: 'Analysis',
-    href: '/analysis',
-    icon: ChartCandlestick,
-    description: 'Technical analysis with advanced charting and indicators',
     requiresLicense: true
   },
   {

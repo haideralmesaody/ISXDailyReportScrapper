@@ -678,9 +678,9 @@ strategy.exportChart('equity_curve.png')`}
           <h2 className="text-xl font-semibold">Next Steps</h2>
           <div className="flex flex-wrap gap-3">
             <Button variant="outline" asChild>
-              <a href="/guide?section=indicators">
+              <a href="/guide?section=market-overview">
                 <BookOpen className="h-4 w-4 mr-2" />
-                Master Indicators First
+                Explore Market Overview
               </a>
             </Button>
             <Button variant="outline" asChild>
@@ -689,9 +689,9 @@ strategy.exportChart('equity_curve.png')`}
               </a>
             </Button>
             <Button variant="outline" asChild>
-              <a href="/analysis">
+              <a href="/strategy">
                 <TrendingUp className="h-4 w-4 mr-2" />
-                Practice Manual Analysis
+                Run RSI Strategy
               </a>
             </Button>
           </div>

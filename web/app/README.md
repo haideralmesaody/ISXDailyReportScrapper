@@ -95,7 +95,6 @@ All pages use Shadcn/ui components:
 Routes requiring valid license:
 - `/dashboard` - Main application interface
 - `/operations` - Data processing
-- `/analysis` - Data analysis (future)
 - `/reports` - Report generation (future)
 
 ### Public Routes

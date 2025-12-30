@@ -5,7 +5,6 @@ import {
   Settings,
   FileText,
   LayoutGrid,
-  CandlestickChart,
   Target,
   BookMarked
 } from 'lucide-react'
@@ -77,22 +76,12 @@ export const guideSections: GuideSection[] = [
     prerequisites: ['reports']
   },
   {
-    id: 'charts',
-    title: 'Charts & Analysis',
-    icon: CandlestickChart,
-    category: 'features',
-    order: 7,
-    description: 'TradingView-style charting with indicators and drawing tools',
-    estimatedMinutes: 20,
-    prerequisites: ['reports']
-  },
-  {
     id: 'strategy',
     title: 'Trading Strategies',
     icon: Target,
     category: 'advanced',
-    order: 8,
-    description: 'Automated strategy system guide',
+    order: 7,
+    description: 'Batch strategies and signal generation (real ISX data)',
     estimatedMinutes: 25,
     prerequisites: ['reports']
   },
@@ -101,7 +90,7 @@ export const guideSections: GuideSection[] = [
     title: 'Quick Reference',
     icon: BookMarked,
     category: 'reference',
-    order: 9,
+    order: 8,
     description: 'Keyboard shortcuts and cheat sheet',
     estimatedMinutes: 5,
     prerequisites: []

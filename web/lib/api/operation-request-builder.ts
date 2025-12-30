@@ -167,20 +167,6 @@ export const OPERATIONS_CONFIG = {
     description: "Calculate ISX Hybrid Liquidity Metrics and scoring",
     icon: "Zap"
   },
-  analysis: {
-    requiresDates: false,
-    quickStart: true,
-    name: "Technical Analysis",
-    description: "Perform technical analysis and generate insights",
-    icon: "BarChart3"
-  },
-  indicators: {
-    requiresDates: false,
-    quickStart: true,
-    name: "Indicator Calculation",
-    description: "Calculate technical indicators for all tickers",
-    icon: "TrendingUp"
-  },
   full_pipeline: {
     requiresDates: true,
     quickStart: false,

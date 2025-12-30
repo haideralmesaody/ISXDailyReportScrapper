@@ -229,11 +229,11 @@ export default function MarketOverviewClient() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isHydrated, selectedDate, tradingDates])
 
-  // Handle ticker click - navigate to analysis page
+  // Handle ticker click - navigate to strategy page
   // Using window.location.href for static export compatibility (router.push doesn't work in static mode)
   const handleTickerClick = useCallback((ticker: TickerData) => {
     console.log('[MarketOverview] Ticker clicked:', ticker.symbol)
-    window.location.href = `/analysis?ticker=${ticker.symbol}`
+    window.location.href = `/strategy?ticker=${ticker.symbol}`
   }, [])
 
   if (!isHydrated) {
