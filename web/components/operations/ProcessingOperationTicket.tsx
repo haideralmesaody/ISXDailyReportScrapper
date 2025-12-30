@@ -51,6 +51,27 @@ const parseDate = (value: any): Date | null => {
   return null;
 };
 
+const normalizeFileStatus = (
+  value: any,
+): "pending" | "processing" | "completed" | "failed" => {
+  const raw = String(value ?? "").toLowerCase();
+  if (raw === "completed" || raw === "complete" || raw === "done" || raw === "success") {
+    return "completed";
+  }
+  if (raw === "failed" || raw === "error") return "failed";
+  if (raw === "processing" || raw === "in_progress" || raw === "running") {
+    return "processing";
+  }
+  return "pending";
+};
+
+const normalizeFileProgress = (value: any): number | undefined => {
+  if (value === null || value === undefined) return undefined;
+  const num = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(num)) return undefined;
+  return Math.min(100, Math.max(0, num));
+};
+
 export function ProcessingOperationTicket({
   operation,
   pipelineContext,
@@ -215,27 +236,6 @@ export function ProcessingOperationTicket({
 
     return dependencyLabel ? `${stageLabel} - ${dependencyLabel}` : stageLabel;
   }, [pipelineContext]);
-
-  const normalizeFileStatus = (
-    value: any,
-  ): "pending" | "processing" | "completed" | "failed" => {
-    const raw = String(value ?? "").toLowerCase();
-    if (raw === "completed" || raw === "complete" || raw === "done" || raw === "success") {
-      return "completed";
-    }
-    if (raw === "failed" || raw === "error") return "failed";
-    if (raw === "processing" || raw === "in_progress" || raw === "running") {
-      return "processing";
-    }
-    return "pending";
-  };
-
-  const normalizeFileProgress = (value: any): number | undefined => {
-    if (value === null || value === undefined) return undefined;
-    const num = typeof value === "number" ? value : Number(value);
-    if (!Number.isFinite(num)) return undefined;
-    return Math.min(100, Math.max(0, num));
-  };
 
   const normalizedFileStatuses = useMemo(() => {
     const raw = metadata.file_statuses;
