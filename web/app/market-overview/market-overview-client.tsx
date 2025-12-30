@@ -8,8 +8,6 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { MarketTreemap } from '@/components/market/MarketTreemap'
 import { MarketSummary } from '@/components/market/MarketSummary'
@@ -17,7 +15,7 @@ import { IndexChartsPanel } from '@/components/market/IndexChartsPanel'
 import { TreemapLegend } from '@/components/market/TreemapLegend'
 import { TradingSessionCard } from '@/components/market/TradingSessionCard'
 import { useHydration } from '@/lib/hooks'
-import { Loader2, Calendar, AlertCircle } from 'lucide-react'
+import { Loader2, AlertCircle } from 'lucide-react'
 import { getNextTradingDate, getPrevTradingDate } from '@/lib/utils/date-helpers'
 import { TickerData } from '@/types/market'
 import { useToast } from '@/lib/hooks/use-toast'
@@ -46,16 +44,6 @@ async function fetchDailyMarketData(date: string): Promise<TickerData[]> {
   }))
 }
 
-// Get today's date in YYYY-MM-DD format (hydration-safe)
-function getTodayDate(): string {
-  // Only run on client side to prevent hydration mismatches
-  if (typeof window === 'undefined') {
-    return '2025-01-01' // Server-side fallback
-  }
-  const today = new Date()
-  return today.toISOString().split('T')[0]
-}
-
 export default function MarketOverviewClient() {
   const isHydrated = useHydration()
   const { toast } = useToast()
@@ -78,11 +66,15 @@ export default function MarketOverviewClient() {
         if (!response.ok) throw new Error('Failed to fetch trading dates')
 
         const result = await response.json()
-        if (result.status === 'success' && result.dates && result.dates.length > 0) {
-          setTradingDates(result.dates)
-          // Set default to latest (last) date
-          const latestDate = result.dates[result.dates.length - 1]
-          setSelectedDate(latestDate)
+        if (result.status === 'success' && Array.isArray(result.dates)) {
+          const dates = result.dates.filter((d: unknown): d is string => typeof d === 'string')
+          if (dates.length > 0) {
+            setTradingDates(dates)
+            const latestDate = dates.at(-1)
+            if (latestDate) {
+              setSelectedDate(latestDate)
+            }
+          }
         }
       } catch (err) {
         console.error('Error fetching trading dates:', err)
@@ -179,7 +171,10 @@ export default function MarketOverviewClient() {
 
     // Watch for future changes
     const resizeObserver = new ResizeObserver(entries => {
-      const { width: containerWidth } = entries[0].contentRect
+      const entry = entries[0]
+      if (!entry) return
+
+      const { width: containerWidth } = entry.contentRect
       const availableWidth = Math.floor(containerWidth - CONTAINER_PADDING)
       const height = Math.max(500, Math.min(availableWidth * 0.5, 800))
 
@@ -257,6 +252,8 @@ export default function MarketOverviewClient() {
     unchanged: tickerData.filter(t => t.changePercent === 0).length
   }
 
+  const latestTradingDate = tradingDates.at(-1)
+
   return (
     <div className="min-h-screen p-8 space-y-8 max-w-[1920px] mx-auto">
       <div>
@@ -317,10 +314,15 @@ export default function MarketOverviewClient() {
               </p>
               {tradingDates.length > 0 && (
                 <Button
-                  onClick={() => setSelectedDate(tradingDates[tradingDates.length - 1])}
+                  disabled={!latestTradingDate}
+                  onClick={() => {
+                    if (latestTradingDate) {
+                      setSelectedDate(latestTradingDate)
+                    }
+                  }}
                   variant="outline"
                 >
-                  View Latest Trading Day ({tradingDates[tradingDates.length - 1]})
+                  View Latest Trading Day ({latestTradingDate})
                 </Button>
               )}
             </div>

@@ -9,7 +9,6 @@ import { useState } from 'react'
 import { GuideSection } from '../components/GuideSection'
 import { CodeExample } from '../components/CodeExample'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -17,8 +16,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   BookMarked,
   Search,
-  Copy,
-  Check,
   Info,
   AlertTriangle,
   Keyboard,
@@ -32,14 +29,6 @@ import {
 
 export function QuickReferenceSection() {
   const [searchQuery, setSearchQuery] = useState('')
-  const [copiedId, setCopiedId] = useState<string | null>(null)
-
-  // Copy to clipboard helper
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text)
-    setCopiedId(id)
-    setTimeout(() => setCopiedId(null), 2000)
-  }
 
   return (
     <GuideSection
@@ -57,8 +46,8 @@ export function QuickReferenceSection() {
             <div className="flex-1">
               <h2 className="text-2xl font-semibold mb-2">Your ISX Pulse Cheat Sheet</h2>
               <p className="text-muted-foreground leading-relaxed">
-                This section provides quick access to keyboard shortcuts, indicator settings, common workflows,
-                and troubleshooting guides. Use the search bar below to filter content, or browse by category.
+                This section provides quick access to keyboard shortcuts, common workflows, and troubleshooting
+                guides. Use the search bar below to filter content, or browse by category.
               </p>
             </div>
           </div>
@@ -69,7 +58,7 @@ export function QuickReferenceSection() {
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search shortcuts, indicators, workflows, troubleshooting..."
+              placeholder="Search shortcuts, workflows, troubleshooting..."
               className="pl-10"
             />
           </div>
@@ -126,7 +115,7 @@ export function QuickReferenceSection() {
                         {[
                           { key: 'G then D', action: 'Go to Dashboard' },
                           { key: 'G then M', action: 'Go to Market Overview' },
-                          { key: 'G then A', action: 'Go to Analysis' },
+                          { key: 'G then S', action: 'Go to Strategy' },
                           { key: 'G then O', action: 'Go to Operations' },
                           { key: 'G then R', action: 'Go to Reports' },
                           { key: 'G then L', action: 'Go to Liquidity' },

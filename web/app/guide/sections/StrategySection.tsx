@@ -89,7 +89,7 @@ export function StrategySection() {
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <span className="text-blue-500 mt-0.5">•</span>
-                    <span><strong>Entry Conditions</strong>: Combine indicators (RSI &lt; 30 AND SMA50 &gt; SMA200)</span>
+                    <span><strong>Entry Conditions</strong>: Define signals (e.g., RSI(14) crosses below 30)</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-blue-500 mt-0.5">•</span>
@@ -130,7 +130,7 @@ export function StrategySection() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-green-500 mt-0.5">•</span>
-                    <span><strong>Custom Indicators</strong>: Write your own technical indicators</span>
+                    <span><strong>Custom Signals</strong>: Write your own strategy rules</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-green-500 mt-0.5">•</span>
@@ -237,17 +237,17 @@ export function StrategySection() {
           </p>
 
           <div className="space-y-3">
-            {/* Master Technical Indicators */}
+            {/* Prepare Clean Data */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <CheckCircle2 className="h-5 w-5 text-green-500" />
-                  1. Master Technical Indicators
+                  1. Prepare Clean Data
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Strategies rely heavily on indicator signals. Complete the <a href="/guide?section=indicators" className="text-blue-600 dark:text-blue-400 hover:underline">Indicators section</a> to understand:
+                  Strategies rely on clean, consistent historical data. Complete the <a href="/guide?section=pipeline" className="text-blue-600 dark:text-blue-400 hover:underline">Pipeline section</a> to understand inputs and outputs:
                 </p>
                 <ul className="space-y-2 text-sm text-muted-foreground ml-4">
                   <li>• <strong>RSI</strong>: When is it truly oversold vs false signal?</li>
@@ -257,9 +257,9 @@ export function StrategySection() {
                   <li>• <strong>Volume</strong>: Confirming price moves with volume spikes</li>
                 </ul>
                 <Button size="sm" variant="outline" asChild>
-                  <a href="/guide?section=indicators">
+                  <a href="/guide?section=pipeline">
                     <BookOpen className="h-4 w-4 mr-2" />
-                    Go to Indicators Section
+                    Go to Pipeline Section
                   </a>
                 </Button>
               </CardContent>
@@ -275,10 +275,10 @@ export function StrategySection() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Many successful strategies combine indicators with chart patterns:
+                  Many successful strategies combine signals with selection and risk filters:
                 </p>
                 <ul className="space-y-2 text-sm text-muted-foreground ml-4">
-                  <li>• <strong>Support & Resistance</strong>: See <a href="/guide?section=indicator-support-resistance" className="text-blue-600 dark:text-blue-400 hover:underline">Support/Resistance guide</a></li>
+                  <li>• <strong>Liquidity Filters</strong>: Start with the <a href="/guide?section=liquidity" className="text-blue-600 dark:text-blue-400 hover:underline">Liquidity guide</a> to focus on tradable tickers</li>
                   <li>• <strong>Trendlines</strong>: Drawing and respecting trend channels</li>
                   <li>• <strong>Breakouts</strong>: Recognizing valid vs false breakouts (volume confirmation)</li>
                   <li>• <strong>Candlestick Patterns</strong>: Doji, hammer, engulfing (future guide section)</li>
@@ -647,11 +647,11 @@ strategy.exportChart('equity_curve.png')`}
             <div className="space-y-2">
               <label className="flex items-start gap-3">
                 <input type="checkbox" className="mt-1" />
-                <span className="text-sm">Complete the <a href="/guide?section=indicators" className="text-blue-600 dark:text-blue-400 hover:underline">Indicators section</a> (all 22 indicators)</span>
+                <span className="text-sm">Complete the <a href="/guide?section=pipeline" className="text-blue-600 dark:text-blue-400 hover:underline">Pipeline section</a> and run the data flow once end-to-end</span>
               </label>
               <label className="flex items-start gap-3">
                 <input type="checkbox" className="mt-1" />
-                <span className="text-sm">Practice analyzing 10+ ISX stocks manually using indicators</span>
+                <span className="text-sm">Practice reviewing 10+ ISX tickers (market overview + liquidity) and note behavior</span>
               </label>
               <label className="flex items-start gap-3">
                 <input type="checkbox" className="mt-1" />

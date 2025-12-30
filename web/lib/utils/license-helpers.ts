@@ -203,7 +203,7 @@ export function broadcastLicenseStatus(status: string, expiryDate?: string): voi
 
     const eventData: LicenseStatusEvent = {
       status,
-      expiryDate,
+      ...(expiryDate !== undefined ? { expiryDate } : {}),
       timestamp: Date.now()
     }
 
@@ -231,14 +231,6 @@ export function broadcastLicenseStatus(status: string, expiryDate?: string): voi
       } catch (basicCustomEventError) {
         // Fallback 2: Create a simple event-like object
         console.warn('Basic CustomEvent failed, using generic fallback:', basicCustomEventError)
-
-        const fallbackEvent = {
-          type: LICENSE_STATUS_UPDATED,
-          detail: eventData,
-          bubbles: true,
-          cancelable: false,
-          timestamp: Date.now()
-        }
 
         // Try to dispatch as a generic event
         try {

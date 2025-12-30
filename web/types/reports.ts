@@ -3,19 +3,8 @@
  * Following CLAUDE.md TypeScript strict mode standards
  */
 
-// Import types from schemas
-import type {
-  ReportType,
-  ReportMetadata,
-  ReportFile,
-  CSVData,
-  ParsedCSVData,
-  ReportApiResponse,
-  ReportDownloadOptions,
-  ReportError,
-  GetReportsParams,
-  DownloadReportParams
-} from '@/lib/schemas/reports'
+// Import only what this module uses directly
+import type { ParsedCSVData, ReportMetadata, ReportType } from '@/lib/schemas/reports'
 
 // Re-export for convenience
 export type {

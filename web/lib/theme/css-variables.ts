@@ -7,7 +7,7 @@
  * including Highcharts-specific variables.
  */
 
-import { lightThemeColors, darkThemeColors, getThemeColors, type ThemeColors, type Theme } from './colors'
+import type { ThemeColors, Theme } from './colors'
 
 /**
  * CSS Variable mapping for Highcharts components

@@ -59,12 +59,12 @@ export default function HomePage() {
 
     const checkLicenseAndRedirect = async () => {
       console.log('[ROOT PAGE] Starting license check...')
-      try {
-        // Get deep link intent if any
-        const params = new URLSearchParams(window.location.search)
-        const returnTo = params.get('returnTo')
-        console.log('[ROOT PAGE] Return path:', returnTo || 'none')
+      // Get deep link intent if any (must be available for retry/fallbacks)
+      const params = new URLSearchParams(window.location.search)
+      const returnTo = params.get('returnTo')
+      console.log('[ROOT PAGE] Return path:', returnTo || 'none')
 
+      try {
         // Check license status
         console.log('[ROOT PAGE] Calling apiClient.getLicenseStatus()...')
         const status = await apiClient.getLicenseStatus()

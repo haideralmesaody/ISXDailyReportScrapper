@@ -16,7 +16,21 @@ export const OperationRequestSchema = z.object({
   parameters: z.record(z.any()).optional()
 })
 
-export type OperationRequest = z.infer<typeof OperationRequestSchema>
+type OperationRequestSchemaOutput = z.infer<typeof OperationRequestSchema>
+
+export type OperationRequest = {
+  operation: OperationRequestSchemaOutput['operation']
+  stage_id?: string
+  parameters?: Record<string, any>
+}
+
+function normalizeOperationRequest(request: OperationRequestSchemaOutput): OperationRequest {
+  return {
+    operation: request.operation,
+    ...(request.stage_id !== undefined ? { stage_id: request.stage_id } : {}),
+    ...(request.parameters !== undefined ? { parameters: request.parameters } : {})
+  }
+}
 
 /**
  * Builder class for creating properly structured operation requests
@@ -46,7 +60,7 @@ export class OperationRequestBuilder {
     }
 
     // Validate before returning
-    return OperationRequestSchema.parse(request)
+    return normalizeOperationRequest(OperationRequestSchema.parse(request))
   }
 
   /**
@@ -65,7 +79,7 @@ export class OperationRequestBuilder {
       }
     }
 
-    return OperationRequestSchema.parse(request)
+    return normalizeOperationRequest(OperationRequestSchema.parse(request))
   }
   
   /**
@@ -95,7 +109,7 @@ export class OperationRequestBuilder {
   static buildFromParams(params: any): OperationRequest {
     // If this looks like new format
     if (params.operation) {
-      return OperationRequestSchema.parse(params)
+      return normalizeOperationRequest(OperationRequestSchema.parse(params))
     }
 
     // Legacy format - convert to new format
@@ -118,7 +132,7 @@ export class OperationRequestBuilder {
    * Validate a request structure without building
    */
   static validate(request: unknown): OperationRequest {
-    return OperationRequestSchema.parse(request)
+    return normalizeOperationRequest(OperationRequestSchema.parse(request))
   }
 
   /**

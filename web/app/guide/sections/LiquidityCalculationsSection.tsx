@@ -14,7 +14,6 @@ import {
   Calendar,
   Info,
   TrendingDown,
-  ArrowRight,
   Target,
   Settings,
   Zap,

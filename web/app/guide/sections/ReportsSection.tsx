@@ -13,7 +13,6 @@ import {
   AlertCircle,
   ChevronRight,
   FileSpreadsheet,
-  Cloud,
   Database,
   Eye
 } from 'lucide-react'

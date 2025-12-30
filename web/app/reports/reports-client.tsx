@@ -8,9 +8,8 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Loader2, FileText, Activity, RefreshCw } from 'lucide-react'
+import { ArrowLeft, FileText, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { NoDataState, DataLoadingState } from '@/components/ui'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useHydration } from '@/lib/hooks'
@@ -33,8 +32,7 @@ import type {
 import { 
   trackNoDataResolved, 
   trackRetryAttempt, 
-  debug,
-  type NoDataStateContext 
+  debug
 } from '@/lib/observability/no-data-metrics'
 
 export default function ReportsClient() {
@@ -69,6 +67,7 @@ export default function ReportsClient() {
       all: reports.length,
       daily: grouped.get('daily')?.length || 0,
       ticker: grouped.get('ticker')?.length || 0,
+      index: grouped.get('index')?.length || 0,
       liquidity: grouped.get('liquidity')?.length || 0,
       combined: grouped.get('combined')?.length || 0,
       indexes: grouped.get('indexes')?.length || 0,
@@ -369,7 +368,7 @@ export default function ReportsClient() {
                 <ReportTypeSelector
                   selectedType={selectedType}
                   onTypeChange={handleTypeChange}
-                  reportCounts={reportCounts}
+                  counts={reportCounts}
                 />
                 
                 {/* Toggle Filters Button */}

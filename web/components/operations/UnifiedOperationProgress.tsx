@@ -15,13 +15,11 @@ import {
   Clock,
   Download,
   FileSearch,
-
   AlertCircle,
   ArrowRight,
   Package,
   FileText,
   Zap,
-  BarChart3
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -65,7 +63,7 @@ const toNumber = (value: any): number | undefined => {
 // Helper function to get stage number
 const getStageNumber = (operationType: string): number => {
   if (!operationType || typeof operationType !== 'string') return 1 // Default to 1 for safety
-  const stageOrder = ['scraping', 'processing', 'indices', 'liquidity', 'indicators', 'analysis']
+  const stageOrder = ['scraping', 'processing', 'indices', 'liquidity']
   const index = stageOrder.indexOf(operationType)
   return index >= 0 ? index + 1 : 1 // Default to 1 if not found
 }
@@ -98,21 +96,6 @@ const OPERATION_PHASES = {
     { id: 'scaling', label: 'Cross-sectional Scaling', icon: Package, progress: 70 },
     { id: 'writing', label: 'Writing Results', icon: FileText, progress: 90 },
     { id: 'complete', label: 'Complete', icon: CheckCircle2, progress: 100 }
-  ],
-  analysis: [
-    { id: 'preparing', label: 'Preparing Analysis', icon: Clock, progress: 0 },
-    { id: 'loading', label: 'Loading Market Data', icon: FileText, progress: 25 },
-    { id: 'analyzing', label: 'Running Technical Analysis', icon: BarChart3, progress: 50 },
-    { id: 'generating', label: 'Generating Insights', icon: Zap, progress: 75 },
-    { id: 'complete', label: 'Analysis Complete', icon: CheckCircle2, progress: 100 }
-  ],
-  indicators: [
-    { id: 'preparing', label: 'Initializing', icon: Clock, progress: 0 },
-    { id: 'loading', label: 'Loading Price Data', icon: FileText, progress: 20 },
-    { id: 'calculating', label: 'Calculating Indicators', icon: BarChart3, progress: 40 },
-    { id: 'caching', label: 'Building SSOT Cache', icon: Package, progress: 70 },
-    { id: 'validating', label: 'Validating Results', icon: FileSearch, progress: 90 },
-    { id: 'complete', label: 'Indicators Ready', icon: CheckCircle2, progress: 100 }
   ]
 } as const
 
@@ -520,33 +503,6 @@ export function UnifiedOperationProgress({
           }
           return awaiting
         }
-      case 'analysis':
-        {
-          const priceAlerts = data?.metadata?.price_alerts
-          const rsiAlerts = data?.metadata?.rsi_alerts
-          if (priceAlerts) {
-            return { primary: formatNumber(priceAlerts), secondary: 'price alerts' }
-          }
-          if (rsiAlerts) {
-            return { primary: formatNumber(rsiAlerts), secondary: 'RSI alerts' }
-          }
-          const traded = data?.metadata?.traded_stocks
-          return traded ? { primary: formatNumber(traded), secondary: 'stocks' } : awaiting
-        }
-      case 'indicators':
-        {
-          const indicators = data?.metadata?.indicators_calculated
-          const tickers = data?.metadata?.tickers_processed
-          const calculations = data?.metadata?.calculations_performed
-
-          if (calculations) {
-            return { primary: formatNumber(calculations), secondary: 'calculations' }
-          }
-          if (tickers) {
-            return { primary: formatNumber(tickers), secondary: 'tickers' }
-          }
-          return indicators ? { primary: formatNumber(indicators), secondary: 'indicators' } : awaiting
-        }
       default:
         return awaiting
     }
@@ -637,16 +593,6 @@ export function UnifiedOperationProgress({
         if (stepMetadata?.from_date && stepMetadata?.to_date) {
           return `${stageDisplayName}: ${stepMetadata.from_date} to ${stepMetadata.to_date}`
         }
-        return stageDisplayName
-      case 'processing':
-        return stageDisplayName
-      case 'indices':
-        return stageDisplayName
-      case 'liquidity':
-        return stageDisplayName
-      case 'analysis':
-        return stageDisplayName
-      case 'indicators':
         return stageDisplayName
       default:
         return stageDisplayName
@@ -1047,7 +993,7 @@ export function UnifiedOperationProgress({
                   {operationType === 'processing' && (
                     <div className="space-y-1">
                       <span className="text-green-600 dark:text-green-400 font-medium">Output Format:</span>
-                      <p className="text-green-800 dark:text-green-200">CSV files ready for analysis</p>
+                      <p className="text-green-800 dark:text-green-200">CSV files ready for downstream stages</p>
                     </div>
                   )}
 
@@ -1100,7 +1046,7 @@ export function UnifiedOperationProgress({
                     )
                   })()}
 
-                  {operationType === 'analysis' && (() => {
+                  {false && (() => {
                     const priceAlerts = toNumber(stepMetadata?.price_alerts)
                     const rsiAlerts = toNumber(stepMetadata?.rsi_alerts)
                     const tradedStocks = toNumber(stepMetadata?.traded_stocks)

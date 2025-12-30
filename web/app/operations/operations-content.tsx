@@ -7,7 +7,6 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api";
 import { useAllOperationUpdates } from "@/lib/hooks/use-websocket";
 import { useHydration } from "@/lib/hooks/use-hydration";
@@ -45,7 +44,6 @@ function OperationSkeletonCard() {
 }
 
 export default function OperationsContent() {
-  const router = useRouter();
   const { toast } = useToast();
   const { error: boundaryError, resetError, captureError } = useErrorBoundary();
 
@@ -137,7 +135,7 @@ export default function OperationsContent() {
       try {
         setLoading(true);
         const types = await apiClient.getOperationTypes();
-        setOperationTypes(types.filter((type: any) => !['analysis', 'indicators'].includes(type?.id)));
+        setOperationTypes(types);
       } catch (err) {
         const errorMessage = err instanceof Error
           ? err.message
@@ -199,66 +197,6 @@ export default function OperationsContent() {
         setError(
           err instanceof Error ? err.message : "Failed to start operation",
         );
-      } finally {
-        setStartingOperation(null);
-      }
-    },
-    [isHydrated, setStartingOperation, setError],
-  );
-
-  // Handle direct execution for immediate stage execution (bypass JobQueue)
-  const handleDirectExecution = useCallback(
-    async (stageId: string, params?: any) => {
-      if (!isHydrated) return;
-
-      try {
-        setStartingOperation(stageId);
-        setError(null);
-
-        // Prepare parameters for direct execution
-        let executionParams: Record<string, any> = params || {};
-
-        // Add default parameters for scraping stage
-        if (stageId === "scraping") {
-          executionParams = {
-            mode: "initial",
-            from_date:
-              params?.from_date ||
-              params?.from ||
-              new Date().toISOString().split("T")[0],
-            to_date:
-              params?.to_date ||
-              params?.to ||
-              new Date().toISOString().split("T")[0],
-            headless: params?.headless ?? true,
-            ...params,
-          };
-        }
-
-        console.log("Direct stage execution:", stageId, executionParams);
-
-        const response = await apiClient.executeStageDirectly(
-          stageId,
-          executionParams,
-        );
-        console.log("Direct execution started:", response);
-
-        // WebSocket will automatically update with progress
-        toast({
-          title: "Stage Execution Started",
-          description: `${stageId} execution started successfully`,
-        });
-      } catch (err) {
-        console.error("Failed to execute stage directly:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to execute stage",
-        );
-        toast({
-          title: "Execution Failed",
-          description:
-            err instanceof Error ? err.message : "Failed to execute stage",
-          variant: "destructive",
-        });
       } finally {
         setStartingOperation(null);
       }

@@ -303,7 +303,7 @@ export const performanceUtils = {
     performance.measure(name, startMark, endMark)
     
     const entries = performance.getEntriesByName(name, 'measure')
-    return entries.length > 0 ? entries[entries.length - 1].duration : 0
+    return entries.at(-1)?.duration ?? 0
   },
 
   /**

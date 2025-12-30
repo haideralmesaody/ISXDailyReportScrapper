@@ -53,7 +53,10 @@ export function filterDataByTimeRange<T extends { date: string }>(
   }
   
   // Get the last date from the data
-  const lastDateStr = data[data.length - 1].date
+  const lastItem = data.at(-1)
+  if (!lastItem) return data
+
+  const lastDateStr = lastItem.date
   const endDate = new Date(lastDateStr)
   
   const startDate = getStartDateForRange(range, endDate)
@@ -122,8 +125,12 @@ export function getTimeRangeShortLabel(range: TimeRange): string {
 export function getDefaultTimeRange<T extends { date: string }>(data: T[]): TimeRange {
   if (data.length === 0) return 'ALL'
   
-  const firstDate = new Date(data[0].date)
-  const lastDate = new Date(data[data.length - 1].date)
+  const firstItem = data[0]
+  const lastItem = data.at(-1)
+  if (!firstItem || !lastItem) return 'ALL'
+
+  const firstDate = new Date(firstItem.date)
+  const lastDate = new Date(lastItem.date)
   const daysDiff = Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24))
   
   // Select appropriate default based on data range

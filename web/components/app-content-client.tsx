@@ -11,7 +11,6 @@ import {
   Shield,
   ShieldCheck,
   Clock,
-  TrendingUp,
   Target,
   LayoutGrid,
   BookOpen,
@@ -50,7 +49,7 @@ function useSimpleLicenseStatus() {
   useEffect(() => {
     isUnmountedRef.current = false
 
-    const fetchLicenseStatus = async (isImmediate: boolean = false) => {
+    const fetchLicenseStatus = async () => {
       // Prevent fetches if component is unmounted
       if (isUnmountedRef.current) return
 
@@ -105,12 +104,19 @@ function useSimpleLicenseStatus() {
 
         // Update state immediately with active snapshot for instant UI response
         if (eventData.status === 'active' || eventData.status === 'warning') {
+          const daysLeft = eventData.expiryDate
+            ? Math.max(
+                0,
+                Math.ceil((new Date(eventData.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+              )
+            : undefined
+
           const activeSnapshot: LicenseApiResponse = {
             license_status: eventData.status as any,
             status: 'valid',
             message: 'License is active',
-            expiry_date: eventData.expiryDate,
-            days_left: eventData.expiryDate ? Math.max(0, Math.ceil((new Date(eventData.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : undefined,
+            ...(eventData.expiryDate !== undefined ? { expiry_date: eventData.expiryDate } : {}),
+            ...(daysLeft !== undefined ? { days_left: daysLeft } : {}),
             last_check: new Date(eventData.timestamp).toISOString()
           }
 
@@ -145,13 +151,20 @@ function useSimpleLicenseStatus() {
       try {
         const cachedStatus = getCachedLicenseStatus()
         if (cachedStatus) {
+          const daysLeft = cachedStatus.expiryDate
+            ? Math.max(
+                0,
+                Math.ceil((new Date(cachedStatus.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+              )
+            : undefined
+
           // Create a temporary active snapshot from cached data
           const cachedResponse: LicenseApiResponse = {
             license_status: cachedStatus.status as any,
             status: 'valid',
             message: cachedStatus.status === 'active' ? 'License is active' : 'License status from cache',
-            expiry_date: cachedStatus.expiryDate,
-            days_left: cachedStatus.expiryDate ? Math.max(0, Math.ceil((new Date(cachedStatus.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : undefined,
+            ...(cachedStatus.expiryDate !== undefined ? { expiry_date: cachedStatus.expiryDate } : {}),
+            ...(daysLeft !== undefined ? { days_left: daysLeft } : {}),
             last_check: new Date(cachedStatus.cachedAt).toISOString()
           }
 
@@ -185,12 +198,19 @@ function useSimpleLicenseStatus() {
             // Process the fallback broadcast
             lastEventRef.current = lastBroadcast.timestamp
             if (lastBroadcast.status === 'active' || lastBroadcast.status === 'warning') {
+              const daysLeft = lastBroadcast.expiryDate
+                ? Math.max(
+                    0,
+                    Math.ceil((new Date(lastBroadcast.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                  )
+                : undefined
+
               const activeSnapshot: LicenseApiResponse = {
                 license_status: lastBroadcast.status as any,
                 status: 'valid',
                 message: 'License is active',
-                expiry_date: lastBroadcast.expiryDate,
-                days_left: lastBroadcast.expiryDate ? Math.max(0, Math.ceil((new Date(lastBroadcast.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : undefined,
+                ...(lastBroadcast.expiryDate !== undefined ? { expiry_date: lastBroadcast.expiryDate } : {}),
+                ...(daysLeft !== undefined ? { days_left: daysLeft } : {}),
                 last_check: new Date(lastBroadcast.timestamp).toISOString()
               }
 
@@ -627,7 +647,6 @@ function AppHeader() {
 }
 
 function AppFooter() {
-  const pathname = usePathname()
   const [currentYear, setCurrentYear] = useState(2025)
 
   // Simple license status from API
@@ -688,8 +707,6 @@ interface AppContentProps {
 }
 
 export default function AppContentClient({ children }: AppContentProps) {
-  const pathname = usePathname()
-  
   // All pages use the same full-width layout
   return (
     <ErrorBoundary>

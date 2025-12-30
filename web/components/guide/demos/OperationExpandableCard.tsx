@@ -75,9 +75,9 @@ export function OperationExpandableCard({
               <div className="flex items-center gap-3 ml-4">
                 <Badge variant="secondary" className="text-xs">{operation.duration}</Badge>
                 {operation.needsConfig ? (
-                  <Settings2 className="h-4 w-4 text-muted-foreground" title="Needs configuration" />
+                  <Settings2 className="h-4 w-4 text-muted-foreground" />
                 ) : (
-                  <Zap className="h-4 w-4 text-green-500" title="Quick start" />
+                  <Zap className="h-4 w-4 text-green-500" />
                 )}
                 {isOpen ? (
                   <ChevronUp className="h-5 w-5 text-muted-foreground shrink-0" />

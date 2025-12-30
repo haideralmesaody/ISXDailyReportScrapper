@@ -236,7 +236,6 @@ export function normalizeStageTelemetry(step: StageLike, previousMetadata?: Reco
 
   // Clamp scraping file counts to realistic bounds to avoid UI over-reporting (e.g., 590 instead of 59)
   if (metadata.stage_id === 'scraping') {
-    const downloadedCount = Array.isArray(metadata.downloaded_files) ? metadata.downloaded_files.length : null
     const skippedCount = Array.isArray(metadata.skipped_files) ? metadata.skipped_files.length : null
     const holidaysDetected = toFiniteNumber(metadata.holidays_detected)
     const tradingDaysTotal = toFiniteNumber(metadata.trading_days_total)

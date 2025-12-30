@@ -83,7 +83,7 @@ export function getNextTradingDate(current: string, dates: string[]): string | n
     return null // Not found or already at latest
   }
 
-  return dates[currentIndex + 1]
+  return dates[currentIndex + 1] ?? null
 }
 
 /**
@@ -100,7 +100,7 @@ export function getPrevTradingDate(current: string, dates: string[]): string | n
     return null // Not found or already at earliest
   }
 
-  return dates[currentIndex - 1]
+  return dates[currentIndex - 1] ?? null
 }
 
 /**
@@ -116,7 +116,8 @@ export function getQuickDateShortcut(
 ): string | null {
   if (dates.length === 0) return null
 
-  const latest = dates[dates.length - 1]
+  const latest = dates.at(-1)
+  if (!latest) return null
 
   if (type === 'latest') {
     return latest
@@ -127,9 +128,10 @@ export function getQuickDateShortcut(
     const yesterday = new Date()
     yesterday.setDate(yesterday.getDate() - 1)
     const yesterdayStr = yesterday.toISOString().split('T')[0]
+    if (!yesterdayStr) return null
 
     // Find closest trading date on or before yesterday
-    const matchingDate = dates.reverse().find(d => d <= yesterdayStr)
+    const matchingDate = dates.slice().reverse().find(d => d <= yesterdayStr)
 
     return matchingDate || null
   }
@@ -139,9 +141,10 @@ export function getQuickDateShortcut(
     const lastWeek = new Date()
     lastWeek.setDate(lastWeek.getDate() - 7)
     const lastWeekStr = lastWeek.toISOString().split('T')[0]
+    if (!lastWeekStr) return null
 
     // Find closest trading date on or before last week
-    const matchingDate = dates.reverse().find(d => d <= lastWeekStr)
+    const matchingDate = dates.slice().reverse().find(d => d <= lastWeekStr)
 
     return matchingDate || null
   }
@@ -158,7 +161,7 @@ export function getQuickDateShortcut(
  */
 export function isLatestTradingDate(date: string, dates: string[]): boolean {
   if (dates.length === 0) return false
-  return dates[dates.length - 1] === date
+  return dates.at(-1) === date
 }
 
 /**

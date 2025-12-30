@@ -86,9 +86,8 @@ export function CompactOperationCard({
   
   // Handle button click based on operation type
   const handleClick = () => {
-    // For processing, indices, liquidity, analysis, and indicators - start directly without configuration
-    if ((type.id === 'processing' || type.id === 'indices' || type.id === 'liquidity' ||
-         type.id === 'analysis' || type.id === 'indicators') && onDirectStart) {
+    // For processing, indices, and liquidity - start directly without configuration
+    if ((type.id === 'processing' || type.id === 'indices' || type.id === 'liquidity') && onDirectStart) {
       onDirectStart()
     } else {
       // For scraping and full_pipeline, show configuration

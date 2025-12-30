@@ -58,10 +58,16 @@ export function createOperationHash(operation: any): string {
  */
 export function resolveStage(
   candidate: unknown,
+  origin: string
+): { stageId: StageId; origin: string } | undefined
+export function resolveStage(
+  candidate: unknown,
   origin?: string
 ): { stageId: StageId; origin?: string } | undefined {
   const stageId = normalizeStageId(candidate)
-  return stageId ? { stageId, origin } : undefined
+  return stageId
+    ? { stageId, ...(origin !== undefined ? { origin } : {}) }
+    : undefined
 }
 
 /**
@@ -175,8 +181,6 @@ export function performPatternMatching(operationName: string): { stageId: StageI
  * Main stage identification function - pure function without module-level state
  */
 export function identifyStagePure(operation: any): StageMappingResult {
-  const startTime = performance.now()
-
   // Check explicit candidates first
   const explicitCandidates = getExplicitStageCandidates(operation)
   for (const candidate of explicitCandidates) {

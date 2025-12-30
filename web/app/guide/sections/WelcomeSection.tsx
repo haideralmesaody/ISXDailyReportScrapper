@@ -8,16 +8,10 @@ import {
   BookOpen,
   Target,
   Zap,
-  TrendingUp,
   Shield,
   ChevronRight,
   CheckCircle2,
-  GitBranch,
-  Settings,
-  FileText,
-  LineChart,
   LayoutGrid,
-  BookMarked
 } from 'lucide-react'
 import { InteractiveDemo } from '../components/InteractiveDemo'
 import { CompactGuideCard } from '../components/CompactGuideCard'
@@ -46,10 +40,10 @@ export function WelcomeSection({ onNavigate }: WelcomeSectionProps) {
 
   const features = [
     {
-      icon: TrendingUp,
-      title: 'Advanced Technical Analysis',
-      description: '20+ indicators including MACD, RSI, Bollinger Bands, and more',
-      href: 'indicators'
+      icon: LayoutGrid,
+      title: 'Market Overview',
+      description: 'Browse tickers, prices, and liquidity snapshots',
+      href: 'market-overview'
     },
     {
       icon: Target,
@@ -75,7 +69,7 @@ export function WelcomeSection({ onNavigate }: WelcomeSectionProps) {
     { step: 1, text: 'Start with the License System guide to understand activation' },
     { step: 2, text: 'Learn the Pipeline Architecture to understand data flow' },
     { step: 3, text: 'Explore Operations to run your first data collection' },
-    { step: 4, text: 'Master Charts & Indicators for technical analysis' },
+    { step: 4, text: 'Use Market Overview and Liquidity to understand the universe' },
     { step: 5, text: 'Build your first Strategy with backtesting' }
   ]
 

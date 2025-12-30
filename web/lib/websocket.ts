@@ -393,8 +393,8 @@ export class ISXWebSocketClient {
     // Normalize file statuses array
     if (normalized.file_statuses && Array.isArray(normalized.file_statuses)) {
       normalized.file_statuses = normalized.file_statuses
-        .filter(status => status && typeof status === 'object')
-        .map(status => ({
+        .filter((status: any) => status && typeof status === 'object')
+        .map((status: any) => ({
           filename: status.filename || status.file_name || 'Unknown file',
           status: this.normalizeFileStatus(status.status),
           size_mb: typeof status.size_mb === 'number' ? Math.max(0, status.size_mb) : undefined,
@@ -571,13 +571,16 @@ export class ISXWebSocketClient {
     nextReconnectDelay?: number
     timeSinceLastConnection: number
   } {
+    const nextReconnectDelay =
+      this.connectionStatus === 'reconnecting' ? this.calculateReconnectDelay() : undefined
+
     return {
       status: this.connectionStatus,
       url: this.url,
       reconnectAttempts: this.reconnectAttempts,
       isConnected: this.isConnected(),
       isHealthy: this.isHealthy(),
-      nextReconnectDelay: this.connectionStatus === 'reconnecting' ? this.calculateReconnectDelay() : undefined,
+      ...(nextReconnectDelay !== undefined ? { nextReconnectDelay } : {}),
       timeSinceLastConnection: this.getTimeSinceLastConnection()
     }
   }

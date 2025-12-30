@@ -1,14 +1,6 @@
 import dynamic from 'next/dynamic'
 import {
-  Loader2,
-  Download,
-  Zap,
-  Database,
-  FileSpreadsheet,
-  BarChart3,
-  Workflow,
-  Info,
-  TrendingUp
+  Loader2
 } from 'lucide-react'
 
 // Dynamic import with SSR disabled to prevent hydration issues

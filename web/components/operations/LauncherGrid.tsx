@@ -10,7 +10,6 @@ import {
   Zap,
   Workflow,
   Database,
-  TrendingUp,
 } from "lucide-react";
 
 type OperationType = {
@@ -40,7 +39,6 @@ const operationIcons = {
   liquidity: Zap,
   full_pipeline: Workflow,
   data_processing: Database,
-  analysis: TrendingUp,
 } as const;
 
 function SkeletonCard() {

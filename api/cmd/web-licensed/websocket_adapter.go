@@ -11,8 +11,6 @@ var stageAliases = map[string]string{
 	"scraping":      "scrape",
 	"processing":    "process",
 	"indices":       "index",
-	"analysis":      "complete",
-	"indicators":    "indicators",
 	"liquidity":     "liquidity",
 	"run_stage":     "run_stage",
 	"full_pipeline": "full_pipeline",

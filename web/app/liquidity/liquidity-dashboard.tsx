@@ -6,29 +6,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { 
   ArrowLeft, 
   TrendingUp, 
-  TrendingDown, 
   AlertCircle, 
   Info,
   Target,
   Shield,
   Zap,
-  DollarSign,
   Activity,
   BarChart3,
   Droplets,
   RefreshCw,
-  Download,
   Search,
   Clock,
   Calculator
 } from 'lucide-react'
 import Link from 'next/link'
-import { useToast } from '@/lib/hooks/use-toast'
 import { Input } from '@/components/ui/input'
 import { useHydration } from '@/lib/hooks/use-hydration'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -478,7 +473,6 @@ export default function LiquidityDashboard() {
     }
     return 'ema' // Default to EMA mode
   })
-  const { toast } = useToast()
   const isHydrated = useHydration()
   
   // Save mode preference when it changes

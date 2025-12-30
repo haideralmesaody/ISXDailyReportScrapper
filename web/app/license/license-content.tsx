@@ -46,7 +46,7 @@ export default function LicenseContent(): JSX.Element {
   const { execute: activateLicense, loading: activating } = useApi(apiClient.activateLicense.bind(apiClient))
 
   // Check license status - no dependencies to avoid stale closures
-  const checkLicenseStatus = useCallback(async () => {
+  const checkLicenseStatus = useCallback(async (): Promise<LicenseApiResponse | null> => {
     try {
       setIsLoading(true)
 
@@ -63,20 +63,26 @@ export default function LicenseContent(): JSX.Element {
       if (status.license_status === 'active' || status.license_status === 'warning') {
         setCachedLicenseStatus(status.license_status, status.license_info?.expiry_date)
       }
+
+      return status
     } catch (error) {
       console.error('Failed to check license status:', error)
 
       // Use cached status if available
       const cached = getCachedLicenseStatus()
       if (cached) {
-        setLicenseData({
-          license_status: cached.status,
+        const cachedSnapshot: LicenseApiResponse = {
+          license_status: cached.status as NonNullable<LicenseApiResponse['license_status']>,
           message: 'Using cached license status',
           status: 'valid',
           trace_id: 'cache',
           timestamp: new Date().toISOString()
-        } as LicenseApiResponse)
+        }
+        setLicenseData(cachedSnapshot)
+        return cachedSnapshot
       }
+
+      return null
     } finally {
       setIsLoading(false)
     }

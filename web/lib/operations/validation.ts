@@ -348,7 +348,7 @@ class OperationSchemaRegistry implements SchemaRegistry {
     return { data: currentData, migrations }
   }
 
-  private findMigrationPath(fromVersion: string, toVersion: string): string[] {
+  findMigrationPath(fromVersion: string, toVersion: string): string[] {
     // Simple implementation for now - can be enhanced with graph algorithms
     const path: string[] = []
 
@@ -391,7 +391,7 @@ class OperationSchemaRegistry implements SchemaRegistry {
       errors: [],
       warnings: [],
       version: targetVersion,
-      source: data.metadata?.source
+      ...(data.metadata?.source !== undefined ? { source: data.metadata.source } : {})
     }
 
     // Check required fields
@@ -434,7 +434,7 @@ class OperationSchemaRegistry implements SchemaRegistry {
     return details
   }
 
-  private validateField(fieldName: string, value: any, fieldDef: SchemaField): ValidationError[] {
+  validateField(fieldName: string, value: any, fieldDef: SchemaField): ValidationError[] {
     const errors: ValidationError[] = []
 
     // Skip validation if field is nullable and value is null

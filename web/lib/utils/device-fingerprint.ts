@@ -184,7 +184,7 @@ async function collectAdditionalEntropy(): Promise<Record<string, any>> {
   try {
     // WebGL fingerprinting (basic)
     const canvas = document.createElement('canvas')
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
+    const gl = (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null
     if (gl) {
       const renderer = gl.getParameter(gl.RENDERER)
       const vendor = gl.getParameter(gl.VENDOR)

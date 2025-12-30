@@ -8,21 +8,18 @@ import GuideClient from './guide-client'
  */
 export const metadata: Metadata = {
   title: 'Interactive Guide - ISX Pulse',
-  description: 'Comprehensive guide and tutorials for ISX Pulse features including technical analysis, trading strategies, pipeline operations, and market data visualization.',
+  description: 'Comprehensive guide and tutorials for ISX Pulse features including trading strategies, pipeline operations, liquidity insights, and market data exploration.',
   keywords: [
     'ISX guide',
     'stock trading tutorial',
-    'technical indicators',
-    'chart analysis',
     'data pipeline',
+    'liquidity',
     'trading strategies',
-    'MACD tutorial',
-    'RSI guide',
     'ISX market analysis'
   ],
   openGraph: {
     title: 'Interactive Guide - ISX Pulse',
-    description: 'Master ISX stock analysis with hands-on tutorials covering technical indicators, automated strategies, and data operations.',
+    description: 'Learn the ISX data pipeline and build automated strategies using real market data.',
     type: 'website'
   },
   robots: {

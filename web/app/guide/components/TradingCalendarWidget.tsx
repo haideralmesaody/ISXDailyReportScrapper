@@ -20,7 +20,7 @@ interface TradingCalendarWidgetProps {
 }
 
 export function TradingCalendarWidget({ className, compact = false }: TradingCalendarWidgetProps) {
-  const { tradingDates, isLoading, error, isTradingDay } = useTradingDates()
+  const { isLoading, error, isTradingDay } = useTradingDates()
   const [currentMonth, setCurrentMonth] = useState(new Date())
 
   // Generate calendar grid for current month

@@ -72,14 +72,10 @@ export function calculateTradedValue(price: number, volume: number): number {
  * - Sum of tradedValue, volume, trades
  *
  * @param tickers - Array of ticker data (may include duplicates across dates)
- * @param startDate - Start date (ISO format, not currently used in logic)
- * @param endDate - End date (ISO format, not currently used in logic)
  * @returns Aggregated ticker data
  */
 export function aggregateTickerData(
-  tickers: TickerData[],
-  startDate: string,
-  endDate: string
+  tickers: TickerData[]
 ): TickerData[] {
   // Handle empty array
   if (tickers.length === 0) {
@@ -99,10 +95,11 @@ export function aggregateTickerData(
   // Aggregate each group
   return Array.from(grouped.entries()).map(([symbol, group]) => {
     const count = group.length
+    const first = group[0]
 
     return {
       symbol,
-      name: group[0].name, // Use first occurrence for name
+      name: first?.name ?? symbol, // Use first occurrence for name
       price: group.reduce((sum, t) => sum + t.price, 0) / count,           // Average
       change: group.reduce((sum, t) => sum + t.change, 0) / count,         // Average
       changePercent: group.reduce((sum, t) => sum + t.changePercent, 0) / count, // Average

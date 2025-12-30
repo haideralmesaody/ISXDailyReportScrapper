@@ -332,7 +332,7 @@ export function MarketOverviewSection() {
                     <h3 className="font-semibold mb-1">Click to Analyze</h3>
                     <p className="text-sm text-muted-foreground">
                       Click on any ticker rectangle to navigate to the Analysis page for detailed chart analysis.
-                      From there, you can add indicators, examine candlestick patterns, and make trading decisions.
+                      From there, you can review the ticker details and move into strategies to generate signals.
                     </p>
                   </div>
                 </li>

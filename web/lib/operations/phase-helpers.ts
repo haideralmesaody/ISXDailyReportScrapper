@@ -77,21 +77,6 @@ const PHASE_DICTIONARY: Record<string, Record<string, { label: string; descripti
     writing: { label: 'Writing Results', description: 'Persisting liquidity outputs' },
     complete: { label: 'Complete', description: 'Liquidity analysis finished' }
   },
-  indicators: {
-    preparing: { label: 'Preparing', description: 'Setting up indicator cache' },
-    loading: { label: 'Loading Price Data', description: 'Reading SSOT inputs' },
-    calculating: { label: 'Calculating Indicators', description: 'Running indicator formulas' },
-    caching: { label: 'Building Cache', description: 'Persisting computed indicators' },
-    validating: { label: 'Validating', description: 'Ensuring indicator integrity' },
-    complete: { label: 'Complete', description: 'Indicator pre-calculation finished' }
-  },
-  analysis: {
-    preparing: { label: 'Preparing', description: 'Configuring analysis engine' },
-    loading: { label: 'Loading Market Data', description: 'Gathering inputs' },
-    analyzing: { label: 'Running Analysis', description: 'Generating insights' },
-    generating: { label: 'Generating Reports', description: 'Building final outputs' },
-    complete: { label: 'Complete', description: 'Analysis finished' }
-  },
   default: {
     preparing: { label: 'Preparing', description: 'Initializing stage' },
     running: { label: 'Running', description: 'Work in progress' },
@@ -111,8 +96,6 @@ export function getOperationType(stepId?: string, fallback: string = DEFAULT_OPE
     if (normalized.includes('process')) return 'processing'
     if (normalized.includes('index')) return 'indices'
     if (normalized.includes('liquid')) return 'liquidity'
-    if (normalized.includes('indicator') || normalized.includes('precalc')) return 'indicators'
-    if (normalized.includes('analysis') || normalized.includes('analyse')) return 'analysis'
 
     return fallback
   })
@@ -129,10 +112,6 @@ export function getOperationThresholds(operationType: string): number[] {
         return [0, 50, 100]
       case 'liquidity':
         return [0, 20, 40, 70, 90, 100]
-      case 'indicators':
-        return [0, 20, 40, 70, 90, 100]
-      case 'analysis':
-        return [0, 25, 50, 75, 100]
       default:
         return [0, 50, 100]
     }
@@ -146,8 +125,6 @@ export function getPhaseForThreshold(operationType: string, thresholdIndex: numb
       processing: ['preparing', 'reading', 'transforming', 'writing', 'complete'],
       indices: ['preparing', 'extracting', 'complete'],
       liquidity: ['preparing', 'reading', 'calculating', 'scaling', 'writing', 'complete'],
-      indicators: ['preparing', 'loading', 'calculating', 'caching', 'validating', 'complete'],
-      analysis: ['preparing', 'loading', 'analyzing', 'generating', 'complete'],
       default: ['preparing', 'running', 'complete']
     }
 

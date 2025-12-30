@@ -1,16 +1,14 @@
 'use client'
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   ShieldCheck,
   Key,
   Users,
   Clock,
-  AlertCircle,
   CheckCircle2,
   XCircle,
-  HelpCircle,
   ChevronRight
 } from 'lucide-react'
 

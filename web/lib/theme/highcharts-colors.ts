@@ -101,8 +101,8 @@ export const HighchartsLightTheme = {
       text: NeutralScale.light[100],
       placeholder: NeutralScale.light[40],
       focus: {
-        border: HighchartsOfficialPalette.light[0], // Primary blue
-        shadow: `0 0 0 2px ${HighchartsOfficialPalette.light[0]}33` // 20% alpha
+        border: HighchartsOfficialPalette.light[0]!, // Primary blue
+        shadow: `0 0 0 2px ${HighchartsOfficialPalette.light[0]!}33` // 20% alpha
       },
       disabled: {
         background: NeutralScale.light[10],
@@ -115,9 +115,9 @@ export const HighchartsLightTheme = {
     // Button system
     button: {
       primary: {
-        background: HighchartsOfficialPalette.light[0], // #2caffe
+        background: HighchartsOfficialPalette.light[0]!, // #2caffe
         text: NeutralScale.light[0],
-        border: HighchartsOfficialPalette.light[0],
+        border: HighchartsOfficialPalette.light[0]!,
         hover: '#0099ff', // 10% darker
         active: '#0077cc', // 20% darker
         disabled: {
@@ -135,10 +135,10 @@ export const HighchartsLightTheme = {
       },
       ghost: {
         background: 'transparent',
-        text: HighchartsOfficialPalette.light[0],
+        text: HighchartsOfficialPalette.light[0]!,
         border: 'transparent',
-        hover: `${HighchartsOfficialPalette.light[0]}0D`, // 5% alpha
-        active: `${HighchartsOfficialPalette.light[0]}1A` // 10% alpha
+        hover: `${HighchartsOfficialPalette.light[0]!}0D`, // 5% alpha
+        active: `${HighchartsOfficialPalette.light[0]!}1A` // 10% alpha
       }
     },
     
@@ -411,8 +411,8 @@ export const HighchartsDarkTheme = {
       text: NeutralScale.dark[80],
       placeholder: NeutralScale.dark[40],
       focus: {
-        border: HighchartsOfficialPalette.dark[0], // Primary blue for dark
-        shadow: `0 0 0 2px ${HighchartsOfficialPalette.dark[0]}4D` // 30% alpha
+        border: HighchartsOfficialPalette.dark[0]!, // Primary blue for dark
+        shadow: `0 0 0 2px ${HighchartsOfficialPalette.dark[0]!}4D` // 30% alpha
       },
       disabled: {
         background: NeutralScale.dark[3],
@@ -425,9 +425,9 @@ export const HighchartsDarkTheme = {
     // Button system  
     button: {
       primary: {
-        background: HighchartsOfficialPalette.dark[0], // #5679c4
+        background: HighchartsOfficialPalette.dark[0]!, // #5679c4
         text: NeutralScale.dark[100],
-        border: HighchartsOfficialPalette.dark[0],
+        border: HighchartsOfficialPalette.dark[0]!,
         hover: '#6689d4', // 10% lighter
         active: '#4669b4', // 10% darker
         disabled: {
@@ -445,10 +445,10 @@ export const HighchartsDarkTheme = {
       },
       ghost: {
         background: 'transparent',
-        text: HighchartsOfficialPalette.dark[0],
+        text: HighchartsOfficialPalette.dark[0]!,
         border: 'transparent',
-        hover: `${HighchartsOfficialPalette.dark[0]}1A`, // 10% alpha
-        active: `${HighchartsOfficialPalette.dark[0]}26` // 15% alpha
+        hover: `${HighchartsOfficialPalette.dark[0]!}1A`, // 10% alpha
+        active: `${HighchartsOfficialPalette.dark[0]!}26` // 15% alpha
       }
     },
     

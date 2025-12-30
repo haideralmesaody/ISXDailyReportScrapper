@@ -13,10 +13,10 @@ interface GuideSectionProps {
   description: string
   children: ReactNode
   estimatedMinutes?: number
-  isCompleted: boolean
-  isBookmarked: boolean
-  onComplete: () => void
-  onBookmark: () => void
+  isCompleted?: boolean
+  isBookmarked?: boolean
+  onComplete?: () => void
+  onBookmark?: () => void
   onNext?: () => void
   onPrevious?: () => void
   nextSectionTitle?: string
@@ -33,10 +33,10 @@ export function GuideSection({
   description,
   children,
   estimatedMinutes,
-  isCompleted,
-  isBookmarked,
-  onComplete,
-  onBookmark,
+  isCompleted = false,
+  isBookmarked = false,
+  onComplete = () => {},
+  onBookmark = () => {},
   onNext,
   onPrevious,
   nextSectionTitle,

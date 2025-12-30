@@ -170,10 +170,6 @@ func (a *Application) setupAPIRoutes(r chi.Router) {
 			strategyHandler := handlers.NewStrategyHandler(a.Services.Strategy, a.Logger)
 			strategyHandler.RegisterRoutes(r)
 
-			// Drawings persistence handler (file-backed, per ticker)
-			drawingsHandler := handlers.NewDrawingsHandler(a.Config.GetDataDir(), a.Logger, errorHandler)
-			drawingsHandler.RegisterRoutes(r)
-
 	
 			
 		})
@@ -280,7 +276,6 @@ func (a *Application) setupEmbeddedFrontend(r chi.Router) {
 	registerSPARoute("/liquidity", true)
 	registerSPARoute("/strategy", true)
 	registerSPARoute("/reports", true)
-	registerSPARoute("/analysis", true)
 	registerSPARoute("/guide", true)
 
 	// Handle other frontend routes with a more specific pattern

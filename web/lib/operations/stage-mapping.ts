@@ -68,7 +68,9 @@ export function useStageIdentification() {
     const entriesToRemove = Math.max(1, Math.floor(entries.length * 0.25))
 
     for (let i = 0; i < entriesToRemove; i++) {
-      const [cacheKey] = entries[i]
+      const entry = entries[i]
+      if (!entry) continue
+      const [cacheKey] = entry
       cache.delete(cacheKey)
     }
   }, [])
@@ -87,7 +89,6 @@ export function useStageIdentification() {
    * Identify stage with caching
    */
   const identifyStage = useCallback((operation: any): StageMappingResult => {
-    const startTime = performance.now()
     const stats = statsRef.current
     stats.totalRequests++
 
@@ -172,7 +173,8 @@ export function usePipelineStageOrder() {
 }
 
 // Re-export types for backward compatibility
-export type { StageMappingResult, StageId } from './stage-constants'
+export type { StageMappingResult } from './stage-identification'
+export type { StageId } from './stage-constants'
 
 // Re-export pure functions for non-hook usage
 export { identifyStagePure } from './stage-identification'

@@ -127,7 +127,6 @@ export function OperationSimulator() {
     setLogs([])
     setCurrentStage('')
 
-    const OpIcon = currentOp.icon
     addLog(`Starting ${currentOp.label} operation...`, 'info')
 
     const totalStages = currentOp.stages.length
@@ -139,6 +138,7 @@ export function OperationSimulator() {
 
     for (let i = 0; i < totalStages; i++) {
       const stage = currentOp.stages[i]
+      if (!stage) continue
       setCurrentStage(stage.name)
       addLog(`[${i + 1}/${totalStages}] ${stage.name}...`, 'info')
 
