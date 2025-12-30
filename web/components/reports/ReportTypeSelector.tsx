@@ -52,7 +52,7 @@ const REPORT_LABELS: Record<ReportType, string> = {
 export function ReportTypeSelector({
   selectedType,
   onTypeChange,
-  reportCounts
+  counts
 }: ReportTypeSelectorProps) {
   const reportTypes: ReportType[] = ['all', 'daily', 'ticker', 'liquidity', 'summary', 'indexes', 'combined']
 
@@ -71,9 +71,9 @@ export function ReportTypeSelector({
         <SelectContent>
           {reportTypes.map((type) => {
             const Icon = REPORT_ICONS[type]
-            const count = reportCounts[type] || 0
+            const count = counts[type] || 0
             const isDisabled = type !== 'all' && count === 0
-            
+             
             return (
               <SelectItem 
                 key={type} 

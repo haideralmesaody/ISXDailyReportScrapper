@@ -138,7 +138,10 @@ export function useTradingDates(): UseTradingDatesReturn {
 
     if (futureDates.length === 0) return null
 
-    return new Date(futureDates[0].date)
+    const next = futureDates[0]
+    if (!next) return null
+
+    return new Date(next.date)
   }
 
   // Calculate number of trading days between two dates (inclusive)

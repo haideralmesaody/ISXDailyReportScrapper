@@ -128,10 +128,10 @@ export function getPhaseForThreshold(operationType: string, thresholdIndex: numb
       default: ['preparing', 'running', 'complete']
     }
 
-    const phases = phaseMap[operationType] || phaseMap.default
+    const phases = phaseMap[operationType] ?? phaseMap.default ?? ['preparing', 'running', 'complete']
     const safeIndex = Math.min(thresholdIndex, phases.length - 1)
 
-    return phases[safeIndex]
+    return phases[safeIndex] ?? phases[0] ?? 'running'
   })
 }
 
@@ -142,10 +142,11 @@ export function getPhaseDisplay(operationType: string, phase?: string): { label:
     return { label: 'Pending', description: 'Waiting to start' }
   }
 
-  const dictionary = PHASE_DICTIONARY[operationType] || PHASE_DICTIONARY.default
+  const dictionary = PHASE_DICTIONARY[operationType] ?? PHASE_DICTIONARY.default ?? {}
   const normalized = phase.toLowerCase()
-  if (dictionary[normalized]) {
-    return dictionary[normalized]
+  const entry = dictionary[normalized]
+  if (entry) {
+    return entry
   }
 
   // Fallback: title case the phase

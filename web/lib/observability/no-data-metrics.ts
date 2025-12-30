@@ -27,6 +27,7 @@ export interface NoDataEvent {
   event_type: 'displayed' | 'action_clicked' | 'resolved' | 'navigation' | 'retry'
   page: string
   component: 'NoDataState' | 'DataLoadingState'
+  timestamp?: string
   reason?: string
   action_label?: string
   destination?: string
@@ -120,7 +121,16 @@ class ObservabilityState {
   }
 
   public updateConfig(updates: Partial<ObservabilityConfig>): void {
+    const wasCollectingMetrics = this.config.metrics_collection
     this.config = { ...this.config, ...updates }
+
+    if (wasCollectingMetrics !== this.config.metrics_collection) {
+      if (this.config.metrics_collection) {
+        this.startFlushTimer()
+      } else {
+        this.stopFlushTimer()
+      }
+    }
   }
 
   public addEvent(event: NoDataEvent): void {
@@ -173,12 +183,20 @@ class ObservabilityState {
   }
 
   private startFlushTimer(): void {
+    this.stopFlushTimer()
     this.flushTimer = setInterval(() => {
       // Only flush if there's data to send - with null checks
-      if ((this.eventBuffer?.length > 0) || (this.metricsBuffer?.length > 0) || (this.performanceBuffer?.length > 0)) {
+      if ((this.eventBuffer?.length > 0) || (this.metricsBuffer?.length > 0)) {
         this.flush()
       }
     }, this.config.flush_interval_ms)
+  }
+
+  private stopFlushTimer(): void {
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer)
+      this.flushTimer = null
+    }
   }
 
   private flush(): void {
@@ -249,10 +267,10 @@ export function logNoDataEvent(
       event_type: eventType,
       page: context.page || 'unknown',
       component: context.component || 'NoDataState',
-      reason: context.reason,
-      action_label: context.action_label,
-      destination: context.destination,
-      duration_ms: context.duration_ms,
+      ...(context.reason !== undefined ? { reason: context.reason } : {}),
+      ...(context.action_label !== undefined ? { action_label: context.action_label } : {}),
+      ...(context.destination !== undefined ? { destination: context.destination } : {}),
+      ...(context.duration_ms !== undefined ? { duration_ms: context.duration_ms } : {}),
       metadata: {
         ...context.metadata,
         ...traceContext,
@@ -261,8 +279,8 @@ export function logNoDataEvent(
 
     // Structured logging
     if (state.getConfig().console_logging) {
-      const logLevel = eventType === 'displayed' ? 'info' : 'debug'
-      console[logLevel as keyof Console](`🎯 NoData Event: ${eventType}`, {
+      const logger = eventType === 'displayed' ? console.info : console.debug
+      logger(`🎯 NoData Event: ${eventType}`, {
         page: event.page,
         component: event.component,
         reason: event.reason,
@@ -394,7 +412,7 @@ export function trackNoDataAction(
     page,
     component: 'NoDataState',
     action_label: actionLabel,
-    destination,
+    ...(destination !== undefined ? { destination } : {}),
   })
 
   recordMetric('ui.no_data_state.action_clicked', 1, {
@@ -570,7 +588,7 @@ export function getCurrentPage(): string {
   try {
     const pathname = window.location.pathname
     const segments = pathname.split('/').filter(Boolean)
-    return segments.length > 0 ? segments[0] : 'home'
+    return segments[0] ?? 'home'
   } catch (error) {
     return 'unknown'
   }

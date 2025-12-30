@@ -6,10 +6,8 @@
 import React from 'react'
 import { 
   AlertCircle, 
-  Calendar, 
   Key, 
   PlusCircle, 
-  Clock,
   CheckCircle2,
   XCircle
 } from 'lucide-react'
@@ -64,8 +62,12 @@ export function LicenseStackingDialog({
     const match = duration.match(/(\d+)\s*(day|month|year)/i)
     if (!match) return 30
 
-    const value = parseInt(match[1])
-    const unit = match[2].toLowerCase()
+    const valuePart = match[1]
+    const unitPart = match[2]
+    if (!valuePart || !unitPart) return 30
+
+    const value = parseInt(valuePart)
+    const unit = unitPart.toLowerCase()
 
     switch (unit) {
       case 'month':

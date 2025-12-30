@@ -177,14 +177,14 @@ export function CSVViewer({
         // Trading status with color coding
         if (columnName === 'status' || columnName === 'tradingstatus') {
           const status = String(value ?? '').toLowerCase()
-          const statusColors = {
+          const statusColors: Record<string, string> = {
             'traded': 'text-green-600',
             'not traded': 'text-gray-500',
             'suspended': 'text-red-600',
             'halted': 'text-orange-600'
           }
           const color = statusColors[status] || ''
-          return <span className={color}>{value}</span>
+          return <span className={color}>{String(value ?? '')}</span>
         }
         
         // Ticker symbols in uppercase

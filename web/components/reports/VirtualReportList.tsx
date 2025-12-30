@@ -6,9 +6,8 @@
 
 'use client'
 
-import React, { useRef, useState, useEffect, useCallback } from 'react'
+import React, { useRef, useEffect, useCallback } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Loader2, FileSpreadsheet, AlertCircle } from 'lucide-react'
 import { ReportCard } from './ReportCard'
 import { downloadReportFile } from '@/lib/api/reports'

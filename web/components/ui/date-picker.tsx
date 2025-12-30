@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 import "react-datepicker/dist/react-datepicker.css"
 
 interface DatePickerProps {
-  selected?: Date
+  selected?: Date | null
   onChange?: (date: Date | null) => void
   placeholderText?: string
   className?: string
@@ -27,15 +27,17 @@ export function CustomDatePicker({
   minDate,
   maxDate
 }: DatePickerProps) {
+  const ReactDatePicker = DatePicker as any
+
   return (
     <div className="relative">
-      <DatePicker
-        selected={selected}
-        onChange={onChange}
+      <ReactDatePicker
+        selected={selected ?? null}
+        {...(onChange ? { onChange } : {})}
         placeholderText={placeholderText}
         disabled={disabled}
-        minDate={minDate}
-        maxDate={maxDate}
+        {...(minDate !== undefined ? { minDate } : {})}
+        {...(maxDate !== undefined ? { maxDate } : {})}
         dateFormat="MMMM d, yyyy"
         className={cn(
           "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",

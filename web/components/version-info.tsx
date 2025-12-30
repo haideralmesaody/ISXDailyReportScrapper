@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { api } from '@/lib/api'
+import apiClient from '@/lib/api'
 
 interface VersionInfo {
   version: string
@@ -16,7 +16,6 @@ interface VersionInfo {
 export function VersionInfo() {
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null)
   const [isHydrated, setIsHydrated] = useState(false)
-  const [frontendBuildTime] = useState(process.env.NEXT_PUBLIC_BUILD_TIME || 'unknown')
   const [frontendBuildId] = useState(process.env.NEXT_PUBLIC_BUILD_ID || 'unknown')
 
   // Set hydration state
@@ -30,7 +29,7 @@ export function VersionInfo() {
 
     const fetchVersion = async () => {
       try {
-        const response = await api.getVersion()
+        const response = await apiClient.getVersion()
         setVersionInfo(response)
         
         // Check for version mismatch

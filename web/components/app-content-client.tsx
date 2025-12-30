@@ -49,12 +49,12 @@ function useSimpleLicenseStatus() {
   useEffect(() => {
     isUnmountedRef.current = false
 
-    const fetchLicenseStatus = async () => {
+    const fetchLicenseStatus = async (forceRefresh = false) => {
       // Prevent fetches if component is unmounted
       if (isUnmountedRef.current) return
 
       try {
-        const data = await apiClient.getLicenseStatus()
+        const data = forceRefresh ? await apiClient.refreshLicenseStatus() : await apiClient.getLicenseStatus()
 
         // Prevent state updates if component is unmounted
         if (isUnmountedRef.current) return

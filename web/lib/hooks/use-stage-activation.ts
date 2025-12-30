@@ -7,7 +7,7 @@
  */
 
 import { useMemo } from 'react'
-import { identifyStage, isStageReliable, getStageOrder } from '@/lib/operations/stage-mapping'
+import { identifyStage, getStageOrder } from '@/lib/operations/stage-mapping'
 
 export interface ActivationState {
   isActive: boolean
@@ -61,12 +61,12 @@ export function useStageActivation(options: UseStageActivationOptions = {}): Act
         stageMapping = identifyStage(stageData || {})
       } catch (error) {
         console.warn('Stage identification failed in pipeline completed:', error)
-        stageMapping = { stageId: 'scraping', confidence: 'low' }
+        stageMapping = { stageId: 'scraping', confidence: 'low' as const }
       }
 
       let stageOrderValue
       try {
-        stageOrderValue = getStageOrder(stageMapping.stageId)
+        stageOrderValue = getStageOrder(stageMapping.stageId as any)
       } catch (error) {
         console.warn('Stage order failed in pipeline completed:', error)
         stageOrderValue = stageNumber || 1
@@ -77,7 +77,7 @@ export function useStageActivation(options: UseStageActivationOptions = {}): Act
         canActivate: true,
         isCompleted: true,
         stageId: stageMapping.stageId,
-        confidence: stageMapping.confidence,
+        confidence: stageMapping.confidence as ActivationState['confidence'],
         stageNumber: stageNumber || stageOrderValue,
         totalStages
       }
@@ -93,7 +93,7 @@ export function useStageActivation(options: UseStageActivationOptions = {}): Act
       stageMapping = identifyStage(stageData)
     } catch (error) {
       console.warn('Stage identification failed in normal activation:', error)
-      stageMapping = { stageId: 'scraping', confidence: 'low' }
+      stageMapping = { stageId: 'scraping', confidence: 'low' as const }
     }
     const stageId = stageMapping.stageId
 
@@ -107,7 +107,7 @@ export function useStageActivation(options: UseStageActivationOptions = {}): Act
     if (Array.isArray(allStages) && allStages.length > 0) {
       let stageOrder
       try {
-        stageOrder = getStageOrder(stageId)
+        stageOrder = getStageOrder(stageId as any)
       } catch (error) {
         console.warn('Stage order failed in normal activation:', error)
         stageOrder = stageNumber || 1
@@ -131,7 +131,7 @@ export function useStageActivation(options: UseStageActivationOptions = {}): Act
           }
           let mappingOrder
           try {
-            mappingOrder = getStageOrder(mapping.stageId)
+            mappingOrder = getStageOrder(mapping.stageId as any)
           } catch (error) {
             console.warn('Stage order failed for previous stage:', error)
             mappingOrder = 1
@@ -151,7 +151,7 @@ export function useStageActivation(options: UseStageActivationOptions = {}): Act
 
     let finalStageOrder
     try {
-      finalStageOrder = getStageOrder(stageId)
+      finalStageOrder = getStageOrder(stageId as any)
     } catch (error) {
       console.warn('Final stage order failed:', error)
       finalStageOrder = stageNumber || 1
@@ -162,7 +162,7 @@ export function useStageActivation(options: UseStageActivationOptions = {}): Act
       canActivate: canActivate || isCompleted, // Completed stages can be "activated" for display
       isCompleted,
       stageId,
-      confidence: stageMapping.confidence,
+      confidence: stageMapping.confidence as ActivationState['confidence'],
       stageNumber: stageNumber || finalStageOrder,
       totalStages
     }

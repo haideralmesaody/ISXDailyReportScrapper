@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,10 +20,6 @@ import {
   Activity,
   Clock,
   Database,
-  Zap,
-  TrendingUp,
-  TrendingDown,
-  Info,
   ChevronDown,
   ChevronUp,
   Loader2
@@ -63,6 +59,7 @@ export function ConnectionDiagnosticsPanel({
 }: ConnectionDiagnosticsPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [selectedTab, setSelectedTab] = useState<'overview' | 'quality' | 'history' | 'recovery'>('overview')
+  const retryCount = recoveryState?.retryCount ?? 0
 
   // Determine connection status color and icon
   const getConnectionStatusInfo = () => {
@@ -342,10 +339,10 @@ export function ConnectionDiagnosticsPanel({
                       {recoveryState?.mode || 'none'}
                     </Badge>
                   </div>
-                  {recoveryState?.retryCount > 0 && (
+                  {retryCount > 0 && (
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Retry Attempts</span>
-                      <span className="text-sm font-medium">{recoveryState.retryCount}</span>
+                      <span className="text-sm font-medium">{retryCount}</span>
                     </div>
                   )}
                 </div>

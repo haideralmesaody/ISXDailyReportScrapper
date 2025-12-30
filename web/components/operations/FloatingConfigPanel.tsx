@@ -18,14 +18,13 @@ import {
   Calendar, 
   Play, 
   Clock,
-  ChevronRight,
   Sparkles,
   CalendarDays,
   AlertCircle,
   RefreshCw
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { OPERATION_DATE_DEFAULTS, DATE_VALIDATION } from '@/lib/constants'
+import { OPERATION_DATE_DEFAULTS } from '@/lib/constants'
 import { validateAndUpdateDates, formatDateString } from '@/lib/date-utils'
 import { OperationRequestBuilder } from '@/lib/api/operation-request-builder'
 
@@ -44,14 +43,16 @@ interface FloatingConfigPanelProps {
   placement?: 'center' | 'right' | 'left'
 }
 
+const toIsoDateString = (date: Date): string => date.toISOString().split('T')[0] ?? date.toISOString()
+
 // Date range presets - using hydration-safe functions
 const getDatePresets = () => [
   { 
     label: 'Today', 
     icon: Clock,
     getValue: () => ({ 
-      from: new Date().toISOString().split('T')[0], 
-      to: new Date().toISOString().split('T')[0] 
+      from: toIsoDateString(new Date()), 
+      to: toIsoDateString(new Date()) 
     }) 
   },
   { 
@@ -62,8 +63,8 @@ const getDatePresets = () => [
       const from = new Date()
       from.setDate(from.getDate() - 7)
       return { 
-        from: from.toISOString().split('T')[0], 
-        to: to.toISOString().split('T')[0] 
+        from: toIsoDateString(from), 
+        to: toIsoDateString(to) 
       }
     }
   },
@@ -75,8 +76,8 @@ const getDatePresets = () => [
       const from = new Date()
       from.setDate(from.getDate() - 30)
       return { 
-        from: from.toISOString().split('T')[0], 
-        to: to.toISOString().split('T')[0] 
+        from: toIsoDateString(from), 
+        to: toIsoDateString(to) 
       }
     }
   },
@@ -88,8 +89,8 @@ const getDatePresets = () => [
       const from = new Date(now.getFullYear(), now.getMonth(), 1)
       const to = new Date(now.getFullYear(), now.getMonth() + 1, 0)
       return { 
-        from: from.toISOString().split('T')[0], 
-        to: to.toISOString().split('T')[0] 
+        from: toIsoDateString(from), 
+        to: toIsoDateString(to) 
       }
     }
   }
@@ -114,12 +115,11 @@ export function FloatingConfigPanel({
   const [error, setError] = useState<string | null>(null)
   const [dateWasUpdated, setDateWasUpdated] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
-  const closeButtonRef = useRef<HTMLButtonElement>(null)
   const firstFocusableRef = useRef<HTMLElement>(null)
 
   // Use viewport-aware positioning for intelligent panel placement
   // Start with reasonable defaults, but actual element size will be measured via ResizeObserver
-  const { positionStyles, viewport, reposition, setElement } = useViewportPosition({
+  const { positionStyles, reposition, setElement } = useViewportPosition({
     panelWidth: 600, // Default panel width - will be updated by actual measurements
     panelHeight: 500, // Default panel height - will be updated by actual measurements
     margin: 20,
@@ -328,7 +328,7 @@ export function FloatingConfigPanel({
             onUnmountAutoFocus={(event) => {
               // Restore focus to trigger element when panel closes
               event.preventDefault()
-              anchorRef.current?.focus()
+              anchorRef?.current?.focus()
             }}
           >
             <motion.div
@@ -341,7 +341,7 @@ export function FloatingConfigPanel({
                 stiffness: 300,
                 damping: 25
               }}
-              style={positionStyles}
+              style={positionStyles as any}
               className={cn(
                 "panel-base panel-responsive",
                 "overflow-hidden"

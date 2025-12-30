@@ -117,7 +117,7 @@ const walkthroughSteps = [
 
 export function OperationUIWalkthrough() {
   const [currentStep, setCurrentStep] = useState(0)
-  const step = walkthroughSteps[currentStep]
+  const step = walkthroughSteps[currentStep]!
   const Icon = step.visual.icon
 
   const nextStep = () => {

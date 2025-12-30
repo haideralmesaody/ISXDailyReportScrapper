@@ -38,11 +38,11 @@ const stableTopologicalSort = (
 
   for (const [from, to] of edges) {
     if (!nodeSet.has(from) || !nodeSet.has(to)) continue
-    adjacency[from].push(to)
-    indegree[to]++
+    adjacency[from]?.push(to)
+    indegree[to] = (indegree[to] ?? 0) + 1
   }
 
-  const zero: string[] = nodes.filter((id) => indegree[id] === 0)
+  const zero: string[] = nodes.filter((id) => (indegree[id] ?? 0) === 0)
   zero.sort((a, b) => (originalIndexById[a] ?? 0) - (originalIndexById[b] ?? 0))
 
   const result: string[] = []
@@ -50,9 +50,9 @@ const stableTopologicalSort = (
     const next = zero.shift()!
     result.push(next)
 
-    for (const neighbor of adjacency[next]) {
-      indegree[neighbor]--
-      if (indegree[neighbor] === 0) {
+    for (const neighbor of adjacency[next] ?? []) {
+      indegree[neighbor] = (indegree[neighbor] ?? 0) - 1
+      if ((indegree[neighbor] ?? 0) === 0) {
         zero.push(neighbor)
       }
     }

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
 
-interface Props {
+export interface ErrorBoundaryProps {
   children: ReactNode
   fallback?: ReactNode
   onError?: (error: Error, errorInfo: ErrorInfo) => void
@@ -19,10 +19,10 @@ interface State {
   errorId: string | null
 }
 
-export class ErrorBoundary extends Component<Props, State> {
+export class ErrorBoundary extends Component<ErrorBoundaryProps, State> {
   private resetTimeoutId: NodeJS.Timeout | null = null
 
-  constructor(props: Props) {
+  constructor(props: ErrorBoundaryProps) {
     super(props)
     this.state = {
       hasError: false,
@@ -40,7 +40,7 @@ export class ErrorBoundary extends Component<Props, State> {
     }
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Log error to console in development
     console.error('Error Boundary caught an error:', {
       error,
@@ -61,20 +61,22 @@ export class ErrorBoundary extends Component<Props, State> {
     })
   }
 
-  componentDidUpdate(prevProps: Props) {
-    // Reset error boundary if resetKeys have changed
-    if (this.props.resetKeys && prevProps.resetKeys) {
-      const hasResetKeyChanged = this.props.resetKeys.some(
-        (key, index) => key !== prevProps.resetKeys[index]
-      )
+  override componentDidUpdate(prevProps: ErrorBoundaryProps) {
+    if (!this.state.hasError) return
+    if (!this.props.resetKeys || this.props.resetKeys.length === 0) return
 
-      if (hasResetKeyChanged && this.state.hasError) {
-        this.resetErrorBoundary()
-      }
+    const nextKeys = this.props.resetKeys
+    const prevKeys = prevProps.resetKeys ?? []
+    const hasResetKeyChanged =
+      nextKeys.length !== prevKeys.length ||
+      nextKeys.some((key, index) => key !== prevKeys[index])
+
+    if (hasResetKeyChanged) {
+      this.resetErrorBoundary()
     }
   }
 
-  componentWillUnmount() {
+  override componentWillUnmount() {
     // Clear any pending reset timeout
     if (this.resetTimeoutId) {
       clearTimeout(this.resetTimeoutId)
@@ -98,7 +100,7 @@ export class ErrorBoundary extends Component<Props, State> {
     window.location.href = '/'
   }
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       // If custom fallback is provided, use it
       if (this.props.fallback) {
@@ -188,7 +190,7 @@ export const useErrorBoundaryReset = (resetKeys: Array<string | number> = []) =>
 // Higher-order component for wrapping components with error boundary
 export const withErrorBoundary = <P extends object>(
   Component: React.ComponentType<P>,
-  errorBoundaryProps?: Omit<Props, 'children'>
+  errorBoundaryProps?: Omit<ErrorBoundaryProps, 'children'>
 ) => {
   const WrappedComponent = (props: P) => (
     <ErrorBoundary {...errorBoundaryProps}>

@@ -18,8 +18,6 @@ import type { ScrapingTelemetry, OperationDeltaEvent } from '@/lib/operations/ty
 
 interface UseWebSocketOptions {
   autoConnect?: boolean
-  enableValidation?: boolean
-  enableMigration?: boolean
   debug?: boolean
 }
 
@@ -35,8 +33,6 @@ interface UseOperationSnapshotOptions extends UseWebSocketOptions {
 export function useWebSocket(options: UseWebSocketOptions = {}) {
   const {
     autoConnect = true,
-    enableValidation = true,
-    enableMigration = true,
     debug = process.env.NODE_ENV === 'development'
   } = options
 
@@ -154,14 +150,16 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
   // Auto-connect on mount if enabled
   useEffect(() => {
-    if (autoConnect && isClientInitialized) {
-      // Wait a moment for the page to fully load before connecting
-      const timeout = setTimeout(() => {
-        connect()
-      }, 100)
-
-      return () => clearTimeout(timeout)
+    if (!autoConnect || !isClientInitialized) {
+      return undefined
     }
+
+    // Wait a moment for the page to fully load before connecting
+    const timeout = setTimeout(() => {
+      connect()
+    }, 100)
+
+    return () => clearTimeout(timeout)
   }, [autoConnect, connect, isClientInitialized])
 
   // Subscribe to connection status updates
@@ -833,7 +831,6 @@ export function useOperationSnapshots(options: UseOperationSnapshotOptions = {})
           const hasEndTimeField = Object.prototype.hasOwnProperty.call(data, 'end_time')
           const hasStatusField = Object.prototype.hasOwnProperty.call(data, 'status')
           const hasProgressField = Object.prototype.hasOwnProperty.call(data, 'progress')
-          const hasUpdatedAtField = Object.prototype.hasOwnProperty.call(data, 'updated_at')
 
           // Preserve previous snapshot information when new messages omit optional fields.
           // This prevents momentary "card flicker" in the UI when websocket payloads do not

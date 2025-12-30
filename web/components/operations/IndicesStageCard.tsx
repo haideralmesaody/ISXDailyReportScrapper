@@ -70,10 +70,10 @@ export function IndicesStageCard({
         fileStatuses={fileStatuses ? fileStatuses.map(f => ({
           filename: f.file_name,
           status: f.status,
-          size_mb: f.size_mb,
-          progress: f.progress,
-          error_message: f.error_message,
-          processing_time_ms: f.processing_ms
+          ...(f.size_mb !== undefined ? { size_mb: f.size_mb } : {}),
+          ...(f.progress !== undefined ? { progress: f.progress } : {}),
+          ...(f.error_message !== undefined ? { error_message: f.error_message } : {}),
+          ...(f.processing_ms !== undefined ? { processing_time_ms: f.processing_ms } : {})
         })) : undefined}
         showDetails={false}
         showIndices={false}

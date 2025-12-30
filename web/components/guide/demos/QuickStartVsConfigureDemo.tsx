@@ -31,7 +31,7 @@ import { cn } from '@/lib/utils'
 interface OperationInfo {
   id: string
   name: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: React.ComponentType<{ className?: string | undefined }>
   description: string
   needsConfiguration: boolean
   requiresDates: boolean

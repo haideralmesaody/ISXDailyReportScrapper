@@ -343,28 +343,6 @@ class HttpClient {
       },
     }
 
-    // Comprehensive request logging
-    const requestDetails = {
-      request_id: requestId,
-      method: config.method || 'GET',
-      url: url,
-      endpoint: endpoint,
-      headers: Object.fromEntries(
-        Object.entries(config.headers || {}).filter(([key]) => 
-          !['authorization', 'x-api-key'].includes(key.toLowerCase())
-        )
-      ),
-      body_size: config.body ? 
-        (typeof config.body === 'string' ? config.body.length : '[non-string-body]') : 0,
-      has_body: !!config.body,
-      timestamp: new Date().toISOString(),
-      user_agent: navigator.userAgent,
-      origin: window.location.origin,
-      referrer: document.referrer,
-      connection_type: (navigator as any).connection?.effectiveType || 'unknown',
-      network_online: navigator.onLine,
-    }
-
     // Verbose logging disabled for production
     // console.group(`🌐 API Request [${requestId}]`)
     // console.log('📤 Request Details:', requestDetails)
@@ -532,23 +510,6 @@ class HttpClient {
     }
   }
 
-  // Helper function to analyze data structure for logging
-  private analyzeDataStructure(data: any): object {
-    if (data === null) return { type: 'null' }
-    if (Array.isArray(data)) return { 
-      type: 'array', 
-      length: data.length,
-      sample_item: data.length > 0 ? typeof data[0] : null
-    }
-    if (typeof data === 'object') return {
-      type: 'object',
-      keys: Object.keys(data),
-      key_count: Object.keys(data).length,
-      nested_objects: Object.values(data).filter(v => typeof v === 'object').length
-    }
-    return { type: typeof data, value_preview: String(data).substring(0, 50) }
-  }
-
   public getCircuitBreakerState(): CircuitState {
     return this.circuitBreaker.getState()
   }
@@ -650,7 +611,7 @@ export class ISXApiClient {
 
   public async refreshLicenseStatus(): Promise<LicenseApiResponse> {
     // Force refresh of license status by clearing debouncer cache
-    this.debouncer.clear()
+    this.client.clearDebouncer()
     return this.client.get('/api/license/status', false) // No debouncing for refresh
   }
 

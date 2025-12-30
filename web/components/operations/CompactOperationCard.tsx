@@ -26,7 +26,7 @@ interface CompactOperationCardProps {
     available?: boolean
     requiresDates?: boolean
   }
-  icon: React.ComponentType<{ className?: string }>
+  icon: React.ComponentType<{ className?: string | undefined }>
   onConfigure: () => void
   onDirectStart?: () => void  // For operations that don't need configuration
   isStarting: boolean

@@ -35,7 +35,7 @@ export function formatExpirationMessage(expiryDate?: string, isHydrated = false)
     
     // Return ISO format during SSR to prevent hydration mismatch
     if (!isHydrated) {
-      return date.toISOString().split('T')[0]
+      return date.toISOString().split('T')[0] ?? date.toISOString()
     }
     
     const daysLeft = calculateDaysLeft(expiryDate)

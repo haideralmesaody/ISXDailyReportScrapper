@@ -6,6 +6,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useApi } from '@/lib/hooks/use-api'
 import { apiClient } from '@/lib/api'
@@ -20,14 +21,21 @@ export function useLicenseGuard() {
   const { toast } = useToast()
 
   // Fetch current license status
-  const { data: licenseStatus, isLoading } = useApi<LicenseApiResponse>(
-    'license-status-guard',
-    () => apiClient.getLicenseStatus(),
-    {
-      refetchInterval: 300000, // Refresh every 5 minutes
-      retry: 2
-    }
-  )
+  const {
+    data: licenseStatus,
+    loading,
+    execute: fetchLicenseStatus,
+  } = useApi<LicenseApiResponse, []>(() => apiClient.getLicenseStatus())
+
+  useEffect(() => {
+    void fetchLicenseStatus().catch(() => {})
+
+    const interval = setInterval(() => {
+      void fetchLicenseStatus().catch(() => {})
+    }, 300000) // Refresh every 5 minutes
+
+    return () => clearInterval(interval)
+  }, [fetchLicenseStatus])
 
   /**
    * Check if user can access a specific path based on license status
@@ -41,7 +49,7 @@ export function useLicenseGuard() {
     }
 
     // If still loading, allow access (will be checked by page component)
-    if (isLoading) {
+    if (loading) {
       return true
     }
 
@@ -88,7 +96,7 @@ export function useLicenseGuard() {
     navigateWithGuard,
     isLicenseValid,
     getLicenseStatus,
-    isLoading,
+    isLoading: loading,
     licenseData: licenseStatus
   }
 }

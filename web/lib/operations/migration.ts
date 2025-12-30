@@ -5,7 +5,8 @@
  * and provide detailed error reporting.
  */
 
-import { OperationSnapshotDTO, validateOperationSnapshot } from './validation'
+import type { OperationSnapshotDTO } from '@/types'
+import { validateOperationSnapshot } from './validation'
 
 export interface MigrationResult {
   success: boolean
@@ -25,7 +26,7 @@ export interface MigrationResult {
  * Enhanced migration that handles both current format and legacy payloads.
  * Provides detailed error reporting and tracks what changes were made.
  */
-export function migrateToOperationSnapshotDTO(data: any, options?: any): MigrationResult {
+export function migrateToOperationSnapshotDTO(data: any): MigrationResult {
   // Basic validation - check if it looks like operation data
   if (!data || typeof data !== 'object') {
     return {

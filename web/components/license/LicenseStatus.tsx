@@ -5,7 +5,7 @@
 
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type CSSProperties } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Shield,
@@ -31,7 +31,7 @@ import { useToast } from '@/lib/hooks/use-toast'
 import { useHydration } from '@/lib/hooks'
 import { copyToClipboard } from '@/lib/utils/license-helpers'
 import { getDeviceDisplayName } from '@/lib/utils/device-fingerprint'
-import type { LicenseStatus, LicenseActivationHistory } from '@/types/index'
+import type { LicenseStatus } from '@/types/index'
 
 interface LicenseStatusProps {
   status: LicenseStatus
@@ -252,11 +252,11 @@ export default function LicenseStatus({
             <Progress 
               value={progressPercentage} 
               className="h-3"
-              // @ts-ignore - Custom progress color based on status
               style={{
-                '--progress-background': status.status === 'active' ? '#10b981' :
-                                       status.status === 'warning' ? '#f59e0b' : '#ef4444'
-              }}
+                ['--progress-background' as any]:
+                  status.status === 'active' ? '#10b981' :
+                  status.status === 'warning' ? '#f59e0b' : '#ef4444'
+              } as CSSProperties}
             />
             <div className="flex justify-between text-xs text-muted-foreground mt-1">
               <span>0 days</span>
@@ -276,7 +276,7 @@ export default function LicenseStatus({
                 { label: 'Hours', value: countdown.hours },
                 { label: 'Minutes', value: countdown.minutes },
                 { label: 'Seconds', value: countdown.seconds }
-              ].map((item, index) => (
+              ].map((item) => (
                 <div key={item.label} className="text-center">
                   <motion.div
                     key={item.value}

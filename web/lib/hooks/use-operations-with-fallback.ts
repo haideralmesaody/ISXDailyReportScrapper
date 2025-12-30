@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useOperationSnapshots } from './use-websocket'
 import { useOperationPolling } from './use-operation-polling'
-import ConnectionStatusWithFallback from '@/components/ui/connection-status-with-fallback'
 
 interface UseOperationsWithFallbackOptions {
   operationId?: string
@@ -61,7 +60,7 @@ export function useOperationsWithFallback(options: UseOperationsWithFallbackOpti
 
   // Try WebSocket first
   const wsResult = useOperationSnapshots({
-    operationId,
+    ...(operationId !== undefined ? { operationId } : {}),
     includeHistory,
     debug: process.env.NODE_ENV === 'development'
   })
@@ -70,7 +69,7 @@ export function useOperationsWithFallback(options: UseOperationsWithFallbackOpti
   const pollingResult = useOperationPolling({
     enabled: isUsingFallback,
     interval: pollingInterval,
-    operationId
+    ...(operationId !== undefined ? { operationId } : {})
   })
 
   // Determine if we should fall back to polling

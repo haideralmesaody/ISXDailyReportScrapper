@@ -85,10 +85,16 @@ export function useOperationPolling(options: UseOperationPollingOptions = {}) {
           const history = snapshotHistory.get(op.operation_id) || []
           if (history.length < 2) return false
 
-          const lastState = history[history.length - 1]
-          const twoStatesAgo = history[history.length - 2]
+          const lastState = history.at(-1)
+          const previousState = history.at(-2)
+          if (!lastState || !previousState) return false
 
-          return lastState.progress === op.progress &&
+          const unchangedBetweenPolls =
+            lastState.progress === previousState.progress &&
+            lastState.status === previousState.status
+
+          return unchangedBetweenPolls &&
+                 lastState.progress === op.progress &&
                  lastState.status === op.status &&
                  (Date.now() - new Date(lastState.updated_at).getTime()) > 30000
         })
@@ -97,7 +103,7 @@ export function useOperationPolling(options: UseOperationPollingOptions = {}) {
           console.log(`[useOperationPolling] 🎯 FALLBACK COMPLETIONS DETECTED:`, {
             timestamp: new Date().toISOString(),
             completedCount: completedOperations.length,
-            operations: completedOperations.map(op => ({
+            operations: completedOperations.map((op: any) => ({
               operationId: op.operation_id,
               status: op.status,
               progress: op.progress,
@@ -113,7 +119,7 @@ export function useOperationPolling(options: UseOperationPollingOptions = {}) {
           console.warn(`[useOperationPolling] ⚠️ STUCK OPERATIONS DETECTED BY POLLING:`, {
             timestamp: new Date().toISOString(),
             stuckCount: stuckOperations.length,
-            operations: stuckOperations.map(op => ({
+            operations: stuckOperations.map((op: any) => ({
               operationId: op.operation_id,
               status: op.status,
               progress: op.progress,
@@ -133,7 +139,7 @@ export function useOperationPolling(options: UseOperationPollingOptions = {}) {
               updated[index] = newSnapshot
 
               // Log state changes detected by polling
-              if (debug && (oldSnapshot.status !== newSnapshot.status || oldSnapshot.progress !== newSnapshot.progress)) {
+              if (oldSnapshot && debug && (oldSnapshot.status !== newSnapshot.status || oldSnapshot.progress !== newSnapshot.progress)) {
                 console.log(`[useOperationPolling] 📊 STATE CHANGE DETECTED BY POLLING:`, {
                   timestamp: new Date().toISOString(),
                   operationId: newSnapshot.operation_id,

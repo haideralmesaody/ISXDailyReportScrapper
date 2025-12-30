@@ -137,6 +137,7 @@ export function ScratchCardDemo() {
     if (!isDrawing.current || e.touches.length === 0) return
 
     const touch = e.touches[0]
+    if (!touch) return
     scratch(touch.clientX, touch.clientY)
   }
 

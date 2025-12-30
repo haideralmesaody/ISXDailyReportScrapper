@@ -365,7 +365,8 @@ class OperationSchemaRegistry implements SchemaRegistry {
     )
 
     const currentIndex = versions.indexOf(version)
-    return currentIndex < versions.length - 1 ? versions[currentIndex + 1] : version
+    const next = currentIndex < versions.length - 1 ? versions[currentIndex + 1] : undefined
+    return next ?? version
   }
 
   validate(data: any, version?: string): ValidationDetails {

@@ -28,8 +28,14 @@ export function ToggleGroup({
   children,
   disabled = false,
 }: ToggleGroupProps) {
+  const contextValue = {
+    type,
+    ...(value !== undefined ? { value } : {}),
+    ...(onValueChange ? { onValueChange } : {}),
+  }
+
   return (
-    <ToggleGroupContext.Provider value={{ type, value, onValueChange }}>
+    <ToggleGroupContext.Provider value={contextValue}>
       <div 
         className={cn(
           "inline-flex rounded-md shadow-sm",

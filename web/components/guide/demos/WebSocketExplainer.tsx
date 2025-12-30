@@ -6,7 +6,7 @@
 
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -17,7 +17,6 @@ import {
   CheckCircle2,
   WifiOff,
   Zap,
-  RefreshCw,
   MessageSquare,
   TrendingUp
 } from 'lucide-react'
@@ -68,13 +67,15 @@ export function WebSocketExplainer() {
 
     let index = 0
     const interval = setInterval(() => {
-      if (index < simulatedUpdates.length) {
-        setUpdates(prev => [...prev, simulatedUpdates[index]])
-        index++
-      } else {
+      const update = index < simulatedUpdates.length ? simulatedUpdates[index] : undefined
+      if (!update) {
         clearInterval(interval)
         setIsSimulating(false)
+        return
       }
+
+      setUpdates(prev => [...prev, update])
+      index++
     }, 1000)
   }
 

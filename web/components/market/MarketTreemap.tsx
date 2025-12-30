@@ -50,7 +50,8 @@ function getSparklineColor(prices: number[]): string {
   if (!prices || prices.length < 2) return 'rgba(255, 255, 255, 0.5)' // Dim white (no data)
 
   const firstPrice = prices[0]
-  const lastPrice = prices[prices.length - 1]
+  const lastPrice = prices.at(-1)
+  if (firstPrice === undefined || lastPrice === undefined) return 'rgba(255, 255, 255, 0.5)'
 
   if (lastPrice > firstPrice) return 'rgba(255, 255, 255, 0.9)'  // Bright white (uptrend)
   if (lastPrice < firstPrice) return 'rgba(255, 255, 255, 0.7)' // Medium white (downtrend)
@@ -142,6 +143,7 @@ export function MarketTreemap({
       .attr('cursor', 'pointer')
       .attr('opacity', 1)
       .on('click', (event, d) => {
+        void event
         if (onTickerClick) onTickerClick((d.data as any).ticker)
       })
       .on('mouseenter', (event, d) => {

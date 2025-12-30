@@ -7,6 +7,7 @@ type StageLike = {
   id?: string
   step_id?: string
   stage_id?: string
+  status?: string
   progress?: number
   message?: string
   started_at?: string

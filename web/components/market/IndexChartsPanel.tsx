@@ -52,7 +52,7 @@ export function IndexChartsPanel({ selectedDate }: IndexChartsPanelProps) {
     const end = new Date(selectedDate)
     const yearStart = new Date(end.getFullYear(), 0, 1) // January 1 of current year
 
-    setStartDate(yearStart.toISOString().split('T')[0]) // YYYY-MM-DD
+    setStartDate(yearStart.toISOString().split('T')[0] ?? yearStart.toISOString()) // YYYY-MM-DD
     setEndDate(selectedDate)
   }, [selectedDate])
 
@@ -84,7 +84,7 @@ export function IndexChartsPanel({ selectedDate }: IndexChartsPanelProps) {
     }
 
     return {
-      start: start.toISOString().split('T')[0],
+      start: start.toISOString().split('T')[0] ?? start.toISOString(),
       end: selectedDate
     }
   }, [selectedDate])
@@ -144,13 +144,13 @@ export function IndexChartsPanel({ selectedDate }: IndexChartsPanelProps) {
   const isx60ChartData: ChartDataPoint[] =
     indexData?.dates.map((date, i) => ({
       date,
-      value: indexData.ISX60[i],
+      value: indexData.ISX60[i] ?? 0,
     })) || []
 
   const isx15ChartData: ChartDataPoint[] =
     indexData?.dates.map((date, i) => ({
       date,
-      value: indexData.ISX15[i],
+      value: indexData.ISX15[i] ?? 0,
     })) || []
 
   const handleDateChange = () => {

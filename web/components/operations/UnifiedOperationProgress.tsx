@@ -1049,7 +1049,7 @@ export function UnifiedOperationProgress({
                   {false && (() => {
                     const priceAlerts = toNumber(stepMetadata?.price_alerts)
                     const rsiAlerts = toNumber(stepMetadata?.rsi_alerts)
-                    const tradedStocks = toNumber(stepMetadata?.traded_stocks)
+                    const tradedStocks = toNumber((stepMetadata as any)?.traded_stocks)
                     return (
                       <>
                         <div className="space-y-1">

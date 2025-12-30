@@ -65,11 +65,9 @@ export default function ScratchCard({
   const { toast } = useToast()
   const [isRevealed, setIsRevealed] = useState(data.revealed)
   const [isScratching, setIsScratching] = useState(false)
-  const [scratchProgress, setScratchProgress] = useState(0)
   const [copied, setCopied] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
   
   const cardSize = CARD_SIZES[size]
   const cardTheme = CARD_THEMES[theme]
@@ -138,8 +136,10 @@ export default function ScratchCard({
     let x, y
 
     if ('touches' in e) {
-      x = e.touches[0].clientX - rect.left
-      y = e.touches[0].clientY - rect.top
+      const touch = e.touches[0]
+      if (!touch) return
+      x = touch.clientX - rect.left
+      y = touch.clientY - rect.top
     } else {
       x = e.clientX - rect.left
       y = e.clientY - rect.top
@@ -161,11 +161,11 @@ export default function ScratchCard({
     let transparent = 0
 
     for (let i = 3; i < pixels.length; i += 4) {
-      if (pixels[i] < 128) transparent++
+      const alpha = pixels[i]
+      if (alpha !== undefined && alpha < 128) transparent++
     }
 
     const progress = transparent / (pixels.length / 4)
-    setScratchProgress(progress)
 
     // Auto-reveal when enough is scratched
     if (progress > 0.5 && !isRevealed) {

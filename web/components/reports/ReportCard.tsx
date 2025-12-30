@@ -6,7 +6,7 @@
 
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { 
   Calendar, 
   TrendingUp, 
@@ -41,6 +41,7 @@ const REPORT_ICONS: Record<ReportType, LucideIcon> = {
   ticker: TrendingUp,
   liquidity: Droplets,
   combined: Database,
+  index: BarChart3,
   indexes: BarChart3,
   summary: FileText,
   all: FileSpreadsheet
@@ -52,6 +53,7 @@ const REPORT_BADGE_VARIANTS: Record<ReportType, 'default' | 'secondary' | 'outli
   ticker: 'secondary',
   liquidity: 'outline',
   combined: 'secondary',
+  index: 'outline',
   indexes: 'outline',
   summary: 'default',
   all: 'secondary'
@@ -67,12 +69,16 @@ export function ReportCard({
   const [isLoadingPreview, setIsLoadingPreview] = useState(false)
   const [previewError, setPreviewError] = useState(false)
   
-  const Icon = REPORT_ICONS[report.type]
-  const badgeVariant = REPORT_BADGE_VARIANTS[report.type]
+  const reportType = (typeof report.type === 'string' && report.type in REPORT_ICONS)
+    ? report.type as ReportType
+    : 'all'
+
+  const Icon = REPORT_ICONS[reportType]
+  const badgeVariant = REPORT_BADGE_VARIANTS[reportType]
   
   // Extract additional info based on report type
-  const tickerSymbol = report.type === 'ticker' ? extractTickerSymbol(report.name) : null
-  const dailyDate = report.type === 'daily' ? extractDailyReportDate(report.name) : null
+  const tickerSymbol = reportType === 'ticker' ? extractTickerSymbol(report.name) : null
+  const dailyDate = reportType === 'daily' ? extractDailyReportDate(report.name) : null
   
   // Format display name based on type
   const getDisplayName = () => {
@@ -86,16 +92,16 @@ export function ReportCard({
         day: 'numeric' 
       })}`
     }
-    if (report.type === 'liquidity') {
+    if (reportType === 'liquidity') {
       return report.name.includes('summary') ? 'Liquidity Summary' : 'Liquidity Analysis Report'
     }
-    if (report.type === 'combined') {
+    if (reportType === 'combined') {
       return 'Combined Market Data'
     }
-    if (report.type === 'indexes') {
+    if (reportType === 'indexes' || reportType === 'index') {
       return 'Market Indices Report'
     }
-    if (report.type === 'summary') {
+    if (reportType === 'summary') {
       return 'Ticker Summary Report'
     }
     return report.displayName

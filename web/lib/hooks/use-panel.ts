@@ -130,7 +130,7 @@ export function usePanel({
   performance: performanceOptions = {}
 }: UsePanelOptions = {}): UsePanelReturn {
   // Get tiered viewport support information
-  const { supportInfo, supportLevel } = useVisualViewportSupport()
+  const { supportLevel } = useVisualViewportSupport()
 
   // State management
   const elementRef = useRef<HTMLElement | null>(null)
@@ -557,6 +557,9 @@ export function usePanel({
 export const panelUtils = {
   SIZE_PRESETS,
   calculateOptimalPosition: (viewport: any, panel: any, placement: string) => {
+    void viewport
+    void panel
+    void placement
     // Utility function for testing position calculations
     return { x: 0, y: 0 } // Simplified for testing
   }

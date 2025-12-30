@@ -36,6 +36,13 @@ export interface ReportListProps {
   isLoading?: boolean
 }
 
+export interface ReportCardProps {
+  report: ReportMetadata
+  isSelected: boolean
+  onSelect: (report: ReportMetadata) => void
+  onDownload: (report: ReportMetadata) => void
+}
+
 export interface ReportFiltersProps {
   reports: ReportMetadata[]
   onFiltersChange: (filtered: ReportMetadata[]) => void

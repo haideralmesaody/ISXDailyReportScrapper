@@ -60,7 +60,7 @@ export class SimpleErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoun
     }
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     const errorId = this.state.errorId || `error_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 
     // Detect if this is a TDZ (Temporal Dead Zone) error
@@ -83,14 +83,14 @@ export class SimpleErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoun
 
       // Additional context for TDZ errors
       if (isTDZError) {
-        console.warn('TDZ Error Details:', {
-          originalError: error.message,
-          likelyCause: 'Variable accessed before initialization',
-          suggestedFix: 'Check variable scoping and initialization order',
-          affectedComponent: errorInfo.componentStack.split('\n')[1]?.trim()
-        })
+          console.warn('TDZ Error Details:', {
+            originalError: error.message,
+            likelyCause: 'Variable accessed before initialization',
+            suggestedFix: 'Check variable scoping and initialization order',
+            affectedComponent: (errorInfo.componentStack ?? '').split('\n')[1]?.trim()
+          })
+        }
       }
-    }
 
     // For TDZ errors, attempt automatic recovery after a short delay
     if (isTDZError) {
@@ -128,7 +128,7 @@ export class SimpleErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoun
     window.location.href = '/'
   }
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       // Use custom fallback if provided
       if (this.props.fallback) {

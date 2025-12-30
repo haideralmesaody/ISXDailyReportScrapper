@@ -128,6 +128,7 @@ export function PipelineFlowchart() {
   const [currentStageIndex, setCurrentStageIndex] = useState(-1)
   const [isRunning, setIsRunning] = useState(false)
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set())
+  const currentStage = currentStageIndex >= 0 ? stages[currentStageIndex] : undefined
 
   // Auto-run animation
   useEffect(() => {
@@ -157,7 +158,10 @@ export function PipelineFlowchart() {
         // Auto-expand panel for running stage
         setExpandedStages((prev) => {
           const newSet = new Set(prev)
-          newSet.add(stages[nextIndex].id)
+          const stageId = stages[nextIndex]?.id
+          if (stageId) {
+            newSet.add(stageId)
+          }
           return newSet
         })
 
@@ -233,6 +237,9 @@ export function PipelineFlowchart() {
           <RotateCcw className="h-4 w-4" />
           Reset
         </Button>
+        <Badge variant="outline" className="text-xs">
+          {currentStage ? `Current: ${currentStage.name}` : 'Ready'}
+        </Badge>
       </div>
 
       {/* Compact Horizontal Flowchart */}
@@ -319,7 +326,7 @@ export function PipelineFlowchart() {
       {/* Progressive Expandable Panels */}
       <div className="space-y-4">
         <AnimatePresence mode="sync">
-          {stages.map((stage, index) => {
+          {stages.map((stage) => {
             const StageIcon = stage.icon
             const isExpanded = expandedStages.has(stage.id)
             const shouldShow = stage.status !== 'pending'

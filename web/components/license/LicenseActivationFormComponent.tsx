@@ -5,7 +5,7 @@
 
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, type ComponentType } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AlertCircle, Loader2, Shield, Copy, Check, UserCheck, Clock, Search, WifiOff, Timer, Ban, AlertTriangle, Mail, RefreshCw, RotateCcw, XCircle, Smartphone } from 'lucide-react'
@@ -28,10 +28,29 @@ import {
   canAttemptActivation,
   recordActivationAttempt,
   copyToClipboard,
-  clearRateLimitData
 } from '@/lib/utils/license-helpers'
 import { generateDeviceFingerprint } from '@/lib/utils/device-fingerprint'
 import { parseLicenseError, LicenseErrorType, getErrorIcon, getErrorColor } from '@/lib/utils/license-errors'
+
+const errorIconComponents = {
+  RotateCcw,
+  XCircle,
+  Smartphone,
+  UserCheck,
+  AlertCircle,
+  Clock,
+  Search,
+  WifiOff,
+  Timer,
+  Ban,
+  AlertTriangle,
+} as const
+
+const resolveErrorIconComponent = (
+  iconName: string,
+): ComponentType<{ className?: string | undefined }> => {
+  return (errorIconComponents as Record<string, ComponentType<{ className?: string | undefined }>>)[iconName] ?? AlertTriangle
+}
 
 interface LicenseActivationFormComponentProps {
   onSubmit: (data: LicenseActivationForm) => Promise<void>
@@ -47,7 +66,6 @@ export default function LicenseActivationFormComponent({
   error,
   licenseState
 }: LicenseActivationFormComponentProps) {
-  const [licenseKey, setLicenseKey] = useState('')
   const [displayKey, setDisplayKey] = useState('')
   const [keyFormat, setKeyFormat] = useState<'standard' | 'scratch'>('standard')
   const [isValidFormat, setIsValidFormat] = useState(false)
@@ -74,7 +92,6 @@ export default function LicenseActivationFormComponent({
     const formattedKey = formatLicenseKey(value, detectedFormat)
     
     // Update states
-    setLicenseKey(cleanKey)
     setDisplayKey(formattedKey)
     setKeyFormat(detectedFormat)
     setIsValidFormat(isValidLicenseFormat(cleanKey))
@@ -94,7 +111,6 @@ export default function LicenseActivationFormComponent({
     const formattedKey = formatLicenseKey(pasted, detectedFormat)
     
     // Update states
-    setLicenseKey(cleanKey)
     setDisplayKey(formattedKey)
     setKeyFormat(detectedFormat)
     setIsValidFormat(isValidLicenseFormat(cleanKey))
@@ -155,12 +171,13 @@ export default function LicenseActivationFormComponent({
 
   // Clear rate limit error after timeout
   useEffect(() => {
-    if (rateLimitError) {
-      const timer = setTimeout(() => {
-        setRateLimitError(null)
-      }, 5000)
-      return () => clearTimeout(timer)
-    }
+    if (!rateLimitError) return undefined
+
+    const timer = setTimeout(() => {
+      setRateLimitError(null)
+    }, 5000)
+
+    return () => clearTimeout(timer)
   }, [rateLimitError])
 
   const getCardTitle = () => {
@@ -271,20 +288,8 @@ export default function LicenseActivationFormComponent({
           {/* Enhanced API error display */}
           {error && !rateLimitError && (() => {
             const errorDetails = parseLicenseError(error)
-            const IconComponent = {
-              RotateCcw,
-              XCircle,
-              Smartphone,
-              UserCheck,
-              AlertCircle,
-              Clock,
-              Search,
-              WifiOff,
-              Timer,
-              Ban,
-              AlertTriangle
-            }[getErrorIcon(errorDetails.type) as keyof typeof IconComponent] || AlertTriangle
-            
+            const IconComponent = resolveErrorIconComponent(getErrorIcon(errorDetails.type))
+             
             const errorColor = getErrorColor(errorDetails.type)
             const variantMap = {
               'green': 'default',

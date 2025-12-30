@@ -103,12 +103,8 @@ export function useViewportPosition({
   const [lastError, setLastError] = useState<string | null>(null)
   const [retryCount, setRetryCount] = useState(0)
 
-  // Throttling for emergency warnings to prevent console flooding
-  const lastEmergencyWarningRef = useRef<number>(0)
-  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-
   // Get tiered viewport support information
-  const { supportInfo, supportLevel } = useVisualViewportSupport()
+  const { supportLevel } = useVisualViewportSupport()
 
   // Check if visualViewport API is supported
   const checkVisualViewportSupport = useCallback((): boolean => {

@@ -36,17 +36,6 @@ const isPast = (date: Date): boolean => {
 }
 
 /**
- * Check if date is in the future (after today)
- */
-const isFuture = (date: Date): boolean => {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const compareDate = new Date(date)
-  compareDate.setHours(0, 0, 0, 0)
-  return compareDate > today
-}
-
-/**
  * Check if date is a weekend (Friday or Saturday in Iraq)
  */
 const isWeekend = (date: Date): boolean => {
@@ -196,7 +185,6 @@ export function TradingDateCalendar({
           const today = isToday(date)
           const isWeekendDay = isWeekend(date)
           const pastDate = isPast(date)
-          const futureDate = isFuture(date)
 
           return (
             <button

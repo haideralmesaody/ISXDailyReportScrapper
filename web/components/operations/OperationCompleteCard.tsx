@@ -12,7 +12,6 @@ import { Badge } from '@/components/ui/badge'
 import { 
   CheckCircle2,
   ArrowRight,
-  FileSearch,
   Zap,
   Database,
   BarChart3,
@@ -23,6 +22,7 @@ import {
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
 import { identifyStage, getStageInfo, getStageMetrics, extractStageFileCount, isStageReliable } from '@/lib/operations/stage-mapping'
+import type { StageMappingResult } from '@/lib/operations/stage-identification'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { SegmentedFileProgress } from './SegmentedFileProgress'
 import { ScrapingStageCard } from './ScrapingStageCard'
@@ -44,6 +44,7 @@ interface OperationCompleteCardProps {
       recommended_mode?: string
       stage_id?: string
       stage_name?: string
+      stage_metrics?: Record<string, any>
       mode_detection?: {
         recommended_mode?: string
         reason?: string
@@ -149,12 +150,12 @@ export function OperationCompleteCard({
   showPipelineDetails = false, // New
   pipelineMetadata = null      // New
 }: OperationCompleteCardProps) {
-  const stageMapping = React.useMemo(() => {
+  const stageMapping = React.useMemo<StageMappingResult>(() => {
     try {
       return identifyStage(operation)
     } catch (error) {
       console.warn('Stage identification failed:', error);
-      return { stageId: 'scraping', confidence: 'low', source: 'fallback' };
+      return { stageId: 'scraping', confidence: 'low', source: 'fallback' } as const;
     }
   }, [operation])
 
@@ -269,7 +270,7 @@ export function OperationCompleteCard({
   const nextOps = NEXT_OPERATIONS[stageMapping.stageId as keyof typeof NEXT_OPERATIONS] || []
 
   // Use robust stage-specific file count extraction
-  const filesCount = useMemo(() => {
+  const filesCount = React.useMemo(() => {
     try {
       return extractStageFileCount(operation, stageMapping.stageId)
     } catch (error) {
