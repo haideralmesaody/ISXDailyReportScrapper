@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -9,6 +10,20 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 )
+
+type stageExecutionFailedError struct {
+	stageID string
+	err     error
+}
+
+func (e stageExecutionFailedError) Error() string {
+	if e.stageID == "" {
+		return fmt.Sprintf("stage failed: %v", e.err)
+	}
+	return fmt.Sprintf("stage %s failed: %v", e.stageID, e.err)
+}
+
+func (e stageExecutionFailedError) Unwrap() error { return e.err }
 
 // JobStatus represents the status of a job
 type JobStatus string
@@ -68,6 +83,45 @@ type JobQueue struct {
 	logger   *slog.Logger
 	shutdown chan struct{}
 	active   map[string]*Job // Currently executing jobs
+}
+
+// broadcastJobQueueStageTerminalSnapshot emits a best-effort terminal snapshot for jobqueue-level failures
+// (e.g. CanRun=false or panic) without relying on deprecated legacy progress events.
+func broadcastJobQueueStageTerminalSnapshot(manager *Manager, logger *slog.Logger, operationID, stageID, status, message string, err error) {
+	if manager == nil || operationID == "" || operationID == "temp" || stageID == "" {
+		return
+	}
+	hub := manager.GetHub()
+	if hub == nil {
+		return
+	}
+	if logger == nil {
+		logger = slog.Default()
+	}
+
+	phase := StagePhaseRunning
+	progress := 0.0
+	switch status {
+	case "failed":
+		phase = StagePhaseFailed
+	case "skipped":
+		phase = StagePhaseCompleted
+	}
+
+	telemetry := NewStageTelemetry(stageID, nil, phase, message, progress, 0, 0, "", nil)
+	metadata := make(map[string]interface{}, 8)
+	telemetry.ApplyToMetadata(metadata)
+	metadata["status"] = status
+	if status == "skipped" {
+		metadata["stage_skipped"] = true
+		metadata["reason"] = message
+	}
+	if err != nil {
+		metadata["error"] = err.Error()
+	}
+
+	b := NewBaseStageBroadcaster(operationID, stageID, hub, logger, true)
+	b.UpdateProgressWithMetadata(int(progress), message, metadata)
 }
 
 // NewJobQueue creates a new job queue
@@ -213,13 +267,6 @@ func (q *JobQueue) Enqueue(job *Job) error {
 	if err := q.store.CreateJob(job); err != nil {
 		return fmt.Errorf("failed to save job: %w", err)
 	}
-
-	// Initialize operation in broadcaster
-	broadcaster := q.manager.GetBroadcaster()
-
-	// Initialize operation with single stage for UI mapping
-	stages := []string{job.StageID}
-	broadcaster.CreateOperation(job.OperationID, stages, "single_stage")
 
 	// Add to queue
 	q.logger.Info("attempting to enqueue job",
@@ -369,9 +416,6 @@ func (q *JobQueue) processJob(ctx context.Context, job *Job, logger *slog.Logger
 
 	logger.Info("processing job started")
 
-	// Get the status broadcaster
-	broadcaster := q.manager.GetBroadcaster()
-
 	// Mark job as active
 	q.mu.Lock()
 	q.active[job.ID] = job
@@ -389,11 +433,19 @@ func (q *JobQueue) processJob(ctx context.Context, job *Job, logger *slog.Logger
 				slog.String("current_stage", currentStageID))
 
 			// ✅ FIX B4: Mark the failed stage in broadcaster (QAQC #6)
-			// If we know which stage panicked, mark it as failed
-			if currentStageID != "" {
-				panicErr := fmt.Errorf("stage panicked: %v", r)
-				broadcaster.FailStep(job.OperationID, currentStageID, panicErr)
-			}
+				// If we know which stage panicked, mark it as failed
+				if currentStageID != "" {
+					panicErr := fmt.Errorf("stage panicked: %v", r)
+					broadcastJobQueueStageTerminalSnapshot(
+						q.manager,
+						logger,
+						job.OperationID,
+						currentStageID,
+						"failed",
+						"Stage panicked",
+						panicErr,
+					)
+				}
 
 			// Mark job as failed
 			job.Status = JobStatusFailed
@@ -410,9 +462,8 @@ func (q *JobQueue) processJob(ctx context.Context, job *Job, logger *slog.Logger
 				logger.Error("failed to update job after panic", slog.String("error", err.Error()))
 			}
 
-			// Broadcast operation failure
-			broadcaster.FailOperation(job.OperationID, fmt.Errorf("operation panicked: %v", r))
-		}
+				// No stage code to emit; snapshot above is best-effort.
+			}
 
 		// Remove from active jobs
 		q.mu.Lock()
@@ -431,13 +482,10 @@ func (q *JobQueue) processJob(ctx context.Context, job *Job, logger *slog.Logger
 		logger.Error("failed to update job status", slog.String("error", err.Error()))
 	}
 
-	// Mark operation as started through broadcaster
-	broadcaster.StartOperation(job.OperationID)
-
-	// Single stage execution only
-	if job.StageID == "" {
-		q.handleJobError(job, fmt.Errorf("stage id is required for job"), logger)
-		return
+		// Single stage execution only
+		if job.StageID == "" {
+			q.handleJobError(job, fmt.Errorf("stage id is required for job"), logger)
+			return
 	}
 
 	currentStageID = job.StageID // Track for panic recovery
@@ -446,22 +494,21 @@ func (q *JobQueue) processJob(ctx context.Context, job *Job, logger *slog.Logger
 		return
 	}
 
-	// Mark job as completed
-	job.Status = JobStatusCompleted
-	job.Progress = 100
-	job.Message = "Job completed successfully"
-	completedAt := time.Now()
-	job.CompletedAt = &completedAt
+		// If executeSingleStage already marked completion (e.g. skipped), don't overwrite.
+		if job.Status != JobStatusCompleted {
+			job.Status = JobStatusCompleted
+			job.Progress = 100
+			job.Message = "Job completed successfully"
+			completedAt := time.Now()
+			job.CompletedAt = &completedAt
 
-	if err := q.store.UpdateJob(job); err != nil {
-		logger.Error("failed to update job completion", slog.String("error", err.Error()))
+			if err := q.store.UpdateJob(job); err != nil {
+				logger.Error("failed to update job completion", slog.String("error", err.Error()))
+			}
+		}
+
+		logger.Info("processing job completed")
 	}
-
-	// Broadcast operation completion through the centralized broadcaster
-	broadcaster.CompleteOperation(job.OperationID, "Operation completed successfully")
-
-	logger.Info("processing job completed")
-}
 
 // executeSingleStage runs a single stage
 func (q *JobQueue) executeSingleStage(ctx context.Context, job *Job, logger *slog.Logger) error {
@@ -470,9 +517,6 @@ func (q *JobQueue) executeSingleStage(ctx context.Context, job *Job, logger *slo
 	if err != nil {
 		return fmt.Errorf("stage not found: %w", err)
 	}
-
-	// No manifest sequencing in single-stage mode
-	broadcaster := q.manager.GetBroadcaster()
 
 	logger.Debug("Checking if stage can run",
 		slog.String("stage_id", job.StageID),
@@ -490,21 +534,29 @@ func (q *JobQueue) executeSingleStage(ctx context.Context, job *Job, logger *slo
 		logger.Warn("stage requirements not met",
 			slog.String("stage_id", job.StageID),
 			slog.String("operation_id", job.OperationID))
-		if broadcaster != nil {
-			broadcaster.SkipStep(job.OperationID, stage.ID(), "Requirements not met - required input data not available")
-		}
-		return fmt.Errorf("stage %s cannot run: required inputs not available", job.StageID)
+
+		// Treat as a skip: stage cannot execute so it cannot emit its own snapshot.
+		job.Status = JobStatusCompleted
+		job.Message = fmt.Sprintf("Skipped %s: requirements not met", stage.Name())
+		completedAt := time.Now()
+		job.CompletedAt = &completedAt
+		_ = q.store.UpdateJob(job)
+
+		broadcastJobQueueStageTerminalSnapshot(
+			q.manager,
+			logger,
+			job.OperationID,
+			stage.ID(),
+			"skipped",
+			"Requirements not met - required input data not available",
+			nil,
+		)
+
+		return nil
 	}
 
-	// Update job progress
-	job.Progress = 10
-	job.Message = fmt.Sprintf("Starting %s", stage.Name())
-	q.store.UpdateJob(job)
-
-	// Update status through broadcaster
-	if broadcaster != nil {
-		broadcaster.UpdateStepProgress(job.OperationID, stage.ID(), 10, fmt.Sprintf("Starting %s", stage.Name()))
-	}
+		job.Message = fmt.Sprintf("Executing %s", stage.Name())
+		_ = q.store.UpdateJob(job)
 
 	// Create operation state for the stage
 	state := NewOperationState(job.OperationID)
@@ -518,7 +570,7 @@ func (q *JobQueue) executeSingleStage(ctx context.Context, job *Job, logger *slo
 	// ✅ FIX A3: Attach broadcaster for consistent real-time progress updates
 	// This ensures stepState's internal broadcaster is properly wired
 	// (Note: broadcaster already declared on line 369, reusing same instance)
-	state.SetBroadcaster(broadcaster)
+		// Deprecated: stage implementations broadcast via their own stage broadcasters.
 
 	// ✅ HARDENING: Call stepState.Start() before invoking the processor so StartTime and status are always initialized
 	stepState.Start()
@@ -526,11 +578,9 @@ func (q *JobQueue) executeSingleStage(ctx context.Context, job *Job, logger *slo
 	// Execute the stage
 	logger.Info("executing stage", slog.String("stage", stage.ID()))
 
-	if err := stage.Execute(ctx, state); err != nil {
-		// Mark step as failed through broadcaster
-		broadcaster.FailStep(job.OperationID, stage.ID(), err)
-		return fmt.Errorf("stage %s failed: %w", stage.ID(), err)
-	}
+		if err := stage.Execute(ctx, state); err != nil {
+			return stageExecutionFailedError{stageID: stage.ID(), err: err}
+		}
 
 	// Check if the stage was skipped or already handled its own completion
 	stepState = state.GetStage(stage.ID())
@@ -552,13 +602,9 @@ func (q *JobQueue) executeSingleStage(ctx context.Context, job *Job, logger *slo
 		return nil
 	}
 
-	// Update job progress
-	job.Progress = 90
-	job.Message = fmt.Sprintf("Completed %s", stage.Name())
-	q.store.UpdateJob(job)
-
-	// Mark step as completed through broadcaster
-	broadcaster.CompleteStep(job.OperationID, stage.ID(), fmt.Sprintf("Completed %s", stage.Name()))
+		job.Progress = 100
+		job.Message = fmt.Sprintf("Completed %s", stage.Name())
+		_ = q.store.UpdateJob(job)
 
 	return nil
 }
@@ -577,9 +623,19 @@ func (q *JobQueue) handleJobError(job *Job, err error, logger *slog.Logger) {
 		logger.Error("failed to update job error", slog.String("error", err.Error()))
 	}
 
-	// Broadcast operation failure through the centralized broadcaster
-	broadcaster := q.manager.GetBroadcaster()
-	broadcaster.FailOperation(job.OperationID, err)
+	// Only broadcast failures that occur before stage code can emit snapshots.
+	var stageErr stageExecutionFailedError
+	if !errors.As(err, &stageErr) {
+		broadcastJobQueueStageTerminalSnapshot(
+			q.manager,
+			logger,
+			job.OperationID,
+			job.StageID,
+			"failed",
+			"Job failed",
+			err,
+		)
+	}
 }
 
 // recoverJobs recovers jobs that were running when the system stopped

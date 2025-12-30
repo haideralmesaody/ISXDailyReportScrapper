@@ -59,35 +59,10 @@ func (sb *StatusBroadcaster) UpdateStepWithMetadata(operationID, stepID string, 
 		return
 	}
 
-	// Prepare broadcast payload
-	payload := map[string]interface{}{
-		"operation_id": operationID,
-		"step_id":      stepID,
-		"progress":     progress,
-		"message":      message,
-		"updated_at":   time.Now().Format(time.RFC3339),
-	}
-
-	// Add metadata if provided
-	if metadata != nil {
-		for key, value := range metadata {
-			payload[key] = value
-		}
-	}
-
-	// Add progress_percent for frontend compatibility
-	if _, exists := payload["progress_percent"]; !exists {
-		payload["progress_percent"] = progress
-	}
-
-	// Broadcast via WebSocket hub
-	if hub != nil {
-		hub.BroadcastUpdate("operation:progress", stepID, "active", payload)
-	}
-
-	// Log for debugging
+	// Legacy progress events are deprecated; stage broadcasters emit `operation:snapshot`/`operation:delta`.
+	_ = hub
 	if sb.logger != nil {
-		sb.logger.Debug("status_broadcaster.UpdateStepWithMetadata broadcast",
+		sb.logger.Debug("status_broadcaster.UpdateStepWithMetadata noop (deprecated progress channel)",
 			"operation_id", operationID,
 			"step_id", stepID,
 			"progress", progress,
@@ -194,19 +169,10 @@ func (sb *StatusBroadcaster) CreateOperation(operationID string, stepNames []str
 		return
 	}
 
-	if hub != nil {
-		payload := map[string]interface{}{
-			"operation_id":   operationID,
-			"operation_type": operationType,
-			"step_names":     stepNames,
-			"created_at":     time.Now().Format(time.RFC3339),
-			"status":         "created",
-		}
-		hub.BroadcastUpdate("operation:created", operationType, "created", payload)
-	}
-
+	// Legacy creation events are deprecated; stages own their own broadcasting.
+	_ = hub
 	if sb.logger != nil {
-		sb.logger.Debug("status_broadcaster.CreateOperation broadcasted",
+		sb.logger.Debug("status_broadcaster.CreateOperation noop (deprecated)",
 			"operation_id", operationID,
 			"step_count", len(stepNames),
 			"operation_type", operationType,
@@ -265,14 +231,10 @@ func (sb *StatusBroadcaster) BroadcastUpdate(eventType, operationID, status stri
 		return
 	}
 
-	// Broadcast via WebSocket hub
-	if hub != nil {
-		hub.BroadcastUpdate(eventType, operationID, status, metadata)
-	}
-
-	// Log for debugging
+	// Deprecated: Stage broadcasters (`BaseStageBroadcaster`) own all operation messaging.
+	_ = hub
 	if sb.logger != nil {
-		sb.logger.Debug("status_broadcaster.BroadcastUpdate sent",
+		sb.logger.Debug("status_broadcaster.BroadcastUpdate noop (deprecated)",
 			"operation_id", operationID,
 			"event_type", eventType,
 			"status", status,
