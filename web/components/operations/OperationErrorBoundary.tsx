@@ -34,7 +34,7 @@ export class OperationErrorBoundary extends Component<Props, State> {
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Log error for debugging
     console.error("OperationErrorBoundary caught an error:", error, errorInfo);
 
@@ -57,7 +57,7 @@ export class OperationErrorBoundary extends Component<Props, State> {
     });
   };
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       // Custom fallback UI
       if (this.props.fallback) {

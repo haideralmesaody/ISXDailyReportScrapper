@@ -89,7 +89,7 @@ export function OperationTickets({
             key={`${operation.operation_id}-scraping-ticket`}
             telemetry={scrapingData ?? operation.metadata ?? {}}
             operation={operation}
-            pipelineContext={pipelineContext}
+            pipelineContext={pipelineContext ?? null}
           />
         );
       case "processing":
@@ -97,7 +97,7 @@ export function OperationTickets({
           <ProcessingOperationTicket
             key={`${operation.operation_id}-processing-ticket`}
             operation={operation}
-            pipelineContext={pipelineContext}
+            pipelineContext={pipelineContext ?? null}
           />
         );
       case "indices":
@@ -155,13 +155,13 @@ export function OperationTickets({
 
   // Memoize pipeline steps processing to prevent TDZ errors
   const processedPipelineSteps = useMemo(() => {
-    return processedOperations.map(({ operation, opType }) => {
+    return processedOperations.map(({ operation }) => {
       if (
         operation.status === "completed" &&
         Array.isArray(operation.steps) &&
         operation.steps.length > 1
       ) {
-        return operation.steps.map((step, index) => {
+        return operation.steps.map((step: any, index: number) => {
           const stageOperation = {
             ...operation,
             operation_id: operation.operation_id,

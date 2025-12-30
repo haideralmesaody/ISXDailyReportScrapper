@@ -285,8 +285,8 @@ export function ProcessingOperationTicket({
 
   const inputProgressPercent = useMemo(() => {
     const aggregateFromStatuses = calculateFileAggregateProgressPercent({
-      totalFiles,
-      fileStatuses: normalizedFileStatuses,
+      totalFiles: totalFiles ?? null,
+      fileStatuses: normalizedFileStatuses ?? null,
     });
 
     if (typeof aggregateFromStatuses === "number") return aggregateFromStatuses;
@@ -301,7 +301,7 @@ export function ProcessingOperationTicket({
   const outputProgressPercent = useMemo(() => {
     const aggregateFromStatuses = calculateFileAggregateProgressPercent({
       totalFiles: totalOutputs,
-      fileStatuses: generationStatuses,
+      fileStatuses: generationStatuses ?? null,
     });
 
     if (typeof aggregateFromStatuses === "number") return aggregateFromStatuses;

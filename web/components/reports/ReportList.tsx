@@ -9,7 +9,6 @@
 import React, { useState, useMemo } from 'react'
 import { Search, FileX } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ReportCard } from './ReportCard'
 import { VirtualReportList } from './VirtualReportList'

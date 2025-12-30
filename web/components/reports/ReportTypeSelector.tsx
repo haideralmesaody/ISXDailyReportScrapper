@@ -33,6 +33,7 @@ const REPORT_ICONS: Record<ReportType, LucideIcon> = {
   ticker: TrendingUp,
   liquidity: Droplets,
   combined: Database,
+  index: BarChart3,
   indexes: BarChart3,
   summary: FileText,
   all: Files
@@ -44,6 +45,7 @@ const REPORT_LABELS: Record<ReportType, string> = {
   ticker: 'Ticker Reports',
   liquidity: 'Liquidity Analysis',
   combined: 'Combined Data',
+  index: 'Market Indices',
   indexes: 'Market Indices',
   summary: 'Summary Reports',
   all: 'All Reports'
@@ -54,7 +56,16 @@ export function ReportTypeSelector({
   onTypeChange,
   counts
 }: ReportTypeSelectorProps) {
-  const reportTypes: ReportType[] = ['all', 'daily', 'ticker', 'liquidity', 'summary', 'indexes', 'combined']
+  const reportTypes: ReportType[] = [
+    'all',
+    'daily',
+    'ticker',
+    'liquidity',
+    'summary',
+    'index',
+    'indexes',
+    'combined',
+  ]
 
   return (
     <div className="w-full">

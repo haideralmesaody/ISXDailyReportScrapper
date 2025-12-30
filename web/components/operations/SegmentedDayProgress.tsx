@@ -30,14 +30,7 @@ interface SegmentedDayProgressProps {
   toDate?: string;
   downloadedFiles?: string[];
   currentFile?: string;
-  metadata?: {
-    files_processed?: number;
-    total_files?: number;
-    phase?: string;
-    skipped_files?: string[];
-    completed?: boolean;
-    status?: string;
-  };
+  metadata?: Record<string, any>;
   className?: string;
 }
 
@@ -80,7 +73,7 @@ export function SegmentedDayProgress({
           const hyphenMatch = f.match(/\d{4}-\d{2}-\d{2}/);
           return hyphenMatch ? hyphenMatch[0] : null;
         })
-        .filter(Boolean),
+        .filter((value): value is string => typeof value === "string"),
     );
 
     const normalizedStatus =
@@ -113,13 +106,13 @@ export function SegmentedDayProgress({
       const dayOfWeek = current.getDay();
       // Iraq weekend is Friday (5) and Saturday (6)
       if (dayOfWeek !== 5 && dayOfWeek !== 6) {
-        tradingDays.push(current.toISOString().split("T")[0]);
+        tradingDays.push(current.toISOString().slice(0, 10));
       }
     }
 
     // Get skipped files from metadata (authoritative holiday detection)
     const skippedFilesArray = Array.isArray(metadata?.skipped_files)
-      ? metadata.skipped_files
+      ? metadata.skipped_files.filter((item: unknown): item is string => typeof item === "string")
       : [];
 
     // Create set of skipped dates for fast lookup
@@ -135,14 +128,14 @@ export function SegmentedDayProgress({
           const hyphenMatch = f.match(/\d{4}-\d{2}-\d{2}/);
           return hyphenMatch ? hyphenMatch[0] : null;
         })
-        .filter(Boolean),
+        .filter((value): value is string => typeof value === "string"),
     );
 
     // Generate segments for each day (REVERSE ORDER - most recent first)
     // Start from END date and go backwards to START date
     for (let d = new Date(end); d >= start; d.setDate(d.getDate() - 1)) {
       const current = new Date(d);
-      const dateStr = current.toISOString().split("T")[0];
+      const dateStr = current.toISOString().slice(0, 10);
       const dayOfWeek = current.getDay();
 
       const isWeekend = dayOfWeek === 5 || dayOfWeek === 6;

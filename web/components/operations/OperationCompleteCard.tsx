@@ -27,6 +27,18 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { SegmentedFileProgress } from './SegmentedFileProgress'
 import { ScrapingStageCard } from './ScrapingStageCard'
 
+type ButtonVariant = NonNullable<React.ComponentProps<typeof Button>['variant']>
+type IconComponent = React.ComponentType<{ className?: string | undefined }>
+
+type NextOperationItem = {
+  id: string
+  label: string
+  description: string
+  icon: IconComponent
+  variant: ButtonVariant
+  recommended?: boolean
+}
+
 interface OperationCompleteCardProps {
   operation: {
     operation_id: string
@@ -45,6 +57,7 @@ interface OperationCompleteCardProps {
       stage_id?: string
       stage_name?: string
       stage_metrics?: Record<string, any>
+      stage_timeline?: any
       mode_detection?: {
         recommended_mode?: string
         reason?: string
@@ -73,7 +86,7 @@ interface OperationCompleteCardProps {
   pipelineMetadata?: any        // New: Access to full pipeline context
 }
 
-const NEXT_OPERATIONS = {
+const NEXT_OPERATIONS: Partial<Record<StageMappingResult['stageId'], NextOperationItem[]>> = {
   scraping: [
     {
       id: 'processing',
@@ -133,7 +146,7 @@ const NEXT_OPERATIONS = {
     }
   ],
   full_pipeline: [] // No next operations for completed full pipeline
-} as const
+}
 
 
 const MODE_LABELS: Record<string, { label: string; description?: string }> = {
@@ -292,7 +305,7 @@ export function OperationCompleteCard({
         return (
           <ScrapingStageCard
             metadata={combinedMetadata}
-            statusMessage={operation.message}
+            {...(operation.message ? { statusMessage: operation.message } : {})}
             isComplete
             variant="complete"
             className="mt-2"
@@ -319,10 +332,6 @@ export function OperationCompleteCard({
         : typeof combinedMetadata.errors === 'number'
           ? combinedMetadata.errors
           : 0
-
-    const fileList = Array.isArray(combinedMetadata.file_list)
-      ? combinedMetadata.file_list as string[]
-      : undefined
 
     const fileStatuses = Array.isArray(combinedMetadata.file_statuses)
       ? combinedMetadata.file_statuses as Array<{
@@ -361,7 +370,6 @@ export function OperationCompleteCard({
         processedFiles={processedFiles}
         failedFiles={failedFiles}
         currentFile={combinedMetadata.current_file}
-        fileList={fileList}
         fileStatuses={fileStatuses}
         processingSpeedMBps={processingSpeedMBps}
         totalSizeMB={totalSizeMB}
@@ -419,7 +427,7 @@ export function OperationCompleteCard({
                   Operation Complete!
                 </h3>
                 <p className="text-sm text-green-700 dark:text-green-300 mt-0.5">
-                  {getStageDisplayName(operation)}
+                  {getStageDisplayName()}
                 </p>
               </div>
             </div>

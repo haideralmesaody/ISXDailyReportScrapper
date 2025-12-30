@@ -29,9 +29,10 @@ import { ProcessingStageCard } from './ProcessingStageCard'
 import { IndicesStageCard } from './IndicesStageCard'
 import { LiquidityStageCard } from './LiquidityStageCard'
 import { identifyStage, getStageInfo, getStageOrder, getTotalStages } from '@/lib/operations/stage-mapping'
+import type { StageMappingResult } from '@/lib/operations/stage-identification'
 import { useStageActivation, useStageTiming } from '@/lib/hooks/use-stage-activation'
 import { PipelineConnector } from './PipelineConnector'
-import { getOperationType, getOperationThresholds, getPhaseForThreshold, getPhaseDisplay, getPhaseBadgeVariant } from '@/lib/operations/phase-helpers'
+import { getOperationType, getOperationThresholds, getPhaseForThreshold, getPhaseDisplay } from '@/lib/operations/phase-helpers'
 
 const safeString = (value: any): string => {
   if (value === null || value === undefined) return ''
@@ -58,14 +59,6 @@ const toNumber = (value: any): number | undefined => {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : undefined
-}
-
-// Helper function to get stage number
-const getStageNumber = (operationType: string): number => {
-  if (!operationType || typeof operationType !== 'string') return 1 // Default to 1 for safety
-  const stageOrder = ['scraping', 'processing', 'indices', 'liquidity']
-  const index = stageOrder.indexOf(operationType)
-  return index >= 0 ? index + 1 : 1 // Default to 1 if not found
 }
 
 // Operation phases with clear progression
@@ -107,35 +100,15 @@ interface UnifiedOperationProgressProps {
     progress: number
     message?: string
     error?: string
-    metadata?: {
-      phase?: string
-      files_processed?: number
-      total_files?: number
-      current_file?: string
-      speed?: number
-      from_date?: string
-      to_date?: string
-      downloaded_files?: string[]
-      pipelineMetadata?: any // Parent pipeline metadata
-      stage_timeline?: any
-    }
+    start_time?: string
+    current_step?: string
+    metadata?: Record<string, any>
     steps?: Array<{
       id: string
       name: string
       status: string
       progress: number
-      metadata?: {
-        phase?: string
-        files_processed?: number
-        total_files?: number
-        current_file?: string
-        speed?: number
-        from_date?: string
-        to_date?: string
-        downloaded_files?: string[]
-        stage_id?: string
-        stage_timeline?: any
-      }
+      metadata?: Record<string, any>
     }>
     stageContext?: {
       allStages: any[]
@@ -166,22 +139,22 @@ export function UnifiedOperationProgress({
   showConnector = false,
   completedPipeline = false, // New
   pipelineMetadata = null,   // New
-  stageTimeline = null,      // New
+  stageTimeline: _stageTimeline = null,      // New
   allPipelineStages = []
 }: UnifiedOperationProgressProps) {
 
 
   // Use robust stage mapping utility
-  const stageMapping = useMemo(() => {
+  const stageMapping = useMemo<StageMappingResult>(() => {
     try {
       return identifyStage(operation)
     } catch (error) {
       console.warn('Stage identification failed in UnifiedOperationProgress:', error)
-      return { stageId: 'scraping', confidence: 'low', source: 'fallback' }
+      return { stageId: 'scraping', confidence: 'low', source: 'fallback' } as const
     }
   }, [operation])
 
-  const operationType = stageMapping.stageId || 'scraping' // Default to scraping if stageId is missing
+  const operationType = stageMapping.stageId ?? 'scraping' // Default to scraping if stageId is missing
 
   const stepData = operation.stepData || (Array.isArray(operation.steps) ? operation.steps[0] : null)
   const stageStatus = stepData?.status || operation.status || 'pending'
@@ -418,7 +391,7 @@ export function UnifiedOperationProgress({
     stageData: operation,
     allStages: resolvedAllStages,
     pipelineCompleted: resolvedCompletedPipeline,
-    stageNumber,
+    stageNumber: stageNumber ?? 1,
     totalStages: resolvedTotalStages
   })
 
@@ -557,7 +530,8 @@ export function UnifiedOperationProgress({
 
       if (thresholds && thresholds.length > 0) {
         for (let i = thresholds.length - 1; i >= 0; i--) {
-          if (stageProgress >= thresholds[i]) {
+          const threshold = thresholds[i]
+          if (threshold !== undefined && stageProgress >= threshold) {
             const phaseId = getPhaseIdForThreshold(i)
             if (phaseId && phases) {
               const matched = phases.find(p => p.id === phaseId)
@@ -601,16 +575,6 @@ export function UnifiedOperationProgress({
 
   // Generate status message
   const phaseDescription = stepMetadata?.phase_message || backendPhaseDisplay?.description
-
-  // Clamp/display-safe files processed for scraping to avoid inflated values
-  const filesProcessedDisplay = useMemo(() => {
-    const raw = toNumber(stepMetadata?.files_processed) ?? 0
-    if (stepMetadata?.stage_id === 'scraping' || operationType === 'scraping') {
-      const completed = toNumber(stepMetadata?.trading_days_completed)
-      return completed ?? raw
-    }
-    return raw
-  }, [stepMetadata, operationType])
 
   const statusMessage = useMemo(() => {
     if (stepMetadata?.stage_skipped) {
@@ -1007,7 +971,7 @@ export function UnifiedOperationProgress({
                   {operationType === 'liquidity' && (() => {
                     const tickersAnalyzed = toNumber(stepMetadata?.tickers_analyzed)
                     const averageValue = toNumber(stepMetadata?.average_value)
-                    const buckets = stepMetadata?.liquidity_buckets as Record<string, number> | undefined
+                    const buckets = (stepMetadata as any)?.liquidity_buckets as Record<string, number> | undefined
                     const bucketEntries = buckets
                       ? ['high', 'medium', 'low'].map(bucket => ({
                         label: bucket.charAt(0).toUpperCase() + bucket.slice(1),
@@ -1047,8 +1011,8 @@ export function UnifiedOperationProgress({
                   })()}
 
                   {false && (() => {
-                    const priceAlerts = toNumber(stepMetadata?.price_alerts)
-                    const rsiAlerts = toNumber(stepMetadata?.rsi_alerts)
+                    const priceAlerts = toNumber((stepMetadata as any)?.price_alerts)
+                    const rsiAlerts = toNumber((stepMetadata as any)?.rsi_alerts)
                     const tradedStocks = toNumber((stepMetadata as any)?.traded_stocks)
                     return (
                       <>

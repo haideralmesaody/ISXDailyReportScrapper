@@ -182,6 +182,7 @@ temp/
 tools/
 backup/
 data_backup/
+data/
 temp_backup/
 ISXPulse-v*/
 processing_*.txt

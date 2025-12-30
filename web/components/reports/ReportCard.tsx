@@ -75,6 +75,9 @@ export function ReportCard({
 
   const Icon = REPORT_ICONS[reportType]
   const badgeVariant = REPORT_BADGE_VARIANTS[reportType]
+
+  const handleSelect = () => onSelect(report)
+  const handleDownload = () => onDownload(report)
   
   // Extract additional info based on report type
   const tickerSymbol = reportType === 'ticker' ? extractTickerSymbol(report.name) : null
@@ -234,14 +237,14 @@ export function ReportCard({
               "transition-all duration-200 hover:shadow-md cursor-pointer",
               isSelected && "ring-2 ring-primary shadow-md"
             )}
-            onClick={onSelect}
+            onClick={handleSelect}
             onMouseEnter={loadPreview}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
-                onSelect()
+                handleSelect()
               }
             }}
             aria-selected={isSelected}
@@ -253,23 +256,23 @@ export function ReportCard({
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <div className={cn(
               "p-2 rounded-lg",
-              report.type === 'daily' && "bg-blue-50 dark:bg-blue-950",
-              report.type === 'ticker' && "bg-green-50 dark:bg-green-950",
-              report.type === 'liquidity' && "bg-cyan-50 dark:bg-cyan-950",
-              report.type === 'combined' && "bg-indigo-50 dark:bg-indigo-950",
-              report.type === 'indexes' && "bg-purple-50 dark:bg-purple-950",
-              report.type === 'summary' && "bg-orange-50 dark:bg-orange-950",
-              report.type === 'all' && "bg-gray-50 dark:bg-gray-950"
+              reportType === 'daily' && "bg-blue-50 dark:bg-blue-950",
+              reportType === 'ticker' && "bg-green-50 dark:bg-green-950",
+              reportType === 'liquidity' && "bg-cyan-50 dark:bg-cyan-950",
+              reportType === 'combined' && "bg-indigo-50 dark:bg-indigo-950",
+              (reportType === 'indexes' || reportType === 'index') && "bg-purple-50 dark:bg-purple-950",
+              reportType === 'summary' && "bg-orange-50 dark:bg-orange-950",
+              reportType === 'all' && "bg-gray-50 dark:bg-gray-950"
             )}>
               <Icon className={cn(
                 "h-5 w-5",
-                report.type === 'daily' && "text-blue-600 dark:text-blue-400",
-                report.type === 'ticker' && "text-green-600 dark:text-green-400",
-                report.type === 'liquidity' && "text-cyan-600 dark:text-cyan-400",
-                report.type === 'combined' && "text-indigo-600 dark:text-indigo-400",
-                report.type === 'indexes' && "text-purple-600 dark:text-purple-400",
-                report.type === 'summary' && "text-orange-600 dark:text-orange-400",
-                report.type === 'all' && "text-gray-600 dark:text-gray-400"
+                reportType === 'daily' && "text-blue-600 dark:text-blue-400",
+                reportType === 'ticker' && "text-green-600 dark:text-green-400",
+                reportType === 'liquidity' && "text-cyan-600 dark:text-cyan-400",
+                reportType === 'combined' && "text-indigo-600 dark:text-indigo-400",
+                (reportType === 'indexes' || reportType === 'index') && "text-purple-600 dark:text-purple-400",
+                reportType === 'summary' && "text-orange-600 dark:text-orange-400",
+                reportType === 'all' && "text-gray-600 dark:text-gray-400"
               )} />
             </div>
             
@@ -313,7 +316,7 @@ export function ReportCard({
               variant="ghost"
               onClick={(e) => {
                 e.stopPropagation()
-                onSelect()
+                handleSelect()
               }}
               title="View report"
               aria-label={`View ${getDisplayName()}`}
@@ -325,7 +328,7 @@ export function ReportCard({
               variant="ghost"
               onClick={(e) => {
                 e.stopPropagation()
-                onDownload()
+                handleDownload()
               }}
               title="Download report"
               aria-label={`Download ${getDisplayName()}`}

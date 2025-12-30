@@ -67,7 +67,7 @@ export function SegmentedFileProgress({
 
   const progress = useMemo(() => {
     const aggregateFromStatuses = calculateFileAggregateProgressPercent({
-      totalFiles,
+      totalFiles: totalFiles ?? null,
       fileStatuses: segments,
     })
 

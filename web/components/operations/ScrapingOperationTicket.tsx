@@ -28,7 +28,7 @@ export function ScrapingOperationTicket({
   operation,
   pipelineContext,
 }: ScrapingOperationTicketProps) {
-  const telem = telemetry ?? {};
+  const telem: Partial<ScrapingTelemetry> & Record<string, any> = telemetry ? (telemetry as any) : {};
   const missingTelemetry = !telemetry || Object.keys(telem).length === 0;
 
   const fromDate = telem.from_date || telem.fromDate;
@@ -98,6 +98,7 @@ export function ScrapingOperationTicket({
     trading_days_total: totalTradingDays,
     trading_days_completed: completedTradingDays,
     holidays_detected: holidaysDetected,
+    progress_percent: progressPercent,
     status,
   };
 
@@ -153,7 +154,7 @@ export function ScrapingOperationTicket({
             fromDate={fromDate}
             toDate={toDate}
             downloadedFiles={telem.downloaded_files || []}
-            currentFile={telem.current_file}
+            {...(telem.current_file ? { currentFile: telem.current_file } : {})}
             metadata={metadataForSegments}
           />
         )}

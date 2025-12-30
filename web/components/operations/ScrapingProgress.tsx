@@ -100,7 +100,7 @@ export function ScrapingProgress({ operation }: ScrapingProgressProps) {
   const speed = metadata.speed
   
   // Get status configuration
-  const config = statusConfig[scrapingStatus] || statusConfig.initializing
+  const config = statusConfig[scrapingStatus as keyof typeof statusConfig] ?? statusConfig.initializing
   const StatusIcon = config.icon
   
   // Calculate simple progress based on status
@@ -169,7 +169,7 @@ export function ScrapingProgress({ operation }: ScrapingProgressProps) {
     if (!filename) return ''
     // Extract just the date from "2025 01 15 ISX Daily Report.xlsx"
     const match = filename.match(/(\d{4}\s+\d{2}\s+\d{2})/)
-    if (match) {
+    if (match && match[1]) {
       return match[1].replace(/\s+/g, '-')
     }
     // Truncate long filenames

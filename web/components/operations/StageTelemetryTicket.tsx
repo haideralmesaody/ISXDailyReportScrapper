@@ -30,8 +30,8 @@ export function StageTelemetryTicket({ operation }: StageTelemetryTicketProps) {
   }
 
   // Pick a few numeric fields to surface
-  const metrics = Object.entries(metadata)
-    .filter(([_, v]) => typeof v === "number")
+  const metrics = Object.entries(metadata as Record<string, unknown>)
+    .filter((entry): entry is [string, number] => typeof entry[1] === "number")
     .slice(0, 6);
 
   return (

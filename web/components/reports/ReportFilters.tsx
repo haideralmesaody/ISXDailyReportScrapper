@@ -9,7 +9,6 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import {
   Search,
-  Calendar,
   Filter,
   X,
   ChevronDown,
@@ -35,7 +34,6 @@ import {
 import {
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -299,14 +297,14 @@ export function ReportFilters({
               <Label className="text-sm font-medium">Date Range</Label>
               <div className="grid grid-cols-2 gap-2">
                 <DatePicker
-                  date={filters.dateFrom}
-                  onDateChange={(date) => updateFilter('dateFrom', date)}
-                  placeholder="From"
+                  selected={filters.dateFrom ?? null}
+                  onChange={(date: Date | null) => updateFilter('dateFrom', date ?? undefined)}
+                  placeholderText="From"
                 />
                 <DatePicker
-                  date={filters.dateTo}
-                  onDateChange={(date) => updateFilter('dateTo', date)}
-                  placeholder="To"
+                  selected={filters.dateTo ?? null}
+                  onChange={(date: Date | null) => updateFilter('dateTo', date ?? undefined)}
+                  placeholderText="To"
                 />
               </div>
             </div>

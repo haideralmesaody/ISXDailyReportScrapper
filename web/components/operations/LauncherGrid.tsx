@@ -102,6 +102,9 @@ export function LauncherGrid({
                   type.id === "scraping" || type.id === "full_pipeline";
                 const isBusy = busyOperationTypes.has(type.id);
                 const statusBadge = isBusy ? "In Progress" : undefined;
+                const footerMessage = isBusy
+                  ? "This operation already has a run in progress."
+                  : undefined;
 
                 return (
                   <div
@@ -118,16 +121,10 @@ export function LauncherGrid({
                       }}
                       icon={Icon}
                       onConfigure={() => onConfigure(type)}
-                      onDirectStart={
-                        isBusy ? undefined : () => onDirectStart(type)
-                      }
+                      {...(!isBusy ? { onDirectStart: () => onDirectStart(type) } : {})}
                       isStarting={startingOperation === type.id}
-                      statusBadge={statusBadge}
-                      footerMessage={
-                        isBusy
-                          ? "This operation already has a run in progress."
-                          : undefined
-                      }
+                      {...(statusBadge ? { statusBadge } : {})}
+                      {...(footerMessage ? { footerMessage } : {})}
                     />
                   </div>
                 );
