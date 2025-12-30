@@ -483,7 +483,7 @@ const createOperationFromDelta = (delta: OperationDeltaEvent) => {
   return updateOperationWithDelta(baseOperation, delta)
 }
 
-const applyDeltaToSnapshots = (snapshots: any[], delta: OperationDeltaEvent, includeHistory: boolean) => {
+const applyDeltaToSnapshots = (snapshots: any[], delta: OperationDeltaEvent, includeHistory: boolean, debug: boolean) => {
   const existingIndex = snapshots.findIndex(op => op.operation_id === delta.operation_id)
   const deltaTimestamp = getTimestampValue(delta.updated_at || Date.now())
 
@@ -1035,7 +1035,7 @@ export function useOperationSnapshots(options: UseOperationSnapshotOptions = {})
         lastReceivedAt: now
       }))
 
-      setSnapshots(prev => applyDeltaToSnapshots(prev, delta, includeHistory))
+      setSnapshots(prev => applyDeltaToSnapshots(prev, delta, includeHistory, debug))
 
       if (isTerminalStatus(delta.status)) {
         scheduleSnapshotFallback(delta.operation_id)
@@ -1043,7 +1043,7 @@ export function useOperationSnapshots(options: UseOperationSnapshotOptions = {})
     })
 
     return unsubscribe
-  }, [subscribe, operationId, includeHistory, scheduleSnapshotFallback])
+  }, [subscribe, operationId, includeHistory, scheduleSnapshotFallback, debug])
 
   useEffect(() => {
     const unsubscribe = subscribe('scraping:telemetry', (data: ScrapingTelemetry) => {

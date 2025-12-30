@@ -328,13 +328,6 @@ export class ISXWebSocketClient {
         }
 
         this.emit('operation:delta', deltaPayload)
-      } else if (eventType === 'operation:progress' ||
-                 eventType === 'operation:complete' ||
-                 eventType === 'operation:update') {
-        // Normalize to single event type
-        let data = parsedMessage.data || parsedMessage
-        data = this.normalizeFileProgressData(data)
-        this.emit('operation:snapshot', data)
       } else {
         // Emit to specific listeners
         this.emit(eventType, parsedMessage.data || parsedMessage)
