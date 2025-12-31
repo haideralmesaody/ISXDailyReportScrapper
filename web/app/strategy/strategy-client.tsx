@@ -3,6 +3,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -21,10 +23,18 @@ import {
 } from '@/components/ui/table'
 import { toast } from '@/lib/hooks/use-toast'
 import apiClient from '@/lib/api'
-import type { ExecuteBatchResponse, StrategyInfo, StrategySignal } from '@/types/index'
-import { Target } from 'lucide-react'
+import type {
+  BacktestTickerDetails,
+  BacktestTickerSummary,
+  ExecuteBatchRequest,
+  ExecuteBatchResponse,
+  StrategyInfo,
+  StrategySignal,
+} from '@/types/index'
+import { format } from 'date-fns'
+import { ChevronDown, ChevronRight, Target } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 
 export default function StrategyClient() {
   const searchParams = useSearchParams()
@@ -41,6 +51,21 @@ export default function StrategyClient() {
   const [running, setRunning] = useState(false)
   const [lastRun, setLastRun] = useState<ExecuteBatchResponse | null>(null)
   const [showHold, setShowHold] = useState(false)
+  const [includeBacktest, setIncludeBacktest] = useState(false)
+  const [backtestStartDate, setBacktestStartDate] = useState<Date | null>(() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    d.setDate(d.getDate() - 90)
+    return d
+  })
+  const [backtestEndDate, setBacktestEndDate] = useState<Date | null>(() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d
+  })
+  const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null)
+  const [backtestDetailsBySymbol, setBacktestDetailsBySymbol] = useState<Record<string, BacktestTickerDetails>>({})
+  const [loadingBacktestSymbol, setLoadingBacktestSymbol] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -74,6 +99,17 @@ export default function StrategyClient() {
     }
   }, [])
 
+  const backtestSummaryBySymbol = useMemo(() => {
+    const map = new Map<string, BacktestTickerSummary>()
+    const items = lastRun?.backtest?.by_ticker || []
+    for (const item of items) {
+      map.set(item.symbol, item)
+    }
+    return map
+  }, [lastRun])
+
+  const hasBacktest = Boolean(lastRun?.backtest)
+
   const signalsToDisplay = useMemo(() => {
     const signals = lastRun?.signals || []
     const filtered = signals.filter(sig => {
@@ -83,10 +119,17 @@ export default function StrategyClient() {
     })
 
     return filtered.slice().sort((a, b) => {
+      const aBt = backtestSummaryBySymbol.get(a.symbol)
+      const bBt = backtestSummaryBySymbol.get(b.symbol)
+      if (aBt || bBt) {
+        const aNet = aBt?.net_profit_pct ?? -Infinity
+        const bNet = bBt?.net_profit_pct ?? -Infinity
+        if (aNet !== bNet) return bNet - aNet
+      }
       if (a.action !== b.action) return a.action.localeCompare(b.action)
       return a.symbol.localeCompare(b.symbol)
     })
-  }, [lastRun, showHold, tickerParam])
+  }, [lastRun, showHold, tickerParam, backtestSummaryBySymbol])
 
   const alerts = useMemo(() => {
     const signals = lastRun?.signals || []
@@ -102,20 +145,45 @@ export default function StrategyClient() {
     return String(value)
   }
 
+  function pct(value?: number): string {
+    if (value == null || Number.isNaN(value)) return ''
+    return `${value.toFixed(2)}%`
+  }
+
   async function runBatch() {
     setRunning(true)
     try {
-      const req: { data_points: number; symbols?: string[] } = {
+      const req: ExecuteBatchRequest = {
         data_points: dataPoints || 120,
       }
       if (tickerParam) req.symbols = [tickerParam]
 
+      if (includeBacktest) {
+        if (!backtestStartDate || !backtestEndDate) {
+          toast({
+            title: 'Backtest dates required',
+            description: 'Please select a valid start and end date.',
+            variant: 'destructive',
+          })
+          return
+        }
+
+        req.include_backtest = true
+        req.backtest_start_date = format(backtestStartDate, 'yyyy-MM-dd')
+        req.backtest_end_date = format(backtestEndDate, 'yyyy-MM-dd')
+        req.transaction_fee = 0.006
+      }
+
       const resp = await apiClient.executeStrategyBatch(selectedStrategyId, req)
       setLastRun(resp)
+      setExpandedSymbol(null)
+      setBacktestDetailsBySymbol({})
+      setLoadingBacktestSymbol(null)
+      if (includeBacktest) setShowHold(true)
 
       toast({
         title: 'Strategy run completed',
-        description: `Run ${resp.run_id} • BUY ${resp.buy_count} • SELL ${resp.sell_count} • HOLD ${resp.hold_count}`,
+        description: `Run ${resp.run_id} - BUY ${resp.buy_count} - SELL ${resp.sell_count} - HOLD ${resp.hold_count}`,
       })
     } catch (err: any) {
       toast({
@@ -125,6 +193,33 @@ export default function StrategyClient() {
       })
     } finally {
       setRunning(false)
+    }
+  }
+
+  async function toggleExpand(symbol: string) {
+    if (!lastRun?.run_id || !lastRun.backtest) return
+
+    if (expandedSymbol === symbol) {
+      setExpandedSymbol(null)
+      return
+    }
+
+    setExpandedSymbol(symbol)
+    if (backtestDetailsBySymbol[symbol]) return
+
+    setLoadingBacktestSymbol(symbol)
+    try {
+      const details = await apiClient.getBacktestTickerDetails(lastRun.strategy_id, lastRun.run_id, symbol)
+      setBacktestDetailsBySymbol(prev => ({ ...prev, [symbol]: details }))
+    } catch (err: any) {
+      toast({
+        title: 'Failed to load trade details',
+        description: err?.detail || err?.message || 'Unknown error',
+        variant: 'destructive',
+      })
+      setExpandedSymbol(null)
+    } finally {
+      setLoadingBacktestSymbol(null)
     }
   }
 
@@ -198,6 +293,36 @@ export default function StrategyClient() {
                 ) : (
                   <Badge variant="outline">All tickers</Badge>
                 )}
+              </div>
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={includeBacktest}
+                    onCheckedChange={checked => setIncludeBacktest(checked === true)}
+                    disabled={running}
+                  />
+                  <span className="text-sm">Include backtest</span>
+                </div>
+
+                {includeBacktest ? (
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <DatePicker
+                      selected={backtestStartDate}
+                      onChange={date => setBacktestStartDate(date)}
+                      placeholderText="Start date"
+                      disabled={running}
+                    />
+                    <DatePicker
+                      selected={backtestEndDate}
+                      onChange={date => setBacktestEndDate(date)}
+                      placeholderText="End date"
+                      disabled={running}
+                    />
+                    <div className="md:col-span-2 text-xs text-muted-foreground">
+                      Default last 90 days. Fee: 0.006 per transaction (0.6% on BUY and 0.6% on SELL).
+                    </div>
+                  </div>
+                ) : null}
               </div>
               <div className="flex gap-2">
                 <Button onClick={runBatch} disabled={running || loadingStrategies || !selectedStrategyId}>
@@ -275,8 +400,18 @@ export default function StrategyClient() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {hasBacktest ? <TableHead className="w-10"></TableHead> : null}
                       <TableHead>Symbol</TableHead>
                       <TableHead>Action</TableHead>
+                      {hasBacktest ? (
+                        <>
+                          <TableHead className="text-right">Net P&amp;L</TableHead>
+                          <TableHead className="text-right">Gross P&amp;L</TableHead>
+                          <TableHead className="text-right">Trades</TableHead>
+                          <TableHead className="text-right">Wins</TableHead>
+                          <TableHead className="text-right">Losses</TableHead>
+                        </>
+                      ) : null}
                       <TableHead className="text-right">Price</TableHead>
                       <TableHead className="text-right">RSI</TableHead>
                       <TableHead className="text-right">Prev</TableHead>
@@ -287,14 +422,32 @@ export default function StrategyClient() {
                   <TableBody>
                     {signalsToDisplay.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-sm text-muted-foreground">
+                        <TableCell colSpan={hasBacktest ? 13 : 7} className="text-sm text-muted-foreground">
                           No signals to display.
                         </TableCell>
                       </TableRow>
                     ) : (
                       signalsToDisplay.map(sig => (
-                        <TableRow key={sig.id}>
-                          <TableCell className="font-mono">{sig.symbol}</TableCell>
+                        <Fragment key={sig.id}>
+                          <TableRow>
+                            {hasBacktest ? (
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => toggleExpand(sig.symbol)}
+                                  disabled={!lastRun?.run_id || !lastRun?.backtest}
+                                >
+                                  {expandedSymbol === sig.symbol ? (
+                                    <ChevronDown className="h-4 w-4" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </TableCell>
+                            ) : null}
+                            <TableCell className="font-mono">{sig.symbol}</TableCell>
                           <TableCell>
                             <Badge
                               variant="outline"
@@ -309,6 +462,25 @@ export default function StrategyClient() {
                               {sig.action}
                             </Badge>
                           </TableCell>
+                            {hasBacktest ? (
+                              (() => {
+                                const bt = backtestSummaryBySymbol.get(sig.symbol)
+                                const isError = Boolean(bt?.error)
+                                return (
+                                  <>
+                                    <TableCell className="text-right">
+                                      {isError ? <span className="text-destructive">ERR</span> : pct(bt?.net_profit_pct)}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      {isError ? <span className="text-destructive">ERR</span> : pct(bt?.gross_profit_pct)}
+                                    </TableCell>
+                                    <TableCell className="text-right">{bt?.completed_trades ?? ''}</TableCell>
+                                    <TableCell className="text-right">{bt?.winning_trades ?? ''}</TableCell>
+                                    <TableCell className="text-right">{bt?.losing_trades ?? ''}</TableCell>
+                                  </>
+                                )
+                              })()
+                            ) : null}
                           <TableCell className="text-right">{sig.price?.toFixed?.(4) ?? String(sig.price)}</TableCell>
                           <TableCell className="text-right">{metaNumber(sig, 'rsi')}</TableCell>
                           <TableCell className="text-right">{metaNumber(sig, 'prev_rsi')}</TableCell>
@@ -318,7 +490,97 @@ export default function StrategyClient() {
                           <TableCell className="max-w-[360px] truncate text-sm text-muted-foreground">
                             {sig.reasoning}
                           </TableCell>
-                        </TableRow>
+                          </TableRow>
+
+                          {hasBacktest && expandedSymbol === sig.symbol ? (
+                            <TableRow>
+                              <TableCell colSpan={13} className="bg-muted/30">
+                                {loadingBacktestSymbol === sig.symbol ? (
+                                  <div className="text-sm text-muted-foreground">Loading trade details...</div>
+                                ) : (() => {
+                                  const details = backtestDetailsBySymbol[sig.symbol]
+                                  if (!details) {
+                                    return (
+                                      <div className="text-sm text-muted-foreground">
+                                        No backtest details found for this ticker.
+                                      </div>
+                                    )
+                                  }
+
+                                  const fee = details.trades[0]?.transaction_fee ?? lastRun?.backtest?.transaction_fee ?? 0.006
+
+                                  return (
+                                    <div className="space-y-3">
+                                      <div className="flex flex-wrap gap-3 text-sm">
+                                        <div>
+                                          <span className="text-muted-foreground">Net:</span>{' '}
+                                          <span className="font-medium">{pct(details.summary.net_profit_pct)}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Gross:</span>{' '}
+                                          <span className="font-medium">{pct(details.summary.gross_profit_pct)}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Trades:</span>{' '}
+                                          <span className="font-medium">{details.summary.completed_trades}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Wins:</span>{' '}
+                                          <span className="font-medium">{details.summary.winning_trades}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Losses:</span>{' '}
+                                          <span className="font-medium">{details.summary.losing_trades}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Fee:</span>{' '}
+                                          <span className="font-medium">{(fee * 100).toFixed(2)}%/tx</span>
+                                        </div>
+                                      </div>
+
+                                      <div className="overflow-x-auto">
+                                        <Table>
+                                          <TableHeader>
+                                            <TableRow>
+                                              <TableHead>Status</TableHead>
+                                              <TableHead>Buy Date</TableHead>
+                                              <TableHead className="text-right">Buy</TableHead>
+                                              <TableHead>Sell / MTM Date</TableHead>
+                                              <TableHead className="text-right">Sell / MTM</TableHead>
+                                              <TableHead className="text-right">Gross %</TableHead>
+                                              <TableHead className="text-right">Net %</TableHead>
+                                            </TableRow>
+                                          </TableHeader>
+                                          <TableBody>
+                                            {details.trades.length === 0 ? (
+                                              <TableRow>
+                                                <TableCell colSpan={7} className="text-sm text-muted-foreground">
+                                                  No trades for this period.
+                                                </TableCell>
+                                              </TableRow>
+                                            ) : (
+                                              details.trades.map((t, idx) => (
+                                                <TableRow key={`${sig.symbol}-t-${idx}`}>
+                                                  <TableCell>{t.status}</TableCell>
+                                                  <TableCell className="whitespace-nowrap">{t.buy_date || ''}</TableCell>
+                                                  <TableCell className="text-right">{t.buy_price?.toFixed?.(4) ?? ''}</TableCell>
+                                                  <TableCell className="whitespace-nowrap">{t.sell_date || ''}</TableCell>
+                                                  <TableCell className="text-right">{t.sell_price?.toFixed?.(4) ?? ''}</TableCell>
+                                                  <TableCell className="text-right">{pct(t.gross_return_pct)}</TableCell>
+                                                  <TableCell className="text-right">{pct(t.net_return_pct)}</TableCell>
+                                                </TableRow>
+                                              ))
+                                            )}
+                                          </TableBody>
+                                        </Table>
+                                      </div>
+                                    </div>
+                                  )
+                                })()}
+                              </TableCell>
+                            </TableRow>
+                          ) : null}
+                        </Fragment>
                       ))
                     )}
                   </TableBody>

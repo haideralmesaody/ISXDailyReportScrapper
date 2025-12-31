@@ -21,6 +21,7 @@ import type {
   StrategyInfo,
   ExecuteBatchRequest,
   ExecuteBatchResponse,
+  BacktestTickerDetails,
 } from '@/types/index'
 
 // ============================================================================
@@ -943,6 +944,10 @@ export class ISXApiClient {
 
   public async executeStrategyBatch(strategyId: string, req: ExecuteBatchRequest = {}): Promise<ExecuteBatchResponse> {
     return this.client.post(`/api/v1/strategies/${strategyId}/execute-batch`, req)
+  }
+
+  public async getBacktestTickerDetails(strategyId: string, runId: string, symbol: string): Promise<BacktestTickerDetails> {
+    return this.client.get(`/api/v1/strategies/${strategyId}/runs/${runId}/backtest/${symbol}`)
   }
 
   // =========================================================================

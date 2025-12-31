@@ -778,6 +778,10 @@ export interface StrategySignal {
 export interface ExecuteBatchRequest {
   data_points?: number
   symbols?: string[]
+  include_backtest?: boolean
+  backtest_start_date?: string
+  backtest_end_date?: string
+  transaction_fee?: number
 }
 
 export interface ExecuteBatchError {
@@ -796,6 +800,45 @@ export interface ExecuteBatchResponse {
   hold_count: number
   signals: StrategySignal[]
   errors?: ExecuteBatchError[]
+  backtest?: BatchBacktestSummary
+}
+
+export interface BatchBacktestSummary {
+  start_date: string
+  end_date: string
+  transaction_fee: number
+  by_ticker: BacktestTickerSummary[]
+}
+
+export interface BacktestTickerSummary {
+  symbol: string
+  completed_trades: number
+  winning_trades: number
+  losing_trades: number
+  gross_profit_pct: number
+  net_profit_pct: number
+  open_position: boolean
+  error?: string
+}
+
+export interface BacktestTrade {
+  symbol: string
+  status: 'CLOSED' | 'OPEN'
+  signal_buy_date?: string
+  buy_date?: string
+  buy_price?: number
+  signal_sell_date?: string
+  sell_date?: string
+  sell_price?: number
+  gross_return_pct: number
+  net_return_pct: number
+  transaction_fee: number
+}
+
+export interface BacktestTickerDetails {
+  symbol: string
+  summary: BacktestTickerSummary
+  trades: BacktestTrade[]
 }
 
 // ============================================================================

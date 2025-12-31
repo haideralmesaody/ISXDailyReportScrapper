@@ -9,6 +9,18 @@ Implement a **real-data** RSI(14) mean-reversion strategy that can be **manually
 
 No mock data is allowed anywhere in the strategy or backtesting path.
 
+**New requirement (Backtest integrated into Run Batch):**
+- The user runs the strategy via **Run Batch** and can optionally enable **Include Backtest** (checkbox).
+- Backtest uses a date range (default **last 90 days**) and can be adjusted.
+- Results table shows per-ticker:
+  - `completed_trades` (BUY→SELL pairs)
+  - `winning_trades`, `losing_trades`
+  - `gross_profit_pct` and `net_profit_pct` (fee-adjusted)
+- The user can expand a ticker to view per-trade details (buy/sell dates, prices, gross/net %).
+- Execution model: signals at day D, execute at **next day close (D+1)**.
+- End-of-range: **mark-to-market** open position (affects profit %, does not count as completed trade).
+- Fees: `transaction_fee = 0.006` per transaction (apply on BUY and SELL).
+
 ---
 
 ## Progress / Current State
@@ -23,8 +35,9 @@ No mock data is allowed anywhere in the strategy or backtesting path.
 - Added batch execution endpoint: `POST /api/v1/strategies/{strategyID}/execute-batch` which persists results under `data/strategies/<strategy_id>/<run_id>/...`.
 
 ### Not Done Yet (next)
+- Extend batch runs to optionally include backtesting (90d default) and render trade metrics + details in `/strategy`.
+- Add API to fetch per-ticker backtest trade details for a run (for expandable rows).
 - Add WebSocket progress streaming for batch runs (optional; current batch runs are synchronous HTTP).
-- Implement batch backtesting per ticker (real data only), plus aggregated results and UI rendering under `/strategy`.
 - Add a "browse previous runs" UI (load `data/strategies/.../summary.json`) and/or API endpoints for history.
 - Add concurrency guard to prevent overlapping batch runs per strategy.
 
@@ -123,22 +136,27 @@ Deliverables:
 ---
 
 ### Milestone 4 - Backtesting (per ticker + aggregated)
-**Outcome:** Backtest RSI rules over a date range using real EOD data.
+**Outcome:** Backtest RSI rules over a date range using real EOD data, integrated into Run Batch.
 
 Work items:
-1. Add endpoint:
-   - `POST /api/v1/strategies/{strategyID}/backtest-batch`
+1. Extend `POST /api/v1/strategies/{strategyID}/execute-batch` request:
+   - `include_backtest` + `backtest_start_date` + `backtest_end_date` (default last 90 days)
+   - `transaction_fee` (default `0.006`)
 2. Backtest model (v1):
    - Long-only, 1 position max per ticker
-   - Entry/exit cross rules only
-3. Persist:
+   - Signal at day D, execute at next day close (D+1)
+   - Mark-to-market open position at end date
+3. Per-ticker outputs:
+   - Summary metrics: completed/win/lose trades, gross/net profit %
+   - Trades list: buy/sell dates/prices + gross/net return %
+4. Persist:
    - `data/strategies/<id>/<run_id>/backtest/summary.json`
    - `data/strategies/<id>/<run_id>/backtest/by_ticker/<symbol>.json`
-4. WebSocket:
-   - Stream progress and publish final summary.
+5. Add API to fetch trade details:
+   - `GET /api/v1/strategies/{strategyID}/runs/{runID}/backtest/{symbol}`
 
 Deliverables:
-- UI can display backtest summary + per-ticker results.
+- UI can display per-ticker metrics and expand tickers to view trade details.
 
 ---
 

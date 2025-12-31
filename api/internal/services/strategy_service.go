@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -241,7 +242,267 @@ func (s *StrategyService) ExecuteStrategyBatch(ctx context.Context, strategyID s
 		return resp, fmt.Errorf("persist batch run: %w", err)
 	}
 
+	if req.IncludeBacktest {
+		backtestSummary, detailsBySymbol, err := s.runBatchBacktest(ctx, strategyID, symbols, req)
+		if err != nil {
+			return resp, fmt.Errorf("run batch backtest: %w", err)
+		}
+		resp.Backtest = backtestSummary
+
+		// Rewrite summary.json to include backtest and persist the per-ticker details.
+		if err := s.persistBatchRun(ctx, resp); err != nil {
+			return resp, fmt.Errorf("persist batch run (with backtest): %w", err)
+		}
+		if err := s.persistBatchBacktest(ctx, resp, detailsBySymbol); err != nil {
+			return resp, fmt.Errorf("persist batch backtest: %w", err)
+		}
+	}
+
 	return resp, nil
+}
+
+func (s *StrategyService) runBatchBacktest(
+	ctx context.Context,
+	strategyID string,
+	symbols []string,
+	req ExecuteBatchRequest,
+) (*BatchBacktestSummary, map[string]BacktestTickerDetails, error) {
+	start, end, fee, err := parseBacktestOptions(req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	byTicker := make([]BacktestTickerSummary, 0, len(symbols))
+	detailsBySymbol := make(map[string]BacktestTickerDetails, len(symbols))
+
+	// Load extra warmup data before start so RSI is initialized more realistically.
+	startLoad := start.AddDate(0, 0, -60)
+
+	for _, symbol := range symbols {
+		select {
+		case <-ctx.Done():
+			return nil, nil, ctx.Err()
+		default:
+		}
+
+		series, err := s.dataService.LoadTickerTradingHistoryRange(ctx, symbol, startLoad, end)
+		if err != nil {
+			summary := BacktestTickerSummary{Symbol: symbol, Error: err.Error()}
+			byTicker = append(byTicker, summary)
+			detailsBySymbol[symbol] = BacktestTickerDetails{Symbol: symbol, Summary: summary, Trades: []BacktestTrade{}}
+			continue
+		}
+
+		details, err := s.backtestTradesForSeries(ctx, strategyID, symbol, series, start, end, fee)
+		if err != nil {
+			summary := BacktestTickerSummary{Symbol: symbol, Error: err.Error()}
+			byTicker = append(byTicker, summary)
+			detailsBySymbol[symbol] = BacktestTickerDetails{Symbol: symbol, Summary: summary, Trades: []BacktestTrade{}}
+			continue
+		}
+
+		byTicker = append(byTicker, details.Summary)
+		detailsBySymbol[symbol] = details
+	}
+
+	summary := &BatchBacktestSummary{
+		StartDate:      start.UTC().Format("2006-01-02"),
+		EndDate:        end.UTC().Format("2006-01-02"),
+		TransactionFee: fee,
+		ByTicker:       byTicker,
+	}
+
+	return summary, detailsBySymbol, nil
+}
+
+func parseBacktestOptions(req ExecuteBatchRequest) (time.Time, time.Time, float64, error) {
+	now := time.Now().UTC()
+	endDefault := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	startDefault := endDefault.AddDate(0, 0, -90)
+
+	start := startDefault
+	end := endDefault
+
+	if strings.TrimSpace(req.BacktestStartDate) != "" {
+		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(req.BacktestStartDate))
+		if err != nil {
+			return time.Time{}, time.Time{}, 0, fmt.Errorf("invalid backtest_start_date: %w", err)
+		}
+		start = parsed.UTC()
+	}
+	if strings.TrimSpace(req.BacktestEndDate) != "" {
+		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(req.BacktestEndDate))
+		if err != nil {
+			return time.Time{}, time.Time{}, 0, fmt.Errorf("invalid backtest_end_date: %w", err)
+		}
+		end = parsed.UTC()
+	}
+	if end.Before(start) {
+		return time.Time{}, time.Time{}, 0, fmt.Errorf("backtest_end_date must be after backtest_start_date")
+	}
+
+	fee := req.TransactionFee
+	if fee == 0 {
+		fee = 0.006
+	}
+	if fee < 0 || fee > 0.05 {
+		return time.Time{}, time.Time{}, 0, fmt.Errorf("transaction_fee must be between 0 and 0.05")
+	}
+
+	return start, end, fee, nil
+}
+
+// backtestTradesForSeries runs a per-ticker backtest:
+// - Signals are evaluated on day D (EOD)
+// - Executions happen at next-day close (D+1)
+// - Open positions are marked-to-market at end of series (does not count as completed trade)
+func (s *StrategyService) backtestTradesForSeries(
+	ctx context.Context,
+	strategyID string,
+	symbol string,
+	series []liquidity.TradingDay,
+	start time.Time,
+	end time.Time,
+	fee float64,
+) (BacktestTickerDetails, error) {
+	if len(series) < 3 {
+		return BacktestTickerDetails{}, fmt.Errorf("insufficient data for backtest")
+	}
+
+	start = start.UTC()
+	end = end.UTC()
+
+	inPosition := false
+	entryPrice := 0.0
+	entry := BacktestTrade{}
+
+	trades := make([]BacktestTrade, 0, 16)
+	completedTrades := 0
+	winningTrades := 0
+	losingTrades := 0
+
+	grossEquity := 1.0
+	netEquity := 1.0
+
+	for i := 0; i < len(series)-1; i++ {
+		select {
+		case <-ctx.Done():
+			return BacktestTickerDetails{}, ctx.Err()
+		default:
+		}
+
+		signalDate := series[i].Date.UTC()
+		execDate := series[i+1].Date.UTC()
+		if execDate.Before(start) {
+			continue
+		}
+		if execDate.After(end) {
+			break
+		}
+
+		window := series[:i+1]
+		signal, err := s.manager.Execute(ctx, strategyID, window)
+		if err != nil {
+			continue
+		}
+
+		if signal.Action == strategy.SignalBuy && !inPosition {
+			buyPrice := series[i+1].Close
+			if buyPrice <= 0 {
+				continue
+			}
+
+			inPosition = true
+			entryPrice = buyPrice
+			entry = BacktestTrade{
+				Symbol:         symbol,
+				Status:         "OPEN",
+				SignalBuyDate:  signalDate.Format("2006-01-02"),
+				BuyDate:        execDate.Format("2006-01-02"),
+				BuyPrice:       buyPrice,
+				TransactionFee: fee,
+			}
+			continue
+		}
+
+		if signal.Action == strategy.SignalSell && inPosition {
+			sellPrice := series[i+1].Close
+			if sellPrice <= 0 || entryPrice <= 0 {
+				continue
+			}
+
+			grossFactor := sellPrice / entryPrice
+			netFactor := (1 - fee) * grossFactor * (1 - fee)
+
+			trade := entry
+			trade.Status = "CLOSED"
+			trade.SignalSellDate = signalDate.Format("2006-01-02")
+			trade.SellDate = execDate.Format("2006-01-02")
+			trade.SellPrice = sellPrice
+			trade.GrossReturnPct = (grossFactor - 1) * 100
+			trade.NetReturnPct = (netFactor - 1) * 100
+
+			trades = append(trades, trade)
+			completedTrades++
+			if trade.NetReturnPct > 0 {
+				winningTrades++
+			} else if trade.NetReturnPct < 0 {
+				losingTrades++
+			}
+
+			grossEquity *= grossFactor
+			netEquity *= netFactor
+
+			inPosition = false
+			entryPrice = 0
+			entry = BacktestTrade{}
+		}
+	}
+
+	openPosition := false
+	if inPosition && entryPrice > 0 {
+		last := series[len(series)-1]
+		lastDate := last.Date.UTC()
+		lastPrice := last.Close
+		if lastPrice > 0 && !lastDate.Before(start) && !lastDate.After(end) {
+			openPosition = true
+			grossFactor := lastPrice / entryPrice
+			netFactor := (1 - fee) * grossFactor * (1 - fee)
+
+			entry.Status = "OPEN"
+			entry.SellDate = lastDate.Format("2006-01-02") // mark-to-market date
+			entry.SellPrice = lastPrice                    // mark-to-market price
+			entry.GrossReturnPct = (grossFactor - 1) * 100
+			entry.NetReturnPct = (netFactor - 1) * 100
+
+			trades = append(trades, entry)
+			grossEquity *= grossFactor
+			netEquity *= netFactor
+		}
+	}
+
+	grossProfitPct := (grossEquity - 1) * 100
+	netProfitPct := (netEquity - 1) * 100
+
+	summary := BacktestTickerSummary{
+		Symbol:          symbol,
+		CompletedTrades: completedTrades,
+		WinningTrades:   winningTrades,
+		LosingTrades:    losingTrades,
+		GrossProfitPct:  round2(grossProfitPct),
+		NetProfitPct:    round2(netProfitPct),
+		OpenPosition:    openPosition,
+	}
+
+	return BacktestTickerDetails{
+		Symbol:  symbol,
+		Summary: summary,
+		Trades:  trades,
+	}, nil
+}
+
+func round2(v float64) float64 {
+	return math.Round(v*100) / 100
 }
 
 // RunBacktest performs backtesting for a strategy
@@ -364,11 +625,124 @@ func (s *StrategyService) persistBatchRun(ctx context.Context, result ExecuteBat
 	return nil
 }
 
+func (s *StrategyService) persistBatchBacktest(ctx context.Context, result ExecuteBatchResponse, detailsBySymbol map[string]BacktestTickerDetails) error {
+	if result.Backtest == nil {
+		return nil
+	}
+	if s.dataService == nil || s.dataService.paths == nil {
+		return fmt.Errorf("data service paths not configured")
+	}
+
+	baseDir := filepath.Join(s.dataService.paths.DataDir, "strategies", result.StrategyID, result.RunID, "backtest")
+	byTickerDir := filepath.Join(baseDir, "by_ticker")
+	if err := os.MkdirAll(byTickerDir, 0755); err != nil {
+		return fmt.Errorf("create backtest dir: %w", err)
+	}
+
+	// summary.json
+	summaryPath := filepath.Join(baseDir, "summary.json")
+	summaryBytes, err := json.MarshalIndent(result.Backtest, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal backtest summary: %w", err)
+	}
+	if err := os.WriteFile(summaryPath, summaryBytes, 0644); err != nil {
+		return fmt.Errorf("write backtest summary: %w", err)
+	}
+
+	// summary.csv
+	csvPath := filepath.Join(baseDir, "summary.csv")
+	csvFile, err := os.Create(csvPath)
+	if err != nil {
+		return fmt.Errorf("create backtest summary.csv: %w", err)
+	}
+	defer csvFile.Close()
+
+	writer := csv.NewWriter(csvFile)
+	defer writer.Flush()
+
+	if err := writer.Write([]string{"symbol", "completed_trades", "winning_trades", "losing_trades", "gross_profit_pct", "net_profit_pct", "open_position", "error"}); err != nil {
+		return fmt.Errorf("write backtest csv header: %w", err)
+	}
+	for _, item := range result.Backtest.ByTicker {
+		row := []string{
+			item.Symbol,
+			fmt.Sprintf("%d", item.CompletedTrades),
+			fmt.Sprintf("%d", item.WinningTrades),
+			fmt.Sprintf("%d", item.LosingTrades),
+			fmt.Sprintf("%.2f", item.GrossProfitPct),
+			fmt.Sprintf("%.2f", item.NetProfitPct),
+			fmt.Sprintf("%t", item.OpenPosition),
+			item.Error,
+		}
+		if err := writer.Write(row); err != nil {
+			return fmt.Errorf("write backtest csv row: %w", err)
+		}
+	}
+
+	for symbol, details := range detailsBySymbol {
+		path := filepath.Join(byTickerDir, strings.ToUpper(symbol)+".json")
+		bytes, err := json.MarshalIndent(details, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshal backtest details %s: %w", symbol, err)
+		}
+		if err := os.WriteFile(path, bytes, 0644); err != nil {
+			return fmt.Errorf("write backtest details %s: %w", symbol, err)
+		}
+	}
+
+	s.logger.InfoContext(ctx, "strategy batch backtest persisted",
+		"strategy_id", result.StrategyID,
+		"run_id", result.RunID,
+		"dir", baseDir,
+	)
+	return nil
+}
+
 // GetStrategySignals returns recent signals for a strategy
 func (s *StrategyService) GetStrategySignals(ctx context.Context, strategyID string, limit int) ([]strategy.Signal, error) {
 	// In a real implementation, this would fetch from a database
 	// For now, return empty slice
 	return []strategy.Signal{}, nil
+}
+
+// GetBacktestTickerDetails loads persisted backtest details for a specific strategy run and symbol.
+// Data source: <data_dir>/strategies/<strategy_id>/<run_id>/backtest/by_ticker/<SYMBOL>.json
+func (s *StrategyService) GetBacktestTickerDetails(ctx context.Context, strategyID, runID, symbol string) (BacktestTickerDetails, error) {
+	if s.dataService == nil || s.dataService.paths == nil {
+		return BacktestTickerDetails{}, fmt.Errorf("data service paths not configured")
+	}
+
+	strategyID = strings.TrimSpace(strategyID)
+	runID = strings.TrimSpace(runID)
+	symbol = strings.TrimSpace(strings.ToUpper(symbol))
+
+	if strategyID == "" {
+		return BacktestTickerDetails{}, fmt.Errorf("strategy_id is required")
+	}
+	if runID == "" {
+		return BacktestTickerDetails{}, fmt.Errorf("run_id is required")
+	}
+	if symbol == "" {
+		return BacktestTickerDetails{}, fmt.Errorf("symbol is required")
+	}
+
+	select {
+	case <-ctx.Done():
+		return BacktestTickerDetails{}, ctx.Err()
+	default:
+	}
+
+	path := filepath.Join(s.dataService.paths.DataDir, "strategies", strategyID, runID, "backtest", "by_ticker", symbol+".json")
+	bytes, err := os.ReadFile(path)
+	if err != nil {
+		return BacktestTickerDetails{}, fmt.Errorf("read backtest details (%s): %w", path, err)
+	}
+
+	var details BacktestTickerDetails
+	if err := json.Unmarshal(bytes, &details); err != nil {
+		return BacktestTickerDetails{}, fmt.Errorf("parse backtest details: %w", err)
+	}
+	return details, nil
 }
 
 // ValidateStrategyParameters validates strategy parameters
@@ -447,6 +821,16 @@ type ExecuteBatchRequest struct {
 	// Symbols optionally limits execution to a subset of tickers.
 	// When omitted, runs across all tickers found in reports/ticker.
 	Symbols []string `json:"symbols,omitempty"`
+
+	// IncludeBacktest runs a backtest per ticker for the provided date range.
+	IncludeBacktest bool `json:"include_backtest,omitempty"`
+
+	// BacktestStartDate and BacktestEndDate are inclusive dates in YYYY-MM-DD.
+	BacktestStartDate string `json:"backtest_start_date,omitempty"`
+	BacktestEndDate   string `json:"backtest_end_date,omitempty"`
+
+	// TransactionFee is applied per transaction (BUY and SELL), as a fraction (e.g. 0.006 = 0.6%).
+	TransactionFee float64 `json:"transaction_fee,omitempty"`
 }
 
 type ExecuteBatchError struct {
@@ -465,4 +849,47 @@ type ExecuteBatchResponse struct {
 	HoldCount   int                 `json:"hold_count"`
 	Signals     []strategy.Signal   `json:"signals"`
 	Errors      []ExecuteBatchError `json:"errors,omitempty"`
+
+	Backtest *BatchBacktestSummary `json:"backtest,omitempty"`
+}
+
+type BatchBacktestSummary struct {
+	StartDate      string                  `json:"start_date"`
+	EndDate        string                  `json:"end_date"`
+	TransactionFee float64                 `json:"transaction_fee"`
+	ByTicker       []BacktestTickerSummary `json:"by_ticker"`
+}
+
+type BacktestTickerSummary struct {
+	Symbol          string  `json:"symbol"`
+	CompletedTrades int     `json:"completed_trades"`
+	WinningTrades   int     `json:"winning_trades"`
+	LosingTrades    int     `json:"losing_trades"`
+	GrossProfitPct  float64 `json:"gross_profit_pct"`
+	NetProfitPct    float64 `json:"net_profit_pct"`
+	OpenPosition    bool    `json:"open_position"`
+	Error           string  `json:"error,omitempty"`
+}
+
+type BacktestTrade struct {
+	Symbol string `json:"symbol"`
+	Status string `json:"status"`
+
+	SignalBuyDate  string  `json:"signal_buy_date,omitempty"`
+	BuyDate        string  `json:"buy_date,omitempty"`
+	BuyPrice       float64 `json:"buy_price,omitempty"`
+	SignalSellDate string  `json:"signal_sell_date,omitempty"`
+	SellDate       string  `json:"sell_date,omitempty"`
+	SellPrice      float64 `json:"sell_price,omitempty"`
+
+	GrossReturnPct float64 `json:"gross_return_pct"`
+	NetReturnPct   float64 `json:"net_return_pct"`
+
+	TransactionFee float64 `json:"transaction_fee"`
+}
+
+type BacktestTickerDetails struct {
+	Symbol  string                `json:"symbol"`
+	Summary BacktestTickerSummary `json:"summary"`
+	Trades  []BacktestTrade       `json:"trades"`
 }

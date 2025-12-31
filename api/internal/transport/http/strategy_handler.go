@@ -38,6 +38,7 @@ func (h *StrategyHandler) RegisterRoutes(r chi.Router) {
 		r.Get("/{strategyID}", h.GetStrategy)
 		r.Post("/{strategyID}/execute", h.ExecuteStrategy)
 		r.Post("/{strategyID}/execute-batch", h.ExecuteStrategyBatch)
+		r.Get("/{strategyID}/runs/{runID}/backtest/{symbol}", h.GetBacktestTickerDetails)
 		r.Post("/{strategyID}/backtest", h.RunBacktest)
 		r.Post("/{strategyID}/validate", h.ValidateParameters)
 		r.Get("/{strategyID}/signals", h.GetSignals)
@@ -150,6 +151,28 @@ func (h *StrategyHandler) ExecuteStrategyBatch(w http.ResponseWriter, r *http.Re
 	}
 
 	h.respondJSON(w, http.StatusOK, result)
+}
+
+// GetBacktestTickerDetails handles GET /api/v1/strategies/{strategyID}/runs/{runID}/backtest/{symbol}
+func (h *StrategyHandler) GetBacktestTickerDetails(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	strategyID := chi.URLParam(r, "strategyID")
+	runID := chi.URLParam(r, "runID")
+	symbol := chi.URLParam(r, "symbol")
+
+	h.logger.InfoContext(ctx, "loading backtest details",
+		"strategy_id", strategyID,
+		"run_id", runID,
+		"symbol", symbol,
+	)
+
+	details, err := h.strategyService.GetBacktestTickerDetails(ctx, strategyID, runID, symbol)
+	if err != nil {
+		h.errorHandler.HandleError(w, r, err)
+		return
+	}
+
+	h.respondJSON(w, http.StatusOK, details)
 }
 
 // ExecuteMultipleStrategies handles POST /api/v1/strategies/execute-multiple
