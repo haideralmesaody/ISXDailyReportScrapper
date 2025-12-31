@@ -2,8 +2,14 @@ package services
 
 import (
 	"context"
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/isxcli/isxcli/internal/liquidity"
@@ -138,6 +144,106 @@ func (s *StrategyService) ExecuteMultipleStrategies(ctx context.Context, req Exe
 	return results, nil
 }
 
+// ExecuteStrategyBatch runs a strategy across all (or selected) tickers using real data.
+// It also persists results to: <data_dir>/strategies/<strategy_id>/<run_id>/...
+func (s *StrategyService) ExecuteStrategyBatch(ctx context.Context, strategyID string, req ExecuteBatchRequest) (ExecuteBatchResponse, error) {
+	startedAt := time.Now()
+
+	if s.dataService == nil {
+		return ExecuteBatchResponse{}, fmt.Errorf("data service not configured")
+	}
+	if strings.TrimSpace(strategyID) == "" {
+		return ExecuteBatchResponse{}, fmt.Errorf("strategy_id is required")
+	}
+
+	dataPoints := req.DataPoints
+	if dataPoints == 0 {
+		dataPoints = 120
+	}
+	if dataPoints < 16 {
+		return ExecuteBatchResponse{}, fmt.Errorf("data_points must be >= 16 for RSI(14) crossings")
+	}
+
+	var symbols []string
+	if len(req.Symbols) > 0 {
+		symbols = make([]string, 0, len(req.Symbols))
+		for _, sym := range req.Symbols {
+			sym = strings.TrimSpace(strings.ToUpper(sym))
+			if sym == "" {
+				continue
+			}
+			symbols = append(symbols, sym)
+		}
+		sort.Strings(symbols)
+	} else {
+		all, err := s.dataService.ListTickerSymbols(ctx)
+		if err != nil {
+			return ExecuteBatchResponse{}, fmt.Errorf("list ticker symbols: %w", err)
+		}
+		symbols = all
+	}
+
+	runID := fmt.Sprintf("%s_%d", time.Now().UTC().Format("20060102_150405"), time.Now().UTC().UnixNano())
+
+	signals := make([]strategy.Signal, 0, len(symbols))
+	errorsList := make([]ExecuteBatchError, 0)
+	buyCount := 0
+	sellCount := 0
+	holdCount := 0
+
+	for _, symbol := range symbols {
+		select {
+		case <-ctx.Done():
+			return ExecuteBatchResponse{}, ctx.Err()
+		default:
+		}
+
+		data, err := s.getSymbolData(ctx, symbol, dataPoints)
+		if err != nil {
+			errorsList = append(errorsList, ExecuteBatchError{Symbol: symbol, Error: err.Error()})
+			continue
+		}
+
+		signal, err := s.manager.Execute(ctx, strategyID, data)
+		if err != nil {
+			errorsList = append(errorsList, ExecuteBatchError{Symbol: symbol, Error: err.Error()})
+			continue
+		}
+
+		switch signal.Action {
+		case strategy.SignalBuy:
+			buyCount++
+		case strategy.SignalSell:
+			sellCount++
+		default:
+			holdCount++
+		}
+
+		signals = append(signals, signal)
+	}
+
+	completedAt := time.Now()
+
+	resp := ExecuteBatchResponse{
+		RunID:       runID,
+		StrategyID:  strategyID,
+		StartedAt:   startedAt,
+		CompletedAt: completedAt,
+		Total:       len(symbols),
+		BuyCount:    buyCount,
+		SellCount:   sellCount,
+		HoldCount:   holdCount,
+		Signals:     signals,
+		Errors:      errorsList,
+	}
+
+	if err := s.persistBatchRun(ctx, resp); err != nil {
+		return resp, fmt.Errorf("persist batch run: %w", err)
+	}
+
+	return resp, nil
+}
+
 // RunBacktest performs backtesting for a strategy
 func (s *StrategyService) RunBacktest(ctx context.Context, req BacktestRequest) (strategy.BacktestResult, error) {
 	s.logger.InfoContext(ctx, "starting backtest",
@@ -176,6 +282,86 @@ func (s *StrategyService) RunBacktest(ctx context.Context, req BacktestRequest) 
 	)
 
 	return result, nil
+}
+
+func (s *StrategyService) persistBatchRun(ctx context.Context, result ExecuteBatchResponse) error {
+	if s.dataService == nil || s.dataService.paths == nil {
+		return fmt.Errorf("data service paths not configured")
+	}
+
+	baseDir := filepath.Join(s.dataService.paths.DataDir, "strategies", result.StrategyID, result.RunID)
+	if err := os.MkdirAll(baseDir, 0755); err != nil {
+		return fmt.Errorf("create run dir: %w", err)
+	}
+
+	// summary.json (includes signals)
+	summaryPath := filepath.Join(baseDir, "summary.json")
+	summaryBytes, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal summary: %w", err)
+	}
+	if err := os.WriteFile(summaryPath, summaryBytes, 0644); err != nil {
+		return fmt.Errorf("write summary: %w", err)
+	}
+
+	// signals.json (signals only)
+	signalsPath := filepath.Join(baseDir, "signals.json")
+	signalsBytes, err := json.MarshalIndent(result.Signals, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal signals: %w", err)
+	}
+	if err := os.WriteFile(signalsPath, signalsBytes, 0644); err != nil {
+		return fmt.Errorf("write signals: %w", err)
+	}
+
+	// signals.csv
+	csvPath := filepath.Join(baseDir, "signals.csv")
+	csvFile, err := os.Create(csvPath)
+	if err != nil {
+		return fmt.Errorf("create signals.csv: %w", err)
+	}
+	defer csvFile.Close()
+
+	writer := csv.NewWriter(csvFile)
+	defer writer.Flush()
+
+	if err := writer.Write([]string{"date", "symbol", "action", "strength", "price", "rsi", "prev_rsi", "reason"}); err != nil {
+		return fmt.Errorf("write csv header: %w", err)
+	}
+
+	for _, sig := range result.Signals {
+		rsi := ""
+		prevRSI := ""
+		if sig.Metadata != nil {
+			if v, ok := sig.Metadata["rsi"]; ok {
+				rsi = fmt.Sprintf("%v", v)
+			}
+			if v, ok := sig.Metadata["prev_rsi"]; ok {
+				prevRSI = fmt.Sprintf("%v", v)
+			}
+		}
+		dateStr := sig.Timestamp.UTC().Format("2006-01-02")
+		row := []string{
+			dateStr,
+			sig.Symbol,
+			string(sig.Action),
+			fmt.Sprintf("%.2f", sig.Strength),
+			fmt.Sprintf("%.6f", sig.Price),
+			rsi,
+			prevRSI,
+			sig.Reasoning,
+		}
+		if err := writer.Write(row); err != nil {
+			return fmt.Errorf("write csv row: %w", err)
+		}
+	}
+
+	s.logger.InfoContext(ctx, "strategy batch results persisted",
+		"strategy_id", result.StrategyID,
+		"run_id", result.RunID,
+		"dir", baseDir,
+	)
+	return nil
 }
 
 // GetStrategySignals returns recent signals for a strategy
@@ -246,9 +432,37 @@ type BacktestRequest struct {
 }
 
 type StrategyResult struct {
-	StrategyID string           `json:"strategy_id"`
-	Symbol     string           `json:"symbol"`
-	Success    bool             `json:"success"`
-	Signal     strategy.Signal  `json:"signal,omitempty"`
-	Error      string           `json:"error,omitempty"`
+	StrategyID string          `json:"strategy_id"`
+	Symbol     string          `json:"symbol"`
+	Success    bool            `json:"success"`
+	Signal     strategy.Signal `json:"signal,omitempty"`
+	Error      string          `json:"error,omitempty"`
+}
+
+type ExecuteBatchRequest struct {
+	// DataPoints is the number of most-recent rows to load per ticker.
+	// Must be >= 16 for RSI(14) crossings (14 + 2 points).
+	DataPoints int `json:"data_points"`
+
+	// Symbols optionally limits execution to a subset of tickers.
+	// When omitted, runs across all tickers found in reports/ticker.
+	Symbols []string `json:"symbols,omitempty"`
+}
+
+type ExecuteBatchError struct {
+	Symbol string `json:"symbol"`
+	Error  string `json:"error"`
+}
+
+type ExecuteBatchResponse struct {
+	RunID       string              `json:"run_id"`
+	StrategyID  string              `json:"strategy_id"`
+	StartedAt   time.Time           `json:"started_at"`
+	CompletedAt time.Time           `json:"completed_at"`
+	Total       int                 `json:"total"`
+	BuyCount    int                 `json:"buy_count"`
+	SellCount   int                 `json:"sell_count"`
+	HoldCount   int                 `json:"hold_count"`
+	Signals     []strategy.Signal   `json:"signals"`
+	Errors      []ExecuteBatchError `json:"errors,omitempty"`
 }

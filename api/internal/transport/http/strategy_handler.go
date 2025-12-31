@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -36,6 +37,7 @@ func (h *StrategyHandler) RegisterRoutes(r chi.Router) {
 		r.Get("/", h.ListStrategies)
 		r.Get("/{strategyID}", h.GetStrategy)
 		r.Post("/{strategyID}/execute", h.ExecuteStrategy)
+		r.Post("/{strategyID}/execute-batch", h.ExecuteStrategyBatch)
 		r.Post("/{strategyID}/backtest", h.RunBacktest)
 		r.Post("/{strategyID}/validate", h.ValidateParameters)
 		r.Get("/{strategyID}/signals", h.GetSignals)
@@ -109,11 +111,45 @@ func (h *StrategyHandler) ExecuteStrategy(w http.ResponseWriter, r *http.Request
 	}
 
 	h.respondJSON(w, http.StatusOK, map[string]interface{}{
-		"signal":     signal,
+		"signal":      signal,
 		"strategy_id": strategyID,
-		"symbol":     req.Symbol,
-		"timestamp":  time.Now(),
+		"symbol":      req.Symbol,
+		"timestamp":   time.Now(),
 	})
+}
+
+// ExecuteStrategyBatch handles POST /api/v1/strategies/{strategyID}/execute-batch
+func (h *StrategyHandler) ExecuteStrategyBatch(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	strategyID := chi.URLParam(r, "strategyID")
+
+	var req services.ExecuteBatchRequest
+	if r.Body != nil {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
+			h.errorHandler.HandleError(w, r, errors.NewValidationError("invalid request body"))
+			return
+		}
+	}
+
+	// Optional validation (service does the final validation).
+	if req.DataPoints != 0 && (req.DataPoints < 16 || req.DataPoints > 2000) {
+		h.errorHandler.HandleError(w, r, errors.NewValidationError("data_points must be between 16 and 2000"))
+		return
+	}
+
+	h.logger.InfoContext(ctx, "executing strategy batch",
+		"strategy_id", strategyID,
+		"symbols", len(req.Symbols),
+		"data_points", req.DataPoints,
+	)
+
+	result, err := h.strategyService.ExecuteStrategyBatch(ctx, strategyID, req)
+	if err != nil {
+		h.errorHandler.HandleError(w, r, err)
+		return
+	}
+
+	h.respondJSON(w, http.StatusOK, result)
 }
 
 // ExecuteMultipleStrategies handles POST /api/v1/strategies/execute-multiple

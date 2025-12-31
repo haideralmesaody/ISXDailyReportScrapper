@@ -18,6 +18,9 @@ import type {
   Ticker,
   Report,
   MarketSummary,
+  StrategyInfo,
+  ExecuteBatchRequest,
+  ExecuteBatchResponse,
 } from '@/types/index'
 
 // ============================================================================
@@ -928,6 +931,18 @@ export class ISXApiClient {
     }
 
     return response.blob()
+  }
+
+  // =========================================================================
+  // Strategy Endpoints
+  // =========================================================================
+
+  public async listStrategies(): Promise<{ strategies: StrategyInfo[]; count: number }> {
+    return this.client.get('/api/v1/strategies')
+  }
+
+  public async executeStrategyBatch(strategyId: string, req: ExecuteBatchRequest = {}): Promise<ExecuteBatchResponse> {
+    return this.client.post(`/api/v1/strategies/${strategyId}/execute-batch`, req)
   }
 
   // =========================================================================

@@ -261,4 +261,3 @@ func parseIntOrZero(record []string, index map[string]int, col string) int {
 	}
 	return parsed
 }
-

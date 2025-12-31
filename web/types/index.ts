@@ -750,6 +750,55 @@ export interface UserPreferences {
 }
 
 // ============================================================================
+// Strategy Types
+// ============================================================================
+
+export interface StrategyInfo {
+  id: string
+  name: string
+  description: string
+}
+
+export type SignalAction = 'BUY' | 'SELL' | 'HOLD'
+
+export interface StrategySignal {
+  id: string
+  strategy_id: string
+  symbol: string
+  action: SignalAction
+  strength: number
+  price: number
+  quantity: number
+  timestamp: string
+  reasoning: string
+  metadata?: Record<string, unknown> | null
+  valid_until: string
+}
+
+export interface ExecuteBatchRequest {
+  data_points?: number
+  symbols?: string[]
+}
+
+export interface ExecuteBatchError {
+  symbol: string
+  error: string
+}
+
+export interface ExecuteBatchResponse {
+  run_id: string
+  strategy_id: string
+  started_at: string
+  completed_at: string
+  total: number
+  buy_count: number
+  sell_count: number
+  hold_count: number
+  signals: StrategySignal[]
+  errors?: ExecuteBatchError[]
+}
+
+// ============================================================================
 // Export All Types
 // ============================================================================
 

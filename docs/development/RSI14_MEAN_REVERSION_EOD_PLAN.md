@@ -15,14 +15,18 @@ No mock data is allowed anywhere in the strategy or backtesting path.
 
 ### Done
 - Removed the old technical analysis / indicators UI and related pipeline stages (the direction is now "strategies only").
-- Frontend TypeScript is green again (`web`: `npm.cmd run -s type-check`).
+- Frontend TypeScript is green again (`web`: `npm.cmd run -s type-check`) and `/strategy` hosts the new strategies UI.
 - `data/` is ignored by git (real data stays local, uncommitted).
 - Alerts page is not present and remains removed for now.
+- Strategy execution reads **real** EOD data from `data/reports/ticker/<SYMBOL>_trading_history.csv` and skips rows where `ClosePrice == 0` (no mock data).
+- Implemented and registered the RSI strategy: `rsi14_mr_eod_v1` (BUY on cross below 30, SELL on cross above 50).
+- Added batch execution endpoint: `POST /api/v1/strategies/{strategyID}/execute-batch` which persists results under `data/strategies/<strategy_id>/<run_id>/...`.
 
 ### Not Done Yet (next)
-- Backend still contains mock strategy data paths; strategy execution/backtesting must be wired to **real pipeline output** (CSV files produced by the scraper + processor).
-- Implement batch execution for RSI(14) across all tickers and persist results under `data/strategies/...`.
+- Add WebSocket progress streaming for batch runs (optional; current batch runs are synchronous HTTP).
 - Implement batch backtesting per ticker (real data only), plus aggregated results and UI rendering under `/strategy`.
+- Add a "browse previous runs" UI (load `data/strategies/.../summary.json`) and/or API endpoints for history.
+- Add concurrency guard to prevent overlapping batch runs per strategy.
 
 ---
 
@@ -35,7 +39,7 @@ No mock data is allowed anywhere in the strategy or backtesting path.
 ### Backend (`api/`)
 - A strategy subsystem exists (`api/internal/strategy/*`) with WebSocket events:
   - `strategy_status`, `strategy_signal`, `strategy_backtest`
-- The service layer still needs to remove mock paths and implement a real-data provider (see Milestone 1).
+- The service layer uses a real-data provider (`api/internal/services/ticker_series.go`) and no longer uses mock series generation.
 
 ---
 
@@ -54,6 +58,8 @@ This matches the existing backend direction and avoids prematurely coupling stra
 ### Milestone 1 - Remove mock data, add real-data provider
 **Outcome:** Strategy execution reads real EOD data and never generates fake prices.
 
+**Status:** Completed ✅
+
 Work items:
 1. Replace `getMockData()` usage in `api/internal/services/strategy_service.go` with real data retrieval.
 2. Decide the canonical source for OHLCV (preferred: pipeline output after processing).
@@ -71,6 +77,8 @@ Deliverables:
 
 ### Milestone 2 - Implement RSI(14) Mean Reversion Strategy (EOD)
 **Outcome:** A new strategy ID exists with the exact RSI rules above.
+
+**Status:** Completed ✅
 
 Work items:
 1. Add a dedicated strategy implementation, e.g. `api/internal/strategy/strategies/rsi14_mr_eod.go`
@@ -93,6 +101,8 @@ Deliverables:
 
 ### Milestone 3 - Batch Run Across All Tickers (manual trigger)
 **Outcome:** RSI strategy runs across all tickers with progress + persisted results.
+
+**Status:** Implemented (HTTP + persisted files). WebSocket progress: not yet. ✅/⬜
 
 Work items:
 1. Add endpoint:

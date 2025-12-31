@@ -167,6 +167,11 @@ func (a *Application) initializeServices() error {
 		return fmt.Errorf("register liquidity strategy: %w", err)
 	}
 
+	// RSI(14) Mean Reversion (EOD) - fixed parameters
+	if err := strategyManager.RegisterStrategy(strategies.NewRSI14MeanReversionEODStrategy(a.Logger)); err != nil {
+		return fmt.Errorf("register RSI14 mean reversion strategy: %w", err)
+	}
+
 	// Initialize strategy service
 	strategyService := services.NewStrategyService(strategyManager, dataService, a.Logger)
 
