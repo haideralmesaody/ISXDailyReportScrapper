@@ -131,42 +131,6 @@ func (a *Application) initializeServices() error {
 	// Initialize strategy framework
 	strategyManager := strategy.NewManager()
 
-	// Register built-in strategies with default configurations
-	momentumConfig := strategies.MomentumConfig{
-		LookbackPeriod:   20,
-		Threshold:        0.05,
-		VolatilityFilter: true,
-		VolumeFilter:     true,
-		MinVolume:        100000,
-		MaxVolatility:    0.3,
-	}
-	if err := strategyManager.RegisterStrategy(strategies.NewMomentumStrategy(momentumConfig, a.Logger)); err != nil {
-		return fmt.Errorf("register momentum strategy: %w", err)
-	}
-
-	meanReversionConfig := strategies.MeanReversionConfig{
-		LookbackPeriod:    20,
-		StdDevThreshold:   2.0,
-		MinLiquidityScore: 0.6,
-		OverboughtLevel:   70.0,
-		OversoldLevel:     30.0,
-	}
-	if err := strategyManager.RegisterStrategy(strategies.NewMeanReversionStrategy(meanReversionConfig, a.Logger)); err != nil {
-		return fmt.Errorf("register mean reversion strategy: %w", err)
-	}
-
-	liquidityConfig := strategies.LiquidityConfig{
-		MinLiquidityScore: 0.7,
-		MinVolume:         50000,
-		MinContinuity:     0.6,
-		LiquidityTrend:    true,
-		ScoreThreshold:    0.8,
-		VolumeGrowthRate:  0.05,
-	}
-	if err := strategyManager.RegisterStrategy(strategies.NewLiquidityStrategy(liquidityConfig, a.Logger)); err != nil {
-		return fmt.Errorf("register liquidity strategy: %w", err)
-	}
-
 	// RSI(14) Mean Reversion (EOD) - fixed parameters
 	if err := strategyManager.RegisterStrategy(strategies.NewRSI14MeanReversionEODStrategy(a.Logger)); err != nil {
 		return fmt.Errorf("register RSI14 mean reversion strategy: %w", err)
