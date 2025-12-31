@@ -21,6 +21,7 @@ import type {
   StrategyInfo,
   ExecuteBatchRequest,
   ExecuteBatchResponse,
+  StrategyRunInfo,
   BacktestTickerDetails,
 } from '@/types/index'
 
@@ -944,6 +945,15 @@ export class ISXApiClient {
 
   public async executeStrategyBatch(strategyId: string, req: ExecuteBatchRequest = {}): Promise<ExecuteBatchResponse> {
     return this.client.post(`/api/v1/strategies/${strategyId}/execute-batch`, req)
+  }
+
+  public async listStrategyRuns(strategyId: string, limit = 25): Promise<{ runs: StrategyRunInfo[]; count: number }> {
+    const query = limit ? `?limit=${encodeURIComponent(String(limit))}` : ''
+    return this.client.get(`/api/v1/strategies/${strategyId}/runs${query}`)
+  }
+
+  public async getStrategyRun(strategyId: string, runId: string): Promise<ExecuteBatchResponse> {
+    return this.client.get(`/api/v1/strategies/${strategyId}/runs/${runId}`)
   }
 
   public async getBacktestTickerDetails(strategyId: string, runId: string, symbol: string): Promise<BacktestTickerDetails> {

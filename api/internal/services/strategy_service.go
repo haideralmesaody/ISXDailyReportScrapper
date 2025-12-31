@@ -310,6 +310,7 @@ func (s *StrategyService) runBatchBacktest(
 		EndDate:        end.UTC().Format("2006-01-02"),
 		TransactionFee: fee,
 		ByTicker:       byTicker,
+		Aggregate:      computeBacktestAggregate(byTicker),
 	}
 
 	return summary, detailsBySymbol, nil
@@ -649,6 +650,16 @@ func (s *StrategyService) persistBatchBacktest(ctx context.Context, result Execu
 		return fmt.Errorf("write backtest summary: %w", err)
 	}
 
+	// aggregate.json
+	aggregatePath := filepath.Join(baseDir, "aggregate.json")
+	aggregateBytes, err := json.MarshalIndent(result.Backtest.Aggregate, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal backtest aggregate: %w", err)
+	}
+	if err := os.WriteFile(aggregatePath, aggregateBytes, 0644); err != nil {
+		return fmt.Errorf("write backtest aggregate: %w", err)
+	}
+
 	// summary.csv
 	csvPath := filepath.Join(baseDir, "summary.csv")
 	csvFile, err := os.Create(csvPath)
@@ -858,6 +869,7 @@ type BatchBacktestSummary struct {
 	EndDate        string                  `json:"end_date"`
 	TransactionFee float64                 `json:"transaction_fee"`
 	ByTicker       []BacktestTickerSummary `json:"by_ticker"`
+	Aggregate      BatchBacktestAggregate  `json:"aggregate"`
 }
 
 type BacktestTickerSummary struct {

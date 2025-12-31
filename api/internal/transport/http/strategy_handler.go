@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -38,6 +39,8 @@ func (h *StrategyHandler) RegisterRoutes(r chi.Router) {
 		r.Get("/{strategyID}", h.GetStrategy)
 		r.Post("/{strategyID}/execute", h.ExecuteStrategy)
 		r.Post("/{strategyID}/execute-batch", h.ExecuteStrategyBatch)
+		r.Get("/{strategyID}/runs", h.ListStrategyRuns)
+		r.Get("/{strategyID}/runs/{runID}", h.GetStrategyRun)
 		r.Get("/{strategyID}/runs/{runID}/backtest/{symbol}", h.GetBacktestTickerDetails)
 		r.Post("/{strategyID}/backtest", h.RunBacktest)
 		r.Post("/{strategyID}/validate", h.ValidateParameters)
@@ -151,6 +154,58 @@ func (h *StrategyHandler) ExecuteStrategyBatch(w http.ResponseWriter, r *http.Re
 	}
 
 	h.respondJSON(w, http.StatusOK, result)
+}
+
+// ListStrategyRuns handles GET /api/v1/strategies/{strategyID}/runs
+func (h *StrategyHandler) ListStrategyRuns(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	strategyID := chi.URLParam(r, "strategyID")
+
+	limit := 25
+	if strings.TrimSpace(r.URL.Query().Get("limit")) != "" {
+		parsed, err := strconv.Atoi(r.URL.Query().Get("limit"))
+		if err != nil || parsed < 1 || parsed > 200 {
+			h.errorHandler.HandleError(w, r, errors.NewValidationError("limit must be between 1 and 200"))
+			return
+		}
+		limit = parsed
+	}
+
+	h.logger.InfoContext(ctx, "listing strategy runs",
+		"strategy_id", strategyID,
+		"limit", limit,
+	)
+
+	runs, err := h.strategyService.ListStrategyRuns(ctx, strategyID, limit)
+	if err != nil {
+		h.errorHandler.HandleError(w, r, err)
+		return
+	}
+
+	h.respondJSON(w, http.StatusOK, map[string]interface{}{
+		"runs":  runs,
+		"count": len(runs),
+	})
+}
+
+// GetStrategyRun handles GET /api/v1/strategies/{strategyID}/runs/{runID}
+func (h *StrategyHandler) GetStrategyRun(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	strategyID := chi.URLParam(r, "strategyID")
+	runID := chi.URLParam(r, "runID")
+
+	h.logger.InfoContext(ctx, "getting strategy run",
+		"strategy_id", strategyID,
+		"run_id", runID,
+	)
+
+	run, err := h.strategyService.GetStrategyRun(ctx, strategyID, runID)
+	if err != nil {
+		h.errorHandler.HandleError(w, r, err)
+		return
+	}
+
+	h.respondJSON(w, http.StatusOK, run)
 }
 
 // GetBacktestTickerDetails handles GET /api/v1/strategies/{strategyID}/runs/{runID}/backtest/{symbol}

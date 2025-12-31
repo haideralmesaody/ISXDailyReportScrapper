@@ -803,11 +803,49 @@ export interface ExecuteBatchResponse {
   backtest?: BatchBacktestSummary
 }
 
+export interface StrategyRunInfo {
+  run_id: string
+  strategy_id: string
+  started_at: string
+  completed_at: string
+  total: number
+  buy_count: number
+  sell_count: number
+  hold_count: number
+  error_count: number
+  has_backtest: boolean
+}
+
 export interface BatchBacktestSummary {
   start_date: string
   end_date: string
   transaction_fee: number
   by_ticker: BacktestTickerSummary[]
+  aggregate?: BatchBacktestAggregate
+}
+
+export interface BatchBacktestAggregate {
+  total_tickers: number
+  successful_tickers: number
+  error_tickers: number
+  open_positions: number
+  total_completed_trades: number
+  total_winning_trades: number
+  total_losing_trades: number
+  avg_net_profit_pct: number
+  median_net_profit_pct: number
+  top_tickers?: BacktestAggregateTicker[]
+  bottom_tickers?: BacktestAggregateTicker[]
+}
+
+export interface BacktestAggregateTicker {
+  symbol: string
+  net_profit_pct: number
+  gross_profit_pct: number
+  completed_trades: number
+  winning_trades: number
+  losing_trades: number
+  open_position: boolean
 }
 
 export interface BacktestTickerSummary {

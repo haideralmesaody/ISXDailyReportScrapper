@@ -33,12 +33,13 @@ No mock data is allowed anywhere in the strategy or backtesting path.
 - Strategy execution reads **real** EOD data from `data/reports/ticker/<SYMBOL>_trading_history.csv` and skips rows where `ClosePrice == 0` (no mock data).
 - Implemented and registered the RSI strategy: `rsi14_mr_eod_v1` (BUY on cross below 30, SELL on cross above 50).
 - Added batch execution endpoint: `POST /api/v1/strategies/{strategyID}/execute-batch` which persists results under `data/strategies/<strategy_id>/<run_id>/...`.
+- Backtest integrated into Run Batch (`include_backtest` + 90d default + fees) and rendered in `/strategy` (metrics + expandable per-ticker trade details).
+- Run history browsing implemented:
+  - `GET /api/v1/strategies/{strategyID}/runs?limit=25`
+  - `GET /api/v1/strategies/{strategyID}/runs/{runID}`
 
 ### Not Done Yet (next)
-- Extend batch runs to optionally include backtesting (90d default) and render trade metrics + details in `/strategy`.
-- Add API to fetch per-ticker backtest trade details for a run (for expandable rows).
 - Add WebSocket progress streaming for batch runs (optional; current batch runs are synchronous HTTP).
-- Add a "browse previous runs" UI (load `data/strategies/.../summary.json`) and/or API endpoints for history.
 - Add concurrency guard to prevent overlapping batch runs per strategy.
 
 ---
@@ -138,6 +139,8 @@ Deliverables:
 ### Milestone 4 - Backtesting (per ticker + aggregated)
 **Outcome:** Backtest RSI rules over a date range using real EOD data, integrated into Run Batch.
 
+**Status:** Completed.
+
 Work items:
 1. Extend `POST /api/v1/strategies/{strategyID}/execute-batch` request:
    - `include_backtest` + `backtest_start_date` + `backtest_end_date` (default last 90 days)
@@ -151,17 +154,21 @@ Work items:
    - Trades list: buy/sell dates/prices + gross/net return %
 4. Persist:
    - `data/strategies/<id>/<run_id>/backtest/summary.json`
+   - `data/strategies/<id>/<run_id>/backtest/aggregate.json`
    - `data/strategies/<id>/<run_id>/backtest/by_ticker/<symbol>.json`
 5. Add API to fetch trade details:
    - `GET /api/v1/strategies/{strategyID}/runs/{runID}/backtest/{symbol}`
 
 Deliverables:
 - UI can display per-ticker metrics and expand tickers to view trade details.
+- UI can display an aggregated backtest summary (avg/median net %, totals, top/bottom tickers).
 
 ---
 
 ### Milestone 5 - Frontend Strategies Page (new strategies only)
 **Outcome:** `/strategy` becomes the canonical place to run and view strategy outputs.
+
+**Status:** Completed (run UI + backtest + run browser). WebSocket streaming: not yet.
 
 Work items:
 1. Add strategy list UI (start with RSI14 MR EOD).

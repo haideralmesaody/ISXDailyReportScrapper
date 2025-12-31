@@ -30,6 +30,7 @@ import type {
   ExecuteBatchResponse,
   StrategyInfo,
   StrategySignal,
+  StrategyRunInfo,
 } from '@/types/index'
 import { format } from 'date-fns'
 import { ChevronDown, ChevronRight, Target } from 'lucide-react'
@@ -66,6 +67,9 @@ export default function StrategyClient() {
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null)
   const [backtestDetailsBySymbol, setBacktestDetailsBySymbol] = useState<Record<string, BacktestTickerDetails>>({})
   const [loadingBacktestSymbol, setLoadingBacktestSymbol] = useState<string | null>(null)
+  const [runs, setRuns] = useState<StrategyRunInfo[]>([])
+  const [loadingRuns, setLoadingRuns] = useState(false)
+  const [loadingRunId, setLoadingRunId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -98,6 +102,32 @@ export default function StrategyClient() {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (!selectedStrategyId) return
+    let cancelled = false
+    setLoadingRuns(true)
+    apiClient
+      .listStrategyRuns(selectedStrategyId, 25)
+      .then(resp => {
+        if (cancelled) return
+        setRuns(resp.runs || [])
+      })
+      .catch((err: any) => {
+        if (cancelled) return
+        toast({
+          title: 'Failed to load strategy runs',
+          description: err?.detail || err?.message || 'Unknown error',
+          variant: 'destructive',
+        })
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingRuns(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [selectedStrategyId])
 
   const backtestSummaryBySymbol = useMemo(() => {
     const map = new Map<string, BacktestTickerSummary>()
@@ -180,6 +210,12 @@ export default function StrategyClient() {
       setBacktestDetailsBySymbol({})
       setLoadingBacktestSymbol(null)
       if (includeBacktest) setShowHold(true)
+      try {
+        const runsResp = await apiClient.listStrategyRuns(selectedStrategyId, 25)
+        setRuns(runsResp.runs || [])
+      } catch {
+        // Ignore failures; the main run succeeded.
+      }
 
       toast({
         title: 'Strategy run completed',
@@ -193,6 +229,27 @@ export default function StrategyClient() {
       })
     } finally {
       setRunning(false)
+    }
+  }
+
+  async function loadRun(runId: string) {
+    if (!selectedStrategyId) return
+    setLoadingRunId(runId)
+    try {
+      const resp = await apiClient.getStrategyRun(selectedStrategyId, runId)
+      setLastRun(resp)
+      setExpandedSymbol(null)
+      setBacktestDetailsBySymbol({})
+      setLoadingBacktestSymbol(null)
+      setShowHold(Boolean(resp.backtest))
+    } catch (err: any) {
+      toast({
+        title: 'Failed to load run',
+        description: err?.detail || err?.message || 'Unknown error',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoadingRunId(null)
     }
   }
 
@@ -341,51 +398,178 @@ export default function StrategyClient() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Runs</CardTitle>
+          <CardDescription>Browse persisted runs for the selected strategy and load them into the page.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {loadingRuns ? (
+            <div className="text-sm text-muted-foreground">Loading…</div>
+          ) : runs.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No runs found yet.</div>
+          ) : (
+            <div className="space-y-2">
+              {runs.map(run => (
+                <div
+                  key={run.run_id}
+                  className="flex flex-col gap-2 rounded-md border p-3 md:flex-row md:items-center md:justify-between"
+                >
+                  <div className="space-y-1">
+                    <div className="font-mono text-sm">{run.run_id}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(run.started_at).toLocaleString()} • BUY {run.buy_count} • SELL {run.sell_count} • HOLD {run.hold_count} • Errors {run.error_count}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {run.has_backtest ? (
+                        <Badge variant="secondary">Backtest</Badge>
+                      ) : (
+                        <Badge variant="outline">No backtest</Badge>
+                      )}
+                      {lastRun?.run_id === run.run_id ? <Badge variant="default">Loaded</Badge> : null}
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => loadRun(run.run_id)}
+                    disabled={running || loadingRunId === run.run_id}
+                  >
+                    {loadingRunId === run.run_id ? 'Loading…' : 'Load'}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {lastRun && (
         <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle>Latest Run</CardTitle>
-              <CardDescription>Summary and quick BUY/SELL alerts.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="text-sm text-muted-foreground">
-                <div>Run ID: <span className="font-mono text-foreground">{lastRun.run_id}</span></div>
-                <div>Strategy: <span className="font-mono text-foreground">{lastRun.strategy_id}</span></div>
-                <div>Total: <span className="text-foreground">{lastRun.total}</span></div>
-              </div>
+          <div className="lg:col-span-1 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Latest Run</CardTitle>
+                <CardDescription>Summary and quick BUY/SELL alerts.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="text-sm text-muted-foreground">
+                  <div>Run ID: <span className="font-mono text-foreground">{lastRun.run_id}</span></div>
+                  <div>Strategy: <span className="font-mono text-foreground">{lastRun.strategy_id}</span></div>
+                  <div>Total: <span className="text-foreground">{lastRun.total}</span></div>
+                </div>
 
-              <div className="flex flex-wrap gap-2">
-                <Badge className="bg-green-600 text-white hover:bg-green-600">BUY {lastRun.buy_count}</Badge>
-                <Badge className="bg-red-600 text-white hover:bg-red-600">SELL {lastRun.sell_count}</Badge>
-                <Badge variant="secondary">HOLD {lastRun.hold_count}</Badge>
-                {lastRun.errors?.length ? <Badge variant="destructive">Errors {lastRun.errors.length}</Badge> : null}
-              </div>
+                <div className="flex flex-wrap gap-2">
+                  <Badge className="bg-green-600 text-white hover:bg-green-600">BUY {lastRun.buy_count}</Badge>
+                  <Badge className="bg-red-600 text-white hover:bg-red-600">SELL {lastRun.sell_count}</Badge>
+                  <Badge variant="secondary">HOLD {lastRun.hold_count}</Badge>
+                  {lastRun.errors?.length ? <Badge variant="destructive">Errors {lastRun.errors.length}</Badge> : null}
+                </div>
 
-              <div className="space-y-2">
-                <div className="text-sm font-medium">Alerts (BUY/SELL)</div>
-                {alerts.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">No BUY/SELL alerts for this run.</div>
-                ) : (
-                  <div className="space-y-1">
-                    {alerts.slice(0, 12).map(sig => (
-                      <div key={sig.id} className="flex items-center justify-between text-sm">
-                        <span className="font-mono">{sig.symbol}</span>
-                        <Badge
-                          className={sig.action === 'BUY' ? 'bg-green-600 text-white hover:bg-green-600' : 'bg-red-600 text-white hover:bg-red-600'}
-                        >
-                          {sig.action}
-                        </Badge>
-                      </div>
-                    ))}
-                    {alerts.length > 12 ? (
-                      <div className="text-xs text-muted-foreground">Showing first 12 of {alerts.length}.</div>
-                    ) : null}
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Alerts (BUY/SELL)</div>
+                  {alerts.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">No BUY/SELL alerts for this run.</div>
+                  ) : (
+                    <div className="space-y-1">
+                      {alerts.slice(0, 12).map(sig => (
+                        <div key={sig.id} className="flex items-center justify-between text-sm">
+                          <span className="font-mono">{sig.symbol}</span>
+                          <Badge
+                            className={sig.action === 'BUY' ? 'bg-green-600 text-white hover:bg-green-600' : 'bg-red-600 text-white hover:bg-red-600'}
+                          >
+                            {sig.action}
+                          </Badge>
+                        </div>
+                      ))}
+                      {alerts.length > 12 ? (
+                        <div className="text-xs text-muted-foreground">Showing first 12 of {alerts.length}.</div>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {lastRun.backtest?.aggregate ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Backtest Aggregate</CardTitle>
+                  <CardDescription>
+                    {lastRun.backtest.start_date} → {lastRun.backtest.end_date}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  <div className="flex flex-wrap gap-3">
+                    <div>
+                      <span className="text-muted-foreground">Tickers:</span>{' '}
+                      <span className="font-medium">
+                        {lastRun.backtest.aggregate.successful_tickers}/{lastRun.backtest.aggregate.total_tickers}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Errors:</span>{' '}
+                      <span className="font-medium">{lastRun.backtest.aggregate.error_tickers}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Open:</span>{' '}
+                      <span className="font-medium">{lastRun.backtest.aggregate.open_positions}</span>
+                    </div>
                   </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+
+                  <div className="flex flex-wrap gap-3">
+                    <div>
+                      <span className="text-muted-foreground">Trades:</span>{' '}
+                      <span className="font-medium">{lastRun.backtest.aggregate.total_completed_trades}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Wins:</span>{' '}
+                      <span className="font-medium">{lastRun.backtest.aggregate.total_winning_trades}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Losses:</span>{' '}
+                      <span className="font-medium">{lastRun.backtest.aggregate.total_losing_trades}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    <div>
+                      <span className="text-muted-foreground">Avg net:</span>{' '}
+                      <span className="font-medium">{pct(lastRun.backtest.aggregate.avg_net_profit_pct)}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Median net:</span>{' '}
+                      <span className="font-medium">{pct(lastRun.backtest.aggregate.median_net_profit_pct)}</span>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Top</div>
+                      <div className="space-y-1">
+                        {(lastRun.backtest.aggregate.top_tickers || []).slice(0, 5).map(t => (
+                          <div key={`top-${t.symbol}`} className="flex items-center justify-between text-xs">
+                            <span className="font-mono">{t.symbol}</span>
+                            <span className="font-medium">{pct(t.net_profit_pct)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Bottom</div>
+                      <div className="space-y-1">
+                        {(lastRun.backtest.aggregate.bottom_tickers || []).slice(0, 5).map(t => (
+                          <div key={`bottom-${t.symbol}`} className="flex items-center justify-between text-xs">
+                            <span className="font-mono">{t.symbol}</span>
+                            <span className="font-medium">{pct(t.net_profit_pct)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+          </div>
 
           <Card className="lg:col-span-2">
             <CardHeader>
