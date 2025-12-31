@@ -271,9 +271,11 @@ func (a *Application) setupEmbeddedFrontend(r chi.Router) {
 
 	registerSPARoute("/", false)
 	registerSPARoute("/license", true)
+	registerSPARoute("/dashboard", true)
 	registerSPARoute("/market-overview", true)
 	registerSPARoute("/operations", true)
 	registerSPARoute("/liquidity", true)
+	registerSPARoute("/analysis", true)
 	registerSPARoute("/strategy", true)
 	registerSPARoute("/reports", true)
 	registerSPARoute("/guide", true)

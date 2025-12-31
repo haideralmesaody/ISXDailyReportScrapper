@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -66,13 +67,13 @@ func NewDataServiceWithLogger(cfg *config.Config, logger *slog.Logger) (*DataSer
 // GetReports returns a list of available reports with categorization
 func (ds *DataService) GetReports(ctx context.Context) ([]map[string]interface{}, error) {
 	reportsDir := ds.paths.ReportsDir
-	
+
 	// Use injected logger
 	ds.logger.Debug("GetReports: scanning directory",
 		slog.String("reports_dir", reportsDir))
-	
+
 	var reports []map[string]interface{}
-	
+
 	// Define report categories and their directories
 	reportDirs := map[string]string{
 		"daily":     filepath.Join(reportsDir, "daily"),
@@ -82,7 +83,7 @@ func (ds *DataService) GetReports(ctx context.Context) ([]map[string]interface{}
 		"combined":  filepath.Join(reportsDir, "combined"),
 		"indexes":   filepath.Join(reportsDir, "indexes"),
 	}
-	
+
 	// Scan each category directory
 	for category, dir := range reportDirs {
 		// Walk through the directory recursively
@@ -94,17 +95,17 @@ func (ds *DataService) GetReports(ctx context.Context) ([]map[string]interface{}
 					slog.String("error", err.Error()))
 				return nil
 			}
-			
+
 			// Skip directories and non-CSV/JSON files
 			if info.IsDir() {
 				return nil
 			}
-			
+
 			ext := strings.ToLower(filepath.Ext(info.Name()))
 			if ext != ".csv" && ext != ".json" {
 				return nil
 			}
-			
+
 			// Get relative path from reports directory
 			relPath, err := filepath.Rel(reportsDir, path)
 			if err != nil {
@@ -113,10 +114,10 @@ func (ds *DataService) GetReports(ctx context.Context) ([]map[string]interface{}
 					slog.String("error", err.Error()))
 				return nil
 			}
-			
+
 			// Convert backslashes to forward slashes for consistency
 			relPath = strings.ReplaceAll(relPath, "\\", "/")
-			
+
 			reports = append(reports, map[string]interface{}{
 				"name":     info.Name(),
 				"path":     relPath,
@@ -125,10 +126,10 @@ func (ds *DataService) GetReports(ctx context.Context) ([]map[string]interface{}
 				"modified": info.ModTime(),
 				"fullPath": path,
 			})
-			
+
 			return nil
 		})
-		
+
 		if err != nil {
 			// Log but continue with other categories
 			ds.logger.Debug("Error walking directory",
@@ -137,7 +138,7 @@ func (ds *DataService) GetReports(ctx context.Context) ([]map[string]interface{}
 				slog.String("error", err.Error()))
 		}
 	}
-	
+
 	// Also check root reports directory for any files (processor outputs to root now)
 	rootFiles, err := os.ReadDir(reportsDir)
 	if err == nil {
@@ -149,11 +150,11 @@ func (ds *DataService) GetReports(ctx context.Context) ([]map[string]interface{}
 					if err != nil {
 						continue
 					}
-					
+
 					// Detect category based on filename pattern
 					category := "uncategorized"
 					fileName := file.Name()
-					
+
 					if strings.HasPrefix(fileName, "isx_daily_") {
 						category = "daily"
 					} else if strings.HasSuffix(fileName, "_trading_history.csv") {
@@ -170,7 +171,7 @@ func (ds *DataService) GetReports(ctx context.Context) ([]map[string]interface{}
 					} else if strings.Contains(fileName, "summary") {
 						category = "summary"
 					}
-					
+
 					reports = append(reports, map[string]interface{}{
 						"name":     file.Name(),
 						"path":     file.Name(),
@@ -198,6 +199,7 @@ func (ds *DataService) GetReports(ctx context.Context) ([]map[string]interface{}
 // GetTickers returns ticker information
 func (ds *DataService) GetTickers(ctx context.Context) (interface{}, error) {
 	tickerFile := ds.paths.GetTickerSummaryJSONPath()
+	altTickerFile := filepath.Join(ds.paths.ReportsDir, "summary", "ticker", "ticker_summary.json")
 
 	// Use injected logger
 	ds.logger.Debug("GetTickers: reading ticker summary",
@@ -205,6 +207,29 @@ func (ds *DataService) GetTickers(ctx context.Context) (interface{}, error) {
 
 	data, err := os.ReadFile(tickerFile)
 	if err != nil {
+		if os.IsNotExist(err) {
+			// Newer processor layout writes to `reports/summary/ticker/ticker_summary.json`.
+			dataAlt, altErr := os.ReadFile(altTickerFile)
+			if altErr == nil {
+				data = dataAlt
+			} else if !os.IsNotExist(altErr) {
+				return nil, fmt.Errorf("failed to read ticker summary: %w", altErr)
+			} else {
+				// Fallback to listing tickers from available trading history CSVs (if present).
+				symbols, listErr := ds.ListTickerSymbols(ctx)
+				if listErr != nil {
+					return nil, ErrNoTickersFound
+				}
+				items := make([]map[string]interface{}, 0, len(symbols))
+				for _, sym := range symbols {
+					items = append(items, map[string]interface{}{"Symbol": sym})
+				}
+				if len(items) == 0 {
+					return nil, ErrNoTickersFound
+				}
+				return items, nil
+			}
+		}
 		return nil, fmt.Errorf("failed to read ticker summary: %w", err)
 	}
 
@@ -219,11 +244,11 @@ func (ds *DataService) GetTickers(ctx context.Context) (interface{}, error) {
 // GetIndices returns market indices data
 func (ds *DataService) GetIndices(ctx context.Context) (map[string]interface{}, error) {
 	indicesFile := ds.paths.GetIndexCSVPath()
-	
+
 	// Use injected logger
 	ds.logger.Debug("GetIndices: reading indices file",
 		slog.String("indices_file", indicesFile))
-	
+
 	file, err := os.Open(indicesFile)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -238,22 +263,22 @@ func (ds *DataService) GetIndices(ctx context.Context) (map[string]interface{}, 
 	defer file.Close()
 
 	reader := csv.NewReader(file)
-	
+
 	// Read header
 	header, err := reader.Read()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read CSV header: %w", err)
 	}
-	
+
 	// Validate header
 	if len(header) < 2 || header[0] != "Date" || header[1] != "ISX60" {
 		return nil, fmt.Errorf("invalid CSV header format")
 	}
-	
+
 	var dates []string
 	var isx60Values []float64
 	var isx15Values []float64
-	
+
 	// Read data rows
 	for {
 		record, err := reader.Read()
@@ -263,14 +288,14 @@ func (ds *DataService) GetIndices(ctx context.Context) (map[string]interface{}, 
 		if err != nil {
 			return nil, fmt.Errorf("failed to read CSV row: %w", err)
 		}
-		
+
 		if len(record) < 2 {
 			continue // Skip invalid rows
 		}
-		
+
 		// Parse date
 		dates = append(dates, record[0])
-		
+
 		// Parse ISX60
 		isx60, err := strconv.ParseFloat(record[1], 64)
 		if err != nil {
@@ -281,7 +306,7 @@ func (ds *DataService) GetIndices(ctx context.Context) (map[string]interface{}, 
 			isx60 = 0
 		}
 		isx60Values = append(isx60Values, isx60)
-		
+
 		// Parse ISX15 if present
 		if len(record) > 2 && record[2] != "" {
 			isx15, err := strconv.ParseFloat(record[2], 64)
@@ -297,7 +322,7 @@ func (ds *DataService) GetIndices(ctx context.Context) (map[string]interface{}, 
 			isx15Values = append(isx15Values, 0)
 		}
 	}
-	
+
 	return map[string]interface{}{
 		"dates": dates,
 		"ISX60": isx60Values,
@@ -736,30 +761,48 @@ func (ds *DataService) GetTickerChart(ctx context.Context, ticker string) (map[s
 		return nil, fmt.Errorf("ticker parameter required")
 	}
 
-	tickerFile := ds.paths.GetTickerDailyCSVPath(ticker)
-	
-	logger := slog.Default()
-	if logger != nil {
-		logger.Debug("GetTickerChart: reading ticker data",
-			slog.String("ticker", ticker),
-			slog.String("ticker_file", tickerFile))
-	}
-	
-	_, err := os.Stat(tickerFile)
+	series, err := ds.LoadTickerTradingHistory(ctx, ticker)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return map[string]interface{}{
-				"ticker": ticker,
-				"data":   []interface{}{},
-			}, nil
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, ErrTickerNotFound
 		}
-		return nil, fmt.Errorf("failed to check ticker file: %w", err)
+		return nil, fmt.Errorf("load ticker history: %w", err)
+	}
+	if len(series) == 0 {
+		return nil, ErrNoChartData
 	}
 
-	// For now, return empty structure - implement CSV parsing later
+	type candle struct {
+		Date   string  `json:"date"`
+		Open   float64 `json:"open"`
+		High   float64 `json:"high"`
+		Low    float64 `json:"low"`
+		Close  float64 `json:"close"`
+		Volume float64 `json:"volume,omitempty"`
+	}
+
+	candles := make([]candle, 0, len(series))
+	for _, day := range series {
+		// Skip rows with missing prices.
+		if day.Open == 0 && day.High == 0 && day.Low == 0 && day.Close == 0 {
+			continue
+		}
+		candles = append(candles, candle{
+			Date:   day.Date.UTC().Format("2006-01-02"),
+			Open:   day.Open,
+			High:   day.High,
+			Low:    day.Low,
+			Close:  day.Close,
+			Volume: day.Volume,
+		})
+	}
+	if len(candles) == 0 {
+		return nil, ErrNoChartData
+	}
+
 	return map[string]interface{}{
-		"ticker": ticker,
-		"data":   []interface{}{},
+		"ticker": strings.ToUpper(strings.TrimSpace(ticker)),
+		"data":   candles,
 	}, nil
 }
 
@@ -779,17 +822,17 @@ func (ds *DataService) GetDailyReport(ctx context.Context, date time.Time) ([]ma
 		return nil, fmt.Errorf("failed to open daily report: %w", err)
 	}
 	defer file.Close()
-	
+
 	reader := csv.NewReader(file)
-	
+
 	// Read header
 	header, err := reader.Read()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read CSV header: %w", err)
 	}
-	
+
 	var results []map[string]interface{}
-	
+
 	// Read data rows
 	for {
 		record, err := reader.Read()
@@ -799,7 +842,7 @@ func (ds *DataService) GetDailyReport(ctx context.Context, date time.Time) ([]ma
 		if err != nil {
 			return nil, fmt.Errorf("failed to read CSV row: %w", err)
 		}
-		
+
 		// Convert record to map
 		row := make(map[string]interface{})
 		for i, value := range record {
@@ -807,10 +850,10 @@ func (ds *DataService) GetDailyReport(ctx context.Context, date time.Time) ([]ma
 				row[header[i]] = value
 			}
 		}
-		
+
 		results = append(results, row)
 	}
-	
+
 	return results, nil
 }
 
@@ -825,26 +868,26 @@ func (ds *DataService) DownloadFile(ctx context.Context, w http.ResponseWriter, 
 	default:
 		return fmt.Errorf("invalid file type: %s", fileType)
 	}
-	
+
 	// Use injected logger
 	ds.logger.Debug("DownloadFile: serving file",
 		slog.String("file_type", fileType),
 		slog.String("filename", filename),
 		slog.String("directory", dir))
-	
+
 	// The filename can now be a relative path with subdirectories
 	// Clean the path to prevent directory traversal attacks
 	cleanedFilename := filepath.Clean(filename)
-	
+
 	// Convert forward slashes to OS-specific separator
 	cleanedFilename = filepath.FromSlash(cleanedFilename)
-	
+
 	// Log path transformation for debugging
 	ds.logger.Debug("Path transformation",
 		slog.String("original", filename),
 		slog.String("cleaned", cleanedFilename),
 		slog.String("base_dir", dir))
-	
+
 	// Security check - ensure the file is within the expected directory
 	filePath := filepath.Join(dir, cleanedFilename)
 	absFilePath, err := filepath.Abs(filePath)
@@ -854,7 +897,7 @@ func (ds *DataService) DownloadFile(ctx context.Context, w http.ResponseWriter, 
 			slog.String("file_path", filePath))
 		return fmt.Errorf("invalid file path")
 	}
-	
+
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		ds.logger.Error("Failed to resolve directory path",
@@ -862,11 +905,11 @@ func (ds *DataService) DownloadFile(ctx context.Context, w http.ResponseWriter, 
 			slog.String("dir", dir))
 		return fmt.Errorf("invalid directory path")
 	}
-	
+
 	// Normalize paths for comparison (important on Windows)
 	absFilePath = filepath.Clean(absFilePath)
 	absDir = filepath.Clean(absDir)
-	
+
 	// Ensure the resolved path is within the allowed directory
 	if !strings.HasPrefix(absFilePath, absDir) {
 		ds.logger.Warn("Attempted directory traversal",
@@ -875,7 +918,7 @@ func (ds *DataService) DownloadFile(ctx context.Context, w http.ResponseWriter, 
 			slog.String("base_dir", absDir))
 		return fmt.Errorf("invalid file path")
 	}
-	
+
 	// Check if file exists
 	if _, err := os.Stat(absFilePath); os.IsNotExist(err) {
 		ds.logger.Warn("File not found",
@@ -908,7 +951,7 @@ func (ds *DataService) listFiles(dirName, extension string, result map[string]in
 	default:
 		dir = filepath.Join(ds.paths.DataDir, dirName)
 	}
-	
+
 	logger := slog.Default()
 	if logger != nil {
 		logger.Debug("listFiles: scanning directory",
@@ -916,7 +959,7 @@ func (ds *DataService) listFiles(dirName, extension string, result map[string]in
 			slog.String("directory", dir),
 			slog.String("extension", extension))
 	}
-	
+
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -1003,11 +1046,11 @@ func (ds *DataService) listFiles(dirName, extension string, result map[string]in
 func (ds *DataService) GetSafeTradingLimits(ctx context.Context, ticker string) (interface{}, error) {
 	// Read the latest liquidity report
 	liquidityReportPath := filepath.Join(ds.paths.ReportsDir, "liquidity_report.csv")
-	
+
 	ds.logger.Debug("GetSafeTradingLimits: reading liquidity report",
 		slog.String("ticker", ticker),
 		slog.String("report_path", liquidityReportPath))
-	
+
 	file, err := os.Open(liquidityReportPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -1016,15 +1059,15 @@ func (ds *DataService) GetSafeTradingLimits(ctx context.Context, ticker string) 
 		return nil, fmt.Errorf("failed to open liquidity report: %w", err)
 	}
 	defer file.Close()
-	
+
 	reader := csv.NewReader(file)
-	
+
 	// Read header
 	header, err := reader.Read()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read CSV header: %w", err)
 	}
-	
+
 	// Find column indices for safe trading values
 	symbolIdx := -1
 	safeValue05Idx := -1
@@ -1034,7 +1077,7 @@ func (ds *DataService) GetSafeTradingLimits(ctx context.Context, ticker string) 
 	illiqIdx := -1
 	valueIdx := -1
 	hybridScoreIdx := -1
-	
+
 	for i, col := range header {
 		switch col {
 		case "Symbol":
@@ -1055,10 +1098,10 @@ func (ds *DataService) GetSafeTradingLimits(ctx context.Context, ticker string) 
 			hybridScoreIdx = i
 		}
 	}
-	
+
 	// Read data rows and find the ticker
 	var latestMetrics map[string]interface{}
-	
+
 	for {
 		record, err := reader.Read()
 		if err == io.EOF {
@@ -1067,7 +1110,7 @@ func (ds *DataService) GetSafeTradingLimits(ctx context.Context, ticker string) 
 		if err != nil {
 			return nil, fmt.Errorf("failed to read CSV row: %w", err)
 		}
-		
+
 		// Check if this is our ticker
 		if symbolIdx >= 0 && symbolIdx < len(record) && record[symbolIdx] == ticker {
 			// Parse safe trading values
@@ -1078,7 +1121,7 @@ func (ds *DataService) GetSafeTradingLimits(ctx context.Context, ticker string) 
 			illiq, _ := strconv.ParseFloat(record[illiqIdx], 64)
 			value, _ := strconv.ParseFloat(record[valueIdx], 64)
 			hybridScore, _ := strconv.ParseFloat(record[hybridScoreIdx], 64)
-			
+
 			// Update latest metrics (keep the last row for each ticker)
 			latestMetrics = map[string]interface{}{
 				"ticker": ticker,
@@ -1102,11 +1145,11 @@ func (ds *DataService) GetSafeTradingLimits(ctx context.Context, ticker string) 
 			}
 		}
 	}
-	
+
 	if latestMetrics == nil {
 		return nil, ErrTickerNotFound
 	}
-	
+
 	return latestMetrics, nil
 }
 
@@ -1117,26 +1160,26 @@ func (ds *DataService) EstimateTradeImpact(ctx context.Context, ticker string, t
 	if err != nil {
 		return 0, err
 	}
-	
+
 	// Extract ILLIQ from the limits response
 	limitsMap := limits.(map[string]interface{})
 	liquidityMetrics := limitsMap["liquidity_metrics"].(map[string]interface{})
 	illiq := liquidityMetrics["illiq"].(float64)
-	
+
 	// Calculate estimated impact using ILLIQ
 	// ILLIQ = |Return| / Volume_millions
 	// So estimated impact = ILLIQ * (TradeValue / 1,000,000)
 	estimatedImpact := illiq * (tradeValue / 1_000_000)
-	
+
 	// Convert to percentage
 	impactPercentage := estimatedImpact * 100
-	
+
 	ds.logger.Info("EstimateTradeImpact calculated",
 		slog.String("ticker", ticker),
 		slog.Float64("trade_value", tradeValue),
 		slog.Float64("illiq", illiq),
 		slog.Float64("impact_percentage", impactPercentage))
-	
+
 	return impactPercentage, nil
 }
 
@@ -1147,13 +1190,13 @@ func (ds *DataService) CreateTradeSchedule(ctx context.Context, ticker string, t
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Extract safe trading values
 	limitsMap := limits.(map[string]interface{})
 	safeLimits := limitsMap["safe_trading_limits"].(map[string]interface{})
 	optimalTradeSize := safeLimits["optimal_trade_size"].(float64)
 	safeValue10 := safeLimits["safe_value_1_percent"].(float64)
-	
+
 	// If trade is small enough, no need to split
 	if totalTradeValue <= safeValue10 {
 		return map[string]interface{}{
@@ -1163,20 +1206,20 @@ func (ds *DataService) CreateTradeSchedule(ctx context.Context, ticker string, t
 			"tranches":          1,
 			"schedule": []map[string]interface{}{
 				{
-					"tranche":           1,
-					"value":             totalTradeValue,
-					"estimated_impact":  "< 1%",
-					"execution_time":    "immediate",
-					"recommendation":    "Execute as single trade",
+					"tranche":          1,
+					"value":            totalTradeValue,
+					"estimated_impact": "< 1%",
+					"execution_time":   "immediate",
+					"recommendation":   "Execute as single trade",
 				},
 			},
 		}, nil
 	}
-	
+
 	// Calculate number of tranches needed
 	numTranches := int(math.Ceil(totalTradeValue / optimalTradeSize))
 	trancheSize := totalTradeValue / float64(numTranches)
-	
+
 	// Create schedule
 	schedule := make([]map[string]interface{}, numTranches)
 	for i := 0; i < numTranches; i++ {
@@ -1186,10 +1229,10 @@ func (ds *DataService) CreateTradeSchedule(ctx context.Context, ticker string, t
 			// Last tranche might be slightly different due to rounding
 			trancheValue = totalTradeValue - (trancheSize * float64(numTranches-1))
 		}
-		
+
 		// Estimate impact for this tranche
 		impact, _ := ds.EstimateTradeImpact(ctx, ticker, trancheValue)
-		
+
 		schedule[i] = map[string]interface{}{
 			"tranche":          i + 1,
 			"value":            trancheValue,
@@ -1198,7 +1241,7 @@ func (ds *DataService) CreateTradeSchedule(ctx context.Context, ticker string, t
 			"recommendation":   getTrancheRecommendation(i, numTranches),
 		}
 	}
-	
+
 	return map[string]interface{}{
 		"ticker":            ticker,
 		"total_trade_value": totalTradeValue,
@@ -1209,9 +1252,9 @@ func (ds *DataService) CreateTradeSchedule(ctx context.Context, ticker string, t
 		"total_duration":    fmt.Sprintf("%d minutes", (numTranches-1)*15),
 		"schedule":          schedule,
 		"notes": map[string]interface{}{
-			"rationale":     fmt.Sprintf("Trade split into %d tranches to minimize market impact", numTranches),
-			"optimal_size":  fmt.Sprintf("Each tranche ~%.0f IQD based on optimal trade size", optimalTradeSize),
-			"flexibility":   "Adjust timing based on market conditions and liquidity",
+			"rationale":    fmt.Sprintf("Trade split into %d tranches to minimize market impact", numTranches),
+			"optimal_size": fmt.Sprintf("Each tranche ~%.0f IQD based on optimal trade size", optimalTradeSize),
+			"flexibility":  "Adjust timing based on market conditions and liquidity",
 		},
 	}, nil
 }
@@ -1225,7 +1268,7 @@ func (ds *DataService) GetHistoricalData(ctx context.Context, ticker string, sta
 	)
 
 	var records []domain.TradeRecord
-	
+
 	// Look for ticker-specific CSV file first
 	tickerFile := filepath.Join(ds.paths.ReportsDir, fmt.Sprintf("%s_daily.csv", ticker))
 	if _, err := os.Stat(tickerFile); err == nil {
@@ -1354,7 +1397,7 @@ func (ds *DataService) loadDailyReportFile(ctx context.Context, filePath, ticker
 
 	var records []domain.TradeRecord
 	reader := csv.NewReader(file)
-	
+
 	// Skip header
 	if _, err := reader.Read(); err != nil {
 		return nil, err

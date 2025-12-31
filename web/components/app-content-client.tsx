@@ -13,6 +13,7 @@ import {
   Clock,
   Target,
   LayoutGrid,
+  ChartCandlestick,
   BookOpen,
   Key,
 } from 'lucide-react'
@@ -303,6 +304,13 @@ const navigationItems = [
     href: '/liquidity',
     icon: BarChart3,
     description: 'ISX Hybrid Liquidity Metrics and scoring',
+    requiresLicense: true
+  },
+  {
+    name: 'Analysis',
+    href: '/analysis',
+    icon: ChartCandlestick,
+    description: 'Technical analysis with advanced charting and indicators',
     requiresLicense: true
   },
   {
