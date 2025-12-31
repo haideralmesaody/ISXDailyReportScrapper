@@ -17,6 +17,17 @@ import (
 
 const tickerTradingHistorySuffix = "_trading_history.csv"
 
+func normalizeColumnKey(col string) string {
+	col = strings.TrimSpace(col)
+	// Handle UTF-8 BOM sometimes present in the first header column.
+	col = strings.TrimPrefix(col, "\uFEFF")
+	col = strings.ToLower(col)
+	// Be tolerant to small variations (spaces/underscores) in column headers.
+	col = strings.ReplaceAll(col, " ", "")
+	col = strings.ReplaceAll(col, "_", "")
+	return col
+}
+
 // ListTickerSymbols returns all ticker symbols that have a trading history CSV.
 // Data source: <reports_dir>/ticker/<SYMBOL>_trading_history.csv
 func (ds *DataService) ListTickerSymbols(ctx context.Context) ([]string, error) {
@@ -92,14 +103,14 @@ func (ds *DataService) LoadTickerTradingHistory(ctx context.Context, symbol stri
 
 	index := make(map[string]int, len(header))
 	for i, col := range header {
-		key := strings.TrimSpace(col)
+		key := normalizeColumnKey(col)
 		if key == "" {
 			continue
 		}
 		index[key] = i
 	}
 
-	required := []string{"Date", "Symbol", "OpenPrice", "HighPrice", "LowPrice", "ClosePrice"}
+	required := []string{"date", "symbol", "openprice", "highprice", "lowprice", "closeprice"}
 	for _, col := range required {
 		if _, ok := index[col]; !ok {
 			return nil, fmt.Errorf("ticker history missing required column %q", col)
@@ -123,21 +134,21 @@ func (ds *DataService) LoadTickerTradingHistory(ctx context.Context, symbol stri
 		}
 
 		// Guard against malformed rows.
-		if index["ClosePrice"] >= len(record) || index["Date"] >= len(record) || index["Symbol"] >= len(record) {
+		if index["closeprice"] >= len(record) || index["date"] >= len(record) || index["symbol"] >= len(record) {
 			continue
 		}
 
-		date, err := time.Parse("2006-01-02", strings.TrimSpace(record[index["Date"]]))
+		date, err := time.Parse("2006-01-02", strings.TrimSpace(record[index["date"]]))
 		if err != nil {
 			continue
 		}
 
-		rowSymbol := strings.TrimSpace(strings.ToUpper(record[index["Symbol"]]))
+		rowSymbol := strings.TrimSpace(strings.ToUpper(record[index["symbol"]]))
 		if rowSymbol == "" {
 			continue
 		}
 
-		closePrice, err := strconv.ParseFloat(strings.TrimSpace(record[index["ClosePrice"]]), 64)
+		closePrice, err := strconv.ParseFloat(strings.TrimSpace(record[index["closeprice"]]), 64)
 		if err != nil {
 			continue
 		}
@@ -146,19 +157,19 @@ func (ds *DataService) LoadTickerTradingHistory(ctx context.Context, symbol stri
 			continue
 		}
 
-		openPrice := parseFloatOrZero(record, index, "OpenPrice")
-		highPrice := parseFloatOrZero(record, index, "HighPrice")
-		lowPrice := parseFloatOrZero(record, index, "LowPrice")
+		openPrice := parseFloatOrZero(record, index, "openprice")
+		highPrice := parseFloatOrZero(record, index, "highprice")
+		lowPrice := parseFloatOrZero(record, index, "lowprice")
 
-		numTrades := parseIntOrZero(record, index, "NumTrades")
-		volume := parseFloatOrZero(record, index, "Volume")
-		value := parseFloatOrZero(record, index, "Value")
+		numTrades := parseIntOrZero(record, index, "numtrades")
+		volume := parseFloatOrZero(record, index, "volume")
+		value := parseFloatOrZero(record, index, "value")
 		if value == 0 && volume != 0 && closePrice != 0 {
 			value = closePrice * volume
 		}
 
 		tradingStatus := "ACTIVE"
-		if idx, ok := index["TradingStatus"]; ok && idx < len(record) {
+		if idx, ok := index["tradingstatus"]; ok && idx < len(record) {
 			if strings.EqualFold(strings.TrimSpace(record[idx]), "false") {
 				tradingStatus = "SUSPENDED"
 			}
