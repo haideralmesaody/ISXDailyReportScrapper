@@ -115,8 +115,10 @@ func GetPaths() (*Paths, error) {
 		
 		// Well-known report files (in proper subdirectories)
 		IndexCSV:          filepath.Join(indexesReportsDir, "indexes.csv"),
-		TickerSummaryJSON: filepath.Join(summaryReportsDir, "ticker_summary.json"),
-		TickerSummaryCSV:  filepath.Join(summaryReportsDir, "ticker_summary.csv"),
+		// NOTE: Newer processor layout writes summary/ticker/ticker_summary.{json,csv}.
+		// Keep paths aligned with current processor outputs.
+		TickerSummaryJSON: filepath.Join(summaryReportsDir, "ticker", "ticker_summary.json"),
+		TickerSummaryCSV:  filepath.Join(summaryReportsDir, "ticker", "ticker_summary.csv"),
 		CombinedDataCSV:   filepath.Join(combinedReportsDir, "isx_combined_data.csv"),
 	}
 	

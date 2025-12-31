@@ -179,11 +179,13 @@ func (h *DataHandler) GetTickers(w http.ResponseWriter, r *http.Request) {
 		)
 		
 		if errors.Is(err, services.ErrNoTickersFound) {
-			h.errorHandler.HandleError(w, r, apierrors.New(
-				http.StatusNotFound,
-				"NO_TICKERS_FOUND",
-				"No tickers available",
-			))
+			// Treat "no tickers yet" as an empty successful response so the UI can render
+			// a friendly empty state without surfacing a hard API error.
+			render.JSON(w, r, map[string]interface{}{
+				"status": "success",
+				"data":   []interface{}{},
+				"count":  0,
+			})
 			return
 		}
 		
