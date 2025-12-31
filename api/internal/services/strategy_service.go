@@ -197,48 +197,18 @@ func (s *StrategyService) ValidateStrategyParameters(ctx context.Context, strate
 
 // getSymbolData retrieves trading data for a symbol
 func (s *StrategyService) getSymbolData(ctx context.Context, symbol string, dataPoints int) ([]liquidity.TradingDay, error) {
-	// This would integrate with the existing data service
-	// For now, create mock data based on the existing pattern
-	if s.dataService != nil {
-		// Try to use existing data service method if available
-		return s.getMockData(symbol, dataPoints), nil
+	if s.dataService == nil {
+		return nil, fmt.Errorf("data service not configured")
 	}
-
-	return s.getMockData(symbol, dataPoints), nil
+	return s.dataService.LoadTickerTradingHistoryTail(ctx, symbol, dataPoints)
 }
 
 // getHistoricalData retrieves historical trading data
 func (s *StrategyService) getHistoricalData(ctx context.Context, symbol string, start, end time.Time) ([]liquidity.TradingDay, error) {
-	days := int(end.Sub(start).Hours() / 24)
-	return s.getMockData(symbol, days), nil
-}
-
-// getMockData creates mock trading data for testing
-func (s *StrategyService) getMockData(symbol string, dataPoints int) []liquidity.TradingDay {
-	data := make([]liquidity.TradingDay, dataPoints)
-	basePrice := 100.0
-
-	for i := 0; i < dataPoints; i++ {
-		// Create trending data with some noise
-		trend := float64(i) * 0.002 // Small upward trend
-		noise := float64((i%7)-3) * 0.01 // Random noise
-		price := basePrice * (1 + trend + noise)
-
-		data[i] = liquidity.TradingDay{
-			Date:          time.Now().AddDate(0, 0, -dataPoints+i),
-			Symbol:        symbol,
-			Open:          price * 0.99,
-			High:          price * 1.02,
-			Low:           price * 0.98,
-			Close:         price,
-			Volume:        10000 + float64(i*100),
-			Value:         price * (10000 + float64(i*100)),
-			NumTrades:     50 + i,
-			TradingStatus: "ACTIVE",
-		}
+	if s.dataService == nil {
+		return nil, fmt.Errorf("data service not configured")
 	}
-
-	return data
+	return s.dataService.LoadTickerTradingHistoryRange(ctx, symbol, start, end)
 }
 
 // countSuccessful counts successful strategy executions
