@@ -59,6 +59,12 @@ func TestComputeBacktestAggregate_ExcludesErrorsAndTotals(t *testing.T) {
 	if agg.MedianNetProfitPct != 2.5 {
 		t.Fatalf("MedianNetProfitPct=%v, want 2.5", agg.MedianNetProfitPct)
 	}
+	if agg.AvgGrossProfitPct != 5.5 {
+		t.Fatalf("AvgGrossProfitPct=%v, want 5.5", agg.AvgGrossProfitPct)
+	}
+	if agg.MedianGrossProfitPct != 5.5 {
+		t.Fatalf("MedianGrossProfitPct=%v, want 5.5", agg.MedianGrossProfitPct)
+	}
 }
 
 func TestComputeBacktestAggregate_TopBottomOrdering(t *testing.T) {

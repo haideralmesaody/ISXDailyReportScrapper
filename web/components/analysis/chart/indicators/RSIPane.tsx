@@ -27,7 +27,6 @@ export function RSIPane({ paneIndex }: RSIPaneProps) {
   const { chartData, chart, containerHeight, indicatorData } = useChart()
   const { settings, updateSettings } = useMomentumSettings()
 
-  
   // Track reference line series for cleanup
   const refLineSeriesRef = useRef<ISeriesApi<any>[]>([])
 
@@ -49,19 +48,31 @@ export function RSIPane({ paneIndex }: RSIPaneProps) {
     // Map chart data to RSI data using the timeframe-transformed chart dates
     const data = chartData.candlestickData
       .map((d) => {
-        // chartData.time is already a string in YYYY-MM-DD format (dateStr)
-        const dateStr = typeof d.time === 'string' ? d.time : new Date(d.time).toISOString().split('T')[0]
+        const dateStr =
+          typeof d.time === 'string'
+            ? d.time
+            : typeof d.time === 'number'
+              ? new Date(d.time * 1000).toISOString().split('T')[0]
+              : new Date((d.time as any).year, (d.time as any).month - 1, (d.time as any).day)
+                  .toISOString()
+                  .split('T')[0]
 
         const rsiValue = indicatorData.rsiData!.get(dateStr)
         return {
           time: d.time,
-          value: rsiValue ?? null
+          value: rsiValue ?? null,
         }
       })
-      .filter(d => d.value !== null && d.value !== undefined && !isNaN(d.value))
+      .filter((d) => d.value !== null && d.value !== undefined && !isNaN(d.value))
 
     if (data.length > 0) {
-      console.log('[RSI] Using calculated RSI data:', data.length, 'RSI points from', indicatorData.rsiData.size, 'available values')
+      console.log(
+        '[RSI] Using calculated RSI data:',
+        data.length,
+        'RSI points from',
+        indicatorData.rsiData.size,
+        'available values'
+      )
     } else {
       console.log('[RSI] No valid RSI data points after mapping')
     }
@@ -74,7 +85,7 @@ export function RSIPane({ paneIndex }: RSIPaneProps) {
   const refLineData = useMemo(() => {
     // Always use chart data time range for reference lines
     if (chartData.candlestickData.length > 0) {
-      return chartData.candlestickData.map(d => ({ time: d.time, value: 0 }))
+      return chartData.candlestickData.map((d) => ({ time: d.time, value: 0 }))
     }
 
     // Fallback: return empty array
@@ -82,70 +93,87 @@ export function RSIPane({ paneIndex }: RSIPaneProps) {
   }, [chartData.candlestickData])
 
   // Callback when RSI main series is created - add reference lines immediately
-  const handleRSISeriesCreated = useCallback((rsiSeries: ISeriesApi<any>) => {
-    if (!chart) return
+  const handleRSISeriesCreated = useCallback(
+    (rsiSeries: ISeriesApi<any>) => {
+      if (!chart) return
 
-    try {
-      // 1. Set pane height using paneIndex prop
-      const panes = chart.panes()
-      const rsiPane = panes[paneIndex]
-      const maxHeight = Math.floor(containerHeight * 0.90)
-      const desiredHeight = Math.floor(containerHeight * 0.15)  // 15% default
-      const constrainedHeight = Math.max(30, Math.min(desiredHeight, maxHeight))
-      rsiPane.setHeight(constrainedHeight)
+      try {
+        // 1. Set pane height using paneIndex prop
+        const panes = chart.panes()
+        const rsiPane = panes[paneIndex]
+        const maxHeight = Math.floor(containerHeight * 0.9)
+        const desiredHeight = Math.floor(containerHeight * 0.15) // 15% default
+        const constrainedHeight = Math.max(30, Math.min(desiredHeight, maxHeight))
+        rsiPane.setHeight(constrainedHeight)
 
-      console.log('[RSI] ✅ Pane configured: height =', constrainedHeight, 'px')
+        console.log('[RSI] ✅ Pane configured: height =', constrainedHeight, 'px')
 
-      // 2. Add reference lines immediately using paneIndex prop
-      // All use the same paneIndex and priceScaleId as the main RSI line
+        // 2. Add reference lines immediately using paneIndex prop
+        // All use the same paneIndex and priceScaleId as the main RSI line
 
-      // Overbought line (custom value from settings - Red)
-      const rsiOverbought = chart.addSeries(LineSeries, {
-        color: '#EF4444',
-        lineWidth: 1,
-        lineStyle: LineStyle.Dashed,
-        priceScaleId: 'rsi',
-      }, paneIndex)
-      refLineSeriesRef.current.push(rsiOverbought)
+        // Overbought line (custom value from settings - Red)
+        const rsiOverbought = chart.addSeries(
+          LineSeries,
+          {
+            color: '#EF4444',
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            priceScaleId: 'rsi',
+          },
+          paneIndex
+        )
+        refLineSeriesRef.current.push(rsiOverbought)
 
-      // Set data immediately - no need for requestAnimationFrame with local data
-      rsiOverbought.setData(refLineData.map(d => ({ ...d, value: settings.rsiOverbought })))
+        // Set data immediately - no need for requestAnimationFrame with local data
+        rsiOverbought.setData(refLineData.map((d) => ({ ...d, value: settings.rsiOverbought })))
 
-      // 50 line (Neutral - Gray)
-      const rsi50 = chart.addSeries(LineSeries, {
-        color: '#6B7280',
-        lineWidth: 1,
-        lineStyle: LineStyle.Dashed,
-        priceScaleId: 'rsi',
-      }, paneIndex)
-      refLineSeriesRef.current.push(rsi50)
+        // 50 line (Neutral - Gray) - skip if it would duplicate one of the custom thresholds
+        if (settings.rsiOverbought !== 50 && settings.rsiOversold !== 50) {
+          const rsi50 = chart.addSeries(
+            LineSeries,
+            {
+              color: '#6B7280',
+              lineWidth: 1,
+              lineStyle: LineStyle.Dashed,
+              priceScaleId: 'rsi',
+            },
+            paneIndex
+          )
+          refLineSeriesRef.current.push(rsi50)
 
-      // Set data immediately
-      rsi50.setData(refLineData.map(d => ({ ...d, value: 50 })))
+          // Set data immediately
+          rsi50.setData(refLineData.map((d) => ({ ...d, value: 50 })))
+        }
 
-      // Oversold line (custom value from settings - Green)
-      const rsiOversold = chart.addSeries(LineSeries, {
-        color: '#10B981',
-        lineWidth: 1,
-        lineStyle: LineStyle.Dashed,
-        priceScaleId: 'rsi',
-      }, paneIndex)
-      refLineSeriesRef.current.push(rsiOversold)
+        // Oversold line (custom value from settings - Green)
+        const rsiOversold = chart.addSeries(
+          LineSeries,
+          {
+            color: '#10B981',
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            priceScaleId: 'rsi',
+          },
+          paneIndex
+        )
+        refLineSeriesRef.current.push(rsiOversold)
 
-      // Set data immediately
-      rsiOversold.setData(refLineData.map(d => ({ ...d, value: settings.rsiOversold })))
+        // Set data immediately
+        rsiOversold.setData(refLineData.map((d) => ({ ...d, value: settings.rsiOversold })))
 
-      console.log('[RSI] ✅ Added 3 reference lines immediately (pane', paneIndex, ')')
-    } catch (error) {
-      console.error('[RSI] Error creating reference lines:', error)
-    }
-  }, [chart, paneIndex, containerHeight, refLineData, settings.rsiOverbought, settings.rsiOversold])
+        console.log('[RSI] ✅ Added 3 reference lines immediately (pane', paneIndex, ')')
+      } catch (error) {
+        console.error('[RSI] Error creating reference lines:', error)
+      }
+    },
+    [chart, paneIndex, containerHeight, refLineData, settings.rsiOverbought, settings.rsiOversold]
+  )
 
   // Cleanup reference lines when component unmounts
   const handleRSISeriesDestroyed = useCallback(() => {
     if (!chart) return
 
-    refLineSeriesRef.current.forEach(series => {
+    refLineSeriesRef.current.forEach((series) => {
       try {
         chart.removeSeries(series)
       } catch (error) {
@@ -163,7 +191,7 @@ export function RSIPane({ paneIndex }: RSIPaneProps) {
       lineWidth: 2,
       title: `RSI (${settings.rsiPeriod})`,
       priceScaleId: 'rsi',
-      // ✅ autoscaleInfoProvider suggests 0-100 range to TradingView's autoscaler
+      // autoscaleInfoProvider suggests 0-100 range to TradingView's autoscaler
       autoscaleInfoProvider: () => ({
         priceRange: {
           minValue: 0,
@@ -182,17 +210,14 @@ export function RSIPane({ paneIndex }: RSIPaneProps) {
     paneIndex,
     onCreated: handleRSISeriesCreated,
     onDestroyed: handleRSISeriesDestroyed,
-    // ✅ FIXED: Enhanced RSI Price Scale Configuration with strict 0-100 bounds
+    // Keep autoscale enabled so the pane always renders,
+    // and clamp range via autoscaleInfoProvider (0-100).
     priceScaleOptions: {
       visible: true,
-      autoScale: false, // Disable auto-scale to maintain 0-100 range
+      autoScale: true,
       borderVisible: true,
       mode: 0, // Normal price scale mode
       scaleMargins: { top: 0.02, bottom: 0.02 }, // Tight margins for RSI range
-      // RSI-specific: ENFORCE strict 0-100 range while keeping user interaction for zoom/pan
-      minimumVisiblePrice: 0,
-      maximumVisiblePrice: 100,
-      // Allow user to zoom/pan but maintain bounds
     },
   })
 

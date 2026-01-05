@@ -65,15 +65,7 @@ export function validateAndUpdateDates(savedDates: { from: string; to: string })
   if (fromDate < minDate) {
     fromDate = minDate
   }
-  
-  // Check date range doesn't exceed maximum
-  const daysDiff = Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24))
-  if (daysDiff > DATE_VALIDATION.MAX_DAYS_RANGE) {
-    // Adjust from date to be within range
-    fromDate = new Date(toDate)
-    fromDate.setDate(fromDate.getDate() - DATE_VALIDATION.MAX_DAYS_RANGE)
-  }
-  
+
   return { from: fromDate, to: toDate }
 }
 

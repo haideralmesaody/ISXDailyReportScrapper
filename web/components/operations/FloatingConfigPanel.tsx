@@ -251,12 +251,6 @@ export function FloatingConfigPanel({
       return false
     }
 
-    const daysDiff = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24))
-    if (daysDiff > 365) {
-      setError('Date range cannot exceed 365 days')
-      return false
-    }
-
     return true
   }
 

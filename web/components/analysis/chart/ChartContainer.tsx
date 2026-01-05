@@ -12,8 +12,8 @@
 'use client'
 
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react'
-import { createChart, ColorType, CrosshairMode, LineStyle, PriceScaleMode } from 'lightweight-charts'
-import type { IChartApi, ISeriesApi } from 'lightweight-charts'
+import { createChart, ColorType, CrosshairMode, LineStyle, PriceScaleMode, createSeriesMarkers } from 'lightweight-charts'
+import type { IChartApi, ISeriesApi, ISeriesMarkersPluginApi, SeriesMarker, Time } from 'lightweight-charts'
 import { ChartProvider, type ProcessedChartData, type ThemeColors } from './ChartContext'
 import { logger } from '@/lib/utils/logger'
 import { ChartTooltip } from '@/components/analysis/ChartTooltip'
@@ -56,6 +56,31 @@ import { useVWAPSettings } from '@/lib/hooks/use-vwap-settings'
 import type { IndicatorData } from './ChartContext'
 import type { TickerHistoricalData } from '@/types/analysis'
 
+function toRgba(color: string, alpha: number): string {
+  const normalized = color.trim()
+
+  const rgbaMatch = normalized.match(
+    /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([0-9.]+))?\s*\)$/i
+  )
+  if (rgbaMatch) {
+    const r = Number(rgbaMatch[1])
+    const g = Number(rgbaMatch[2])
+    const b = Number(rgbaMatch[3])
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`
+  }
+
+  const hexMatch = normalized.match(/^#([0-9a-f]{6})$/i)
+  if (hexMatch) {
+    const hex = hexMatch[1]
+    const r = parseInt(hex.slice(0, 2), 16)
+    const g = parseInt(hex.slice(2, 4), 16)
+    const b = parseInt(hex.slice(4, 6), 16)
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`
+  }
+
+  return normalized
+}
+
 interface ChartContainerProps {
   ticker: string
   chartData: ProcessedChartData
@@ -68,6 +93,8 @@ interface ChartContainerProps {
   chartType?: ChartType  // Chart type (candlestick/line/area/bar)
   timeframe?: Timeframe  // Timeframe (1D/1W/1M/3M/1Y/MAX)
   indicatorData?: IndicatorData  // API-calculated indicator data
+  markers?: SeriesMarker<Time>[]
+  watermarkText?: string
 }
 
 export function ChartContainer({
@@ -81,7 +108,9 @@ export function ChartContainer({
   onChartReady,
   chartType = 'candlestick',
   timeframe = '1D',
-  indicatorData = {}
+  indicatorData = {},
+  markers,
+  watermarkText,
 }: ChartContainerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -92,6 +121,7 @@ export function ChartContainer({
   // - Pattern from TradingView Advanced React Example
   const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
   const [candlestickSeries, setCandlestickSeries] = useState<ISeriesApi<'Candlestick'> | null>(null)
+  const markersPluginRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null)
 
   const [chartReady, setChartReady] = useState(false)
   const [containerWidth, setContainerWidth] = useState(0)
@@ -120,6 +150,33 @@ export function ChartContainer({
     candlestickSeriesRef.current = series  // For internal perf access
     setCandlestickSeries(series)  // For React context updates
   }, [])
+
+  // Apply/clear trade markers whenever the active series or marker set changes.
+  useEffect(() => {
+    if (!chartReady) return
+    const series = candlestickSeriesRef.current as unknown as ISeriesApi<any> | null
+    if (!series) return
+
+    try {
+      const current = markersPluginRef.current
+      const currentSeries = current?.getSeries?.()
+
+      // In lightweight-charts v5, markers are provided by the series-markers plugin.
+      if (!current || currentSeries !== series) {
+        try {
+          current?.detach?.()
+        } catch {
+          // ignore
+        }
+        markersPluginRef.current = createSeriesMarkers(series, markers ?? [])
+        return
+      }
+
+      current.setMarkers(markers ?? [])
+    } catch (error) {
+      logger.error('[ChartContainer] Failed to set series markers', error)
+    }
+  }, [chartReady, candlestickSeries, markers])
 
   // Initialize chart ONCE (no dependencies - stable chart instance)
   useEffect(() => {
@@ -166,6 +223,14 @@ export function ChartContainer({
           separatorHoverColor: theme.textColor,
           enableResize: true  // Allow user to drag pane separators
         }
+      },
+      watermark: {
+        visible: Boolean(watermarkText),
+        text: watermarkText ?? '',
+        color: toRgba(theme.textColor, 0.35),
+        fontSize: 16,
+        horzAlign: 'left',
+        vertAlign: 'top',
       },
       grid: {
         vertLines: { color: theme.gridColor },
@@ -258,6 +323,12 @@ export function ChartContainer({
       return () => {
         logger.log('[ChartContainer] 🗑️ Cleaning up chart...')
         resizeObserver.disconnect()
+        try {
+          markersPluginRef.current?.detach?.()
+        } catch {
+          // ignore
+        }
+        markersPluginRef.current = null
         chart.remove()
         setChartReady(false)
       }
@@ -285,6 +356,14 @@ export function ChartContainer({
           enableResize: true
         }
       },
+      watermark: {
+        visible: Boolean(watermarkText),
+        text: watermarkText ?? '',
+        color: toRgba(theme.textColor, 0.35),
+        fontSize: 16,
+        horzAlign: 'left',
+        vertAlign: 'top',
+      },
       grid: {
         vertLines: { color: theme.gridColor },
         horzLines: { color: theme.gridColor },
@@ -308,7 +387,7 @@ export function ChartContainer({
     })
 
     logger.log('[ChartContainer] ✅ Theme colors updated')
-  }, [theme])  // Only update colors when theme changes
+  }, [theme, watermarkText])  // Only update when theme/watermark changes
 
   const firstBarTime = chartData.candlestickData[0]?.time
   const lastBarTime = chartData.candlestickData[chartData.candlestickData.length - 1]?.time
@@ -345,6 +424,11 @@ export function ChartContainer({
     const toEpochSeconds = (time: any): number | null => {
       if (time === null || time === undefined) return null
       if (typeof time === 'number') return time
+      if (typeof time === 'string') {
+        const ms = Date.parse(time)
+        if (!Number.isFinite(ms)) return null
+        return Math.floor(ms / 1000)
+      }
       if (typeof time === 'object' && 'year' in time && 'month' in time && 'day' in time) {
         const utcMs = Date.UTC(time.year, time.month - 1, time.day)
         return Math.floor(utcMs / 1000)
@@ -437,7 +521,25 @@ export function ChartContainer({
 
   return (
     <ChartProvider value={chartContextValue}>
-      <div ref={containerRef} className="w-full h-full relative">
+      <div className="w-full h-full relative">
+        {/* Chart DOM mount point (Lightweight Charts injects canvases here) */}
+        <div ref={containerRef} className="w-full h-full" />
+
+        {/* Watermark (DOM overlay) - reliable across Lightweight Charts versions */}
+        {watermarkText ? (
+          <div
+            data-testid="chart-watermark"
+            className="absolute left-3 top-3 z-40 select-none whitespace-pre-line rounded-md px-2 py-1 text-sm font-semibold bg-background/10 backdrop-blur-sm"
+            style={{
+              pointerEvents: 'none',
+              color: toRgba(theme.textColor, 0.85),
+              textShadow: '0 1px 2px rgba(0,0,0,0.55)',
+              maxWidth: '60%',
+            }}
+          >
+            {watermarkText}
+          </div>
+        ) : null}
         {/*
           Component-Based Architecture:
           - Each component mounts/unmounts based on indicator state

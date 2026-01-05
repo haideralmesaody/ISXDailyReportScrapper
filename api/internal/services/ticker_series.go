@@ -175,7 +175,7 @@ func (ds *DataService) LoadTickerTradingHistory(ctx context.Context, symbol stri
 			}
 		}
 
-		tradingDays = append(tradingDays, liquidity.TradingDay{
+		day := liquidity.TradingDay{
 			Date:          date,
 			Symbol:        rowSymbol,
 			Open:          openPrice,
@@ -187,7 +187,15 @@ func (ds *DataService) LoadTickerTradingHistory(ctx context.Context, symbol stri
 			Value:         value,
 			NumTrades:     numTrades,
 			TradingStatus: tradingStatus,
-		})
+		}
+
+		// Treat only actual tradable days as part of the series.
+		// This filters out forward-filled calendar dates (TradingStatus=false, 0 trades/value).
+		if !day.IsTrading() {
+			continue
+		}
+
+		tradingDays = append(tradingDays, day)
 	}
 
 	if len(tradingDays) == 0 {

@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -670,13 +671,29 @@ func scrapePage(ctx context.Context, outDir, finalMode string, logger *slog.Logg
 		Typ  string `json:"typ"`
 	}
 
-	js := `Array.from(document.querySelectorAll('#report tbody tr')).map(tr => {
-		const link = tr.querySelector('td.report-download a');
-		if (!link) return null;
-		const dateCell = tr.querySelector('td.report-titledata1');
-		const typeCell = tr.querySelector('td.report-titledata3');
-		return {href: link.getAttribute('href'), date: dateCell ? dateCell.innerText.trim() : '', typ: typeCell ? typeCell.innerText.trim() : ''};
-	}).filter(Boolean)`
+	js := `(() => {
+		const root = document.querySelector('#report');
+		if (!root) return [];
+		return Array.from(root.querySelectorAll('tr')).map(tr => {
+			const links = Array.from(tr.querySelectorAll('a[href]'));
+			const link = links.find(a => (a.getAttribute('href') || '').toLowerCase().endsWith('.xlsx'));
+			if (!link) return null;
+
+			const href = link.getAttribute('href') || '';
+			const dateCell =
+				tr.querySelector('td.report-titledata1') ||
+				(tr.querySelectorAll('td').length >= 2 ? tr.querySelectorAll('td')[1] : null);
+			const typeCell =
+				tr.querySelector('td.report-titledata3') ||
+				(tr.querySelectorAll('td').length >= 4 ? tr.querySelectorAll('td')[3] : null);
+
+			return {
+				href,
+				date: dateCell ? (dateCell.textContent || '').trim() : '',
+				typ: typeCell ? (typeCell.textContent || '').trim() : ''
+			};
+		}).filter(Boolean);
+	})()`
 
 	rowsStart := time.Now()
 	if err := chromedp.Run(ctx, chromedp.Evaluate(js, &rows)); err != nil {
@@ -686,15 +703,58 @@ func scrapePage(ctx context.Context, outDir, finalMode string, logger *slog.Logg
 		slog.Int("row_count", len(rows)),
 		slog.Float64("duration_seconds", time.Since(rowsStart).Seconds()))
 
+	if len(rows) == 0 {
+		var excerpt string
+		_ = chromedp.Run(ctx, chromedp.Evaluate(`(() => {
+			const root = document.querySelector('#report');
+			const text = root ? (root.textContent || '') : '';
+			return text.slice(0, 600);
+		})()`, &excerpt))
+		logger.Warn("No report rows extracted (site layout may have changed)",
+			slog.String("report_excerpt", excerpt))
+	}
+
 	foundExistingFiles := 0
 	newDownloads := 0
 
+	parseReportDate := func(dateText string, href string) (time.Time, error) {
+		dateText = strings.TrimSpace(dateText)
+		if dateText != "" {
+			if parsed, err := time.Parse("02/01/2006", dateText); err == nil {
+				return parsed, nil
+			}
+			if parsed, err := time.Parse("2006-01-02", dateText); err == nil {
+				return parsed, nil
+			}
+		}
+
+		decoded := href
+		if unescaped, err := url.PathUnescape(href); err == nil {
+			decoded = unescaped
+		}
+		decoded = strings.ReplaceAll(decoded, "+", " ")
+		decoded = strings.ReplaceAll(decoded, "\\", "/")
+
+		// Most files are named like: "2025 10 06 ISX Daily Report.xlsx"
+		datePattern := regexp.MustCompile(`(\d{4})\D+(\d{2})\D+(\d{2})`)
+		matches := datePattern.FindStringSubmatch(decoded)
+		if len(matches) == 4 {
+			return time.Parse("2006 01 02", strings.Join(matches[1:4], " "))
+		}
+
+		return time.Time{}, fmt.Errorf("unable to parse date from row (date=%q href=%q)", dateText, href)
+	}
+
 	for _, r := range rows {
-		// We only care about Daily type and xlsx file extension
-		if strings.ToLower(r.Typ) != "daily" {
+		hrefLower := strings.ToLower(strings.TrimSpace(r.Href))
+		if !strings.HasSuffix(hrefLower, ".xlsx") {
 			continue
 		}
-		if !strings.HasSuffix(strings.ToLower(r.Href), ".xlsx") {
+
+		// The site occasionally changes the "type" text; use "contains" + filename fallback.
+		typLower := strings.ToLower(strings.TrimSpace(r.Typ))
+		isDaily := strings.Contains(typLower, "daily") || strings.Contains(hrefLower, "daily")
+		if !isDaily {
 			continue
 		}
 
@@ -703,12 +763,11 @@ func scrapePage(ctx context.Context, outDir, finalMode string, logger *slog.Logg
 			fullURL = baseURL + r.Href
 		}
 
-		// Parse date dd/mm/yyyy
-		t, err := time.Parse("02/01/2006", r.Date)
+		t, err := parseReportDate(r.Date, fullURL)
 		if err != nil {
-			// fallback to original filename
 			logger.Warn("unable to parse date",
 				slog.String("date", r.Date),
+				slog.String("href", fullURL),
 				slog.String("error", err.Error()))
 		}
 

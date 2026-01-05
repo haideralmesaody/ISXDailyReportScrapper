@@ -26,6 +26,8 @@ type DataService struct {
 	config *config.Config
 	paths  *config.Paths
 	logger *slog.Logger
+
+	combinedDateRange combinedDateRangeCache
 }
 
 // NewDataService creates a new data service using default logger

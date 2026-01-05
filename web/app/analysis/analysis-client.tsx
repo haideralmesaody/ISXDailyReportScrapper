@@ -15,6 +15,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useHydration } from '@/lib/hooks/use-hydration'
 import { useChartState } from '@/lib/hooks/use-chart-state'
+import { useMomentumSettings } from '@/lib/hooks/use-indicator-settings'
 import { logger } from '@/lib/utils/logger'
 import { TickerList } from '@/components/analysis/TickerList'
 import { ChartCore } from '@/components/analysis/chart/ChartCore'
@@ -23,14 +24,17 @@ import { ChartExportButton } from '@/components/analysis/ChartExportButton'
 import { ResizablePanel } from '@/components/ui/resizable-panel'
 import { NoDataState, DataLoadingState, Alert, AlertDescription } from '@/components/ui'
 import { fetchTickerSummary, fetchTickerHistory } from '@/lib/api/analysis'
+import apiClient from '@/lib/api'
 import { HelpButton } from '@/components/guide/HelpButton'
 import { IndicatorToolbar } from '@/components/analysis/IndicatorToolbar'
+import { buildTradeMarkers } from '@/lib/utils/trade-markers'
 import {
   trackNoDataResolved,
   trackRetryAttempt,
   debug
 } from '@/lib/observability/no-data-metrics'
-import type { IChartApi } from 'lightweight-charts'
+import type { IChartApi, SeriesMarker, Time } from 'lightweight-charts'
+import type { BacktestTrade, StrategyChartPreset, StrategyInfo } from '@/types/index'
 
 export default function AnalysisClient() {
   // Hydration guard - CLAUDE.md requirement
@@ -39,18 +43,23 @@ export default function AnalysisClient() {
   // URL query parameters - for ticker navigation from treemap
   const searchParams = useSearchParams()
   const urlTicker = searchParams.get('ticker')
+  const urlStrategyId = searchParams.get('strategy_id')?.trim() || null
+  const urlRunId = searchParams.get('run_id')?.trim() || null
 
   // DIAGNOSTIC: Log component mount and URL params
   React.useEffect(() => {
     logger.log('[AnalysisClient] Component mounted', {
       urlTicker,
+      urlStrategyId,
+      urlRunId,
       isHydrated
     })
-  }, [urlTicker, isHydrated])
+  }, [urlTicker, urlStrategyId, urlRunId, isHydrated])
 
   // Chart state management using reducer - CLAUDE.md recommendation
   const { state, dispatch } = useChartState()
   const { toast } = useToast()
+  const { updateSettings: updateMomentumSettings } = useMomentumSettings()
 
   // Chart instance state for export functionality
   const [chartInstance, setChartInstance] = useState<IChartApi | null>(null)
@@ -60,6 +69,167 @@ export default function AnalysisClient() {
 
   // Indicator toolbar visibility state
   const [showIndicatorToolbar, setShowIndicatorToolbar] = useState(false)
+
+  // Optional strategy overlay config (deep-link from Strategy / Market Overview)
+  const [strategyPreset, setStrategyPreset] = useState<StrategyChartPreset | null>(null)
+  const [strategyInfo, setStrategyInfo] = useState<StrategyInfo | null>(null)
+  const appliedPresetKeyRef = useRef<string | null>(null)
+  const [overlayTrades, setOverlayTrades] = useState<BacktestTrade[] | null>(null)
+
+  const tradeMarkers: SeriesMarker<Time>[] = React.useMemo(() => {
+    if (!overlayTrades || overlayTrades.length === 0) return []
+    if (!state.chartData || state.chartData.length === 0) return []
+    const tradableDates = new Set(state.chartData.map((d: any) => d.date))
+    return buildTradeMarkers(overlayTrades, tradableDates)
+  }, [overlayTrades, state.chartData])
+
+  const chartWatermarkText = React.useMemo(() => {
+    if (!state.selectedTicker) return undefined
+
+    if (!urlStrategyId) {
+      return state.selectedTicker
+    }
+
+    const name = strategyInfo?.name || urlStrategyId
+    return `${state.selectedTicker}\nStrategy: ${name}`
+  }, [state.selectedTicker, strategyInfo?.name, urlStrategyId])
+
+  // Load strategy chart preset (SSOT for strategy-specific analysis UI defaults).
+  React.useEffect(() => {
+    if (!isHydrated) return
+
+    if (!urlStrategyId) {
+      setStrategyPreset(null)
+      setStrategyInfo(null)
+      appliedPresetKeyRef.current = null
+      return
+    }
+
+    let cancelled = false
+    apiClient
+      .getStrategyChartPreset(urlStrategyId)
+      .then((preset) => {
+        if (cancelled) return
+        setStrategyPreset(preset)
+      })
+      .catch((err: any) => {
+        if (cancelled) return
+        setStrategyPreset(null)
+        logger.warn('[AnalysisClient] Strategy chart preset not available', {
+          strategy_id: urlStrategyId,
+          error: err?.detail || err?.message || String(err),
+        })
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isHydrated, urlStrategyId])
+
+  // Load strategy metadata (for display in the chart watermark / UI).
+  React.useEffect(() => {
+    if (!isHydrated) return
+
+    if (!urlStrategyId) {
+      setStrategyInfo(null)
+      return
+    }
+
+    let cancelled = false
+    apiClient
+      .getStrategy(urlStrategyId)
+      .then((info) => {
+        if (cancelled) return
+        setStrategyInfo(info)
+      })
+      .catch((err: any) => {
+        if (cancelled) return
+        setStrategyInfo(null)
+        logger.warn('[AnalysisClient] Strategy info not available', {
+          strategy_id: urlStrategyId,
+          error: err?.detail || err?.message || String(err),
+        })
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isHydrated, urlStrategyId])
+
+  // Apply preset (chart type/timeframe + indicator toggles + RSI params).
+  React.useEffect(() => {
+    if (!isHydrated || !strategyPreset) return
+
+    const key = JSON.stringify(strategyPreset)
+    if (appliedPresetKeyRef.current === key) return
+    appliedPresetKeyRef.current = key
+
+    // Prefer the strategy defaults when deep-linking, then user can change freely.
+    if (strategyPreset.chart_type) {
+      dispatch({ type: 'SET_CHART_TYPE', payload: strategyPreset.chart_type as any })
+    }
+    if (strategyPreset.timeframe) {
+      dispatch({ type: 'SET_TIMEFRAME', payload: strategyPreset.timeframe as any })
+    }
+
+    const enabled = new Set(strategyPreset.enabled_indicators || [])
+    const allIndicatorKeys = Object.keys(state.indicators || {})
+    for (const key of allIndicatorKeys) {
+      const shouldBeEnabled = enabled.has(key)
+      const isEnabled = Boolean((state.indicators as any)[key])
+      if (isEnabled !== shouldBeEnabled) {
+        dispatch({ type: 'TOGGLE_INDICATOR', payload: key as any })
+      }
+    }
+
+    if (strategyPreset.momentum) {
+      updateMomentumSettings({
+        rsiPeriod: Number(strategyPreset.momentum.rsi_period) || 14,
+        rsiOverbought: Number(strategyPreset.momentum.rsi_overbought) || 70,
+        rsiOversold: Number(strategyPreset.momentum.rsi_oversold) || 30,
+      })
+    }
+  }, [isHydrated, strategyPreset, dispatch, state.indicators, updateMomentumSettings])
+
+  // Load backtest trades for the currently selected ticker (for chart markers).
+  React.useEffect(() => {
+    if (!isHydrated) return
+
+    if (!urlStrategyId || !urlRunId || !state.selectedTicker) {
+      setOverlayTrades(null)
+      return
+    }
+
+    let cancelled = false
+    apiClient
+      .getBacktestTickerDetails(urlStrategyId, urlRunId, state.selectedTicker)
+      .then((details) => {
+        if (cancelled) return
+        setOverlayTrades(details.trades || [])
+      })
+      .catch((err: any) => {
+        if (cancelled) return
+        setOverlayTrades(null)
+
+        const isNotFound =
+          err?.status === 404 ||
+          err?.statusCode === 404 ||
+          (typeof err?.isNotFound === 'function' && err.isNotFound())
+
+        // Many tickers may have no backtest snapshot in a run; treat as "no overlay" not a hard error.
+        if (!isNotFound) {
+          toast({
+            title: 'Failed to load strategy overlay',
+            description: err?.detail || err?.message || 'Unable to load backtest trades for this ticker',
+            variant: 'destructive',
+          })
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isHydrated, urlStrategyId, urlRunId, state.selectedTicker, toast])
 
   // Sync ticker panel width with persisted value when using controlled ResizablePanel width
   React.useEffect(() => {
@@ -702,6 +872,8 @@ export default function AnalysisClient() {
                       timeframe={state.chartDisplay.timeframe}
                       indicators={state.indicators}
                       indicatorActivationOrder={state.ui.indicatorActivationOrder}
+                      markers={tradeMarkers}
+                      watermarkText={chartWatermarkText}
                     />
                   </ChartErrorBoundary>
                 </CardContent>

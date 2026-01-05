@@ -16,6 +16,8 @@ type BatchBacktestAggregate struct {
 
 	AvgNetProfitPct    float64 `json:"avg_net_profit_pct"`
 	MedianNetProfitPct float64 `json:"median_net_profit_pct"`
+	AvgGrossProfitPct    float64 `json:"avg_gross_profit_pct"`
+	MedianGrossProfitPct float64 `json:"median_gross_profit_pct"`
 
 	TopTickers    []BacktestAggregateTicker `json:"top_tickers,omitempty"`
 	BottomTickers []BacktestAggregateTicker `json:"bottom_tickers,omitempty"`
@@ -58,19 +60,27 @@ func computeBacktestAggregate(byTicker []BacktestTickerSummary) BatchBacktestAgg
 
 	// Avg/median of per-ticker net profit (not trade-weighted) to keep comparability.
 	netValues := make([]float64, 0, len(valid))
+	grossValues := make([]float64, 0, len(valid))
 	sumNet := 0.0
+	sumGross := 0.0
 	for _, v := range valid {
 		netValues = append(netValues, v.NetProfitPct)
 		sumNet += v.NetProfitPct
+		grossValues = append(grossValues, v.GrossProfitPct)
+		sumGross += v.GrossProfitPct
 	}
 	agg.AvgNetProfitPct = sumNet / float64(len(netValues))
+	agg.AvgGrossProfitPct = sumGross / float64(len(grossValues))
 
 	sort.Float64s(netValues)
+	sort.Float64s(grossValues)
 	mid := len(netValues) / 2
 	if len(netValues)%2 == 1 {
 		agg.MedianNetProfitPct = netValues[mid]
+		agg.MedianGrossProfitPct = grossValues[mid]
 	} else {
 		agg.MedianNetProfitPct = (netValues[mid-1] + netValues[mid]) / 2
+		agg.MedianGrossProfitPct = (grossValues[mid-1] + grossValues[mid]) / 2
 	}
 
 	// Top/bottom tickers by net profit.

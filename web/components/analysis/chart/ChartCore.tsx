@@ -11,7 +11,9 @@ import { useHydration } from '@/lib/hooks/use-hydration'
 import { Loader2 } from 'lucide-react'
 import { ChartContainer } from './ChartContainer'
 import { filterDataByTimeframe, processChartData, getThemeColors } from '@/lib/utils/chart-data-processor'
-import type { IChartApi } from 'lightweight-charts'
+import { calculateRSI } from '@/lib/indicators/rsi'
+import { useMomentumSettings } from '@/lib/hooks/use-indicator-settings'
+import type { IChartApi, SeriesMarker, Time } from 'lightweight-charts'
 import type { ChartType, Timeframe } from '@/lib/hooks/use-chart-state'
 import type { TickerHistoricalData } from '@/types/analysis'
 import { useTheme } from 'next-themes'
@@ -25,6 +27,8 @@ interface ChartCoreProps {
   timeframe?: Timeframe  // Timeframe (1D/1W/1M/3M/1Y/MAX)
   indicators?: any  // Indicator settings from state
   indicatorActivationOrder?: Record<string, number>
+  markers?: SeriesMarker<Time>[]
+  watermarkText?: string
 }
 
 export function ChartCore({
@@ -36,9 +40,12 @@ export function ChartCore({
   timeframe = '3M',  // Default to 3 months
   indicators,  // Use indicator settings from state
   indicatorActivationOrder = {},
+  markers,
+  watermarkText,
 }: ChartCoreProps) {
   const isHydrated = useHydration()
   const { theme, resolvedTheme } = useTheme()
+  const { settings: momentumSettings } = useMomentumSettings()
   const [htmlIsDark, setHtmlIsDark] = useState(false)
 
   useEffect(() => {
@@ -65,6 +72,32 @@ export function ChartCore({
   const filteredHistoricalData = useMemo(() => {
     return filterDataByTimeframe(data as TickerHistoricalData[], timeframe)
   }, [data, timeframe])
+
+  const indicatorData = useMemo(() => {
+    const typed = data as TickerHistoricalData[]
+    if (!typed || typed.length === 0) return {}
+
+    const sorted = [...typed].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    )
+
+    const candles = sorted.map((item) => ({
+      time: new Date(item.date).getTime() / 1000,
+      open: Number(item.open) || 0,
+      high: Number(item.high) || 0,
+      low: Number(item.low) || 0,
+      close: Number(item.close) || 0,
+    }))
+
+    const { rsi } = calculateRSI(candles, { period: momentumSettings.rsiPeriod })
+
+    const rsiMap = new Map<string, number | null>()
+    for (let i = 0; i < sorted.length; i++) {
+      rsiMap.set(sorted[i].date, rsi[i] ?? null)
+    }
+
+    return { rsiData: rsiMap }
+  }, [data, momentumSettings.rsiPeriod])
 
   // Get theme colors
   const themeColors = useMemo(() => {
@@ -101,9 +134,12 @@ export function ChartCore({
         indicators={indicators}
         indicatorActivationOrder={indicatorActivationOrder}
         theme={themeColors}
+        indicatorData={indicatorData}
         onChartReady={onChartReady}
         chartType={chartType}
         timeframe={timeframe}
+        markers={markers}
+        watermarkText={watermarkText}
       />
 
       {/* Loading overlay - shows on top of chart when loading new ticker data */}

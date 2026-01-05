@@ -291,21 +291,20 @@ func main() {
 	// Combine existing and new records
 	allRecords := append(existingRecords, newRecords...)
 
-	// Apply forward-fill and generate all output files
+	// Generate output files from the SSOT dataset (actual report rows only).
+	// Forward-fill (when needed) must be applied only in derived views (e.g., portfolio valuation),
+	// not in the stored reports dataset used for charts/backtests.
 	if len(allRecords) > 0 {
-		slog.Info("Generating dataset with forward-fill...")
-		filledRecords := forwardFillMissingData(allRecords)
+		slog.Info("Generating dataset...")
 
 		logger.Info("Record processing summary",
-			slog.Int("total_records", len(filledRecords)),
-			slog.Int("active_trading_records", len(allRecords)),
-			slog.Int("forward_filled_records", len(filledRecords)-len(allRecords)))
+			slog.Int("total_records", len(allRecords)))
 
 		// Generate output files using existing services
 		// Flush stdout before generation to ensure all file processing messages are sent
 		_ = os.Stdout.Sync()
 
-		if err := generateOutputFiles(filledRecords, *outDir, logger); err != nil {
+		if err := generateOutputFiles(allRecords, *outDir, logger); err != nil {
 			logger.Error("Error generating output files", "error", err)
 			os.Exit(1)
 		}

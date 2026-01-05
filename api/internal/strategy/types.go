@@ -102,3 +102,25 @@ type ParamInfo struct {
 	Min          *float64    `json:"min,omitempty"`
 	Max          *float64    `json:"max,omitempty"`
 }
+
+// ChartPreset defines recommended chart defaults for a strategy in the UI.
+// This is used for deep-linking from strategy runs into the analysis page.
+type ChartPreset struct {
+	StrategyID        string               `json:"strategy_id"`
+	ChartType         string               `json:"chart_type"`         // e.g. "candlestick"
+	Timeframe         string               `json:"timeframe"`          // e.g. "MAX"
+	EnabledIndicators []string             `json:"enabled_indicators"` // e.g. ["showRSI","showVolume"]
+	Momentum          *ChartPresetMomentum `json:"momentum,omitempty"`
+}
+
+type ChartPresetMomentum struct {
+	RSIPeriod     int     `json:"rsi_period"`
+	RSIOverbought float64 `json:"rsi_overbought"`
+	RSIOversold   float64 `json:"rsi_oversold"`
+}
+
+// ChartPresetProvider is an optional interface that strategies can implement
+// to provide UI chart defaults (indicators + parameters).
+type ChartPresetProvider interface {
+	ChartPreset() ChartPreset
+}

@@ -44,6 +44,10 @@ export async function fetchReports(): Promise<ReportMetadata[]> {
         // Filter out liquidity_insights from reports page
         return report.category !== 'liquidity_insights'
       })
+      .filter((report) => {
+        // Defensive: occasionally a repeated header row produces an invalid ticker file like "Code_trading_history.csv".
+        return !/^code_trading_history\.csv$/i.test(report.name)
+      })
       .map((report) => {
         // Use category from backend if available, otherwise detect from filename
         const type = report.category ? mapCategoryToType(report.category) : getReportType(report.name)

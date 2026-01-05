@@ -53,5 +53,4 @@ export const OPERATION_DATE_DEFAULTS = {
 // Date validation constants
 export const DATE_VALIDATION = {
   MIN_DATE: '2020-01-01',
-  MAX_DAYS_RANGE: 365,
 } as const

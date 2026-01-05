@@ -243,6 +243,12 @@ func ParseFile(filePath string) (*domain.DailyReport, error) {
 			fmt.Printf("  -> Skipped: Empty company code after trim\n")
 			continue
 		}
+		// Some source files contain repeated header rows within the trading table.
+		// These can slip through headerRow detection and create fake tickers like "Code".
+		if strings.EqualFold(companyCode, "code") {
+			fmt.Printf("  -> Skipped: Header row (code)\n")
+			continue
+		}
 
 		slog.Info("Processing company", slog.String("code", companyCode))
 
@@ -287,6 +293,10 @@ func ParseFile(filePath string) (*domain.DailyReport, error) {
 
 		// Extract all available fields
 		companyName := getString("company")
+		if strings.EqualFold(strings.TrimSpace(companyName), "company name") {
+			fmt.Printf("  -> Skipped: Header row (company name)\n")
+			continue
+		}
 		openPrice := parseFloat("open")
 		highPrice := parseFloat("high")
 		lowPrice := parseFloat("low")

@@ -247,7 +247,7 @@ export function isValidDateString(dateStr: string): boolean {
 /**
  * Creates a date range validation schema
  */
-export function createDateRangeSchema(maxDays = 365) {
+export function createDateRangeSchema() {
   return z.object({
     start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -255,12 +255,10 @@ export function createDateRangeSchema(maxDays = 365) {
     (data) => {
       const start = new Date(data.start_date)
       const end = new Date(data.end_date)
-      const diffInDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
-      
-      return start <= end && diffInDays <= maxDays
+      return start <= end
     },
     {
-      message: `Date range cannot exceed ${maxDays} days and start date must be before end date`,
+      message: 'Start date must be before end date',
       path: ['end_date'],
     }
   )

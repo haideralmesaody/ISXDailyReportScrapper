@@ -23,6 +23,7 @@ import type {
   ExecuteBatchResponse,
   StrategyRunInfo,
   BacktestTickerDetails,
+  StrategyChartPreset,
 } from '@/types/index'
 
 // ============================================================================
@@ -943,6 +944,10 @@ export class ISXApiClient {
     return this.client.get('/api/v1/strategies')
   }
 
+  public async getStrategy(strategyId: string): Promise<StrategyInfo> {
+    return this.client.get(`/api/v1/strategies/${strategyId}`)
+  }
+
   public async executeStrategyBatch(strategyId: string, req: ExecuteBatchRequest = {}): Promise<ExecuteBatchResponse> {
     return this.client.post(`/api/v1/strategies/${strategyId}/execute-batch`, req)
   }
@@ -950,6 +955,10 @@ export class ISXApiClient {
   public async listStrategyRuns(strategyId: string, limit = 25): Promise<{ runs: StrategyRunInfo[]; count: number }> {
     const query = limit ? `?limit=${encodeURIComponent(String(limit))}` : ''
     return this.client.get(`/api/v1/strategies/${strategyId}/runs${query}`)
+  }
+
+  public async getStrategyChartPreset(strategyId: string): Promise<StrategyChartPreset> {
+    return this.client.get(`/api/v1/strategies/${strategyId}/chart-preset`)
   }
 
   public async getStrategyRun(strategyId: string, runId: string): Promise<ExecuteBatchResponse> {

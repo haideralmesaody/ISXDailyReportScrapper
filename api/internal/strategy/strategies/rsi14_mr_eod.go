@@ -44,6 +44,20 @@ func (s *RSI14MeanReversionEODStrategy) Parameters() strategy.StrategyParams {
 	}
 }
 
+func (s *RSI14MeanReversionEODStrategy) ChartPreset() strategy.ChartPreset {
+	return strategy.ChartPreset{
+		StrategyID:        s.ID(),
+		ChartType:         "candlestick",
+		Timeframe:         "MAX",
+		EnabledIndicators: []string{"showVolume", "showRSI"},
+		Momentum: &strategy.ChartPresetMomentum{
+			RSIPeriod:     14,
+			RSIOversold:   30.0,
+			RSIOverbought: 50.0,
+		},
+	}
+}
+
 func (s *RSI14MeanReversionEODStrategy) Validate(ctx context.Context, params strategy.StrategyParams) error {
 	// v1 is fixed parameters; nothing to validate yet.
 	return nil

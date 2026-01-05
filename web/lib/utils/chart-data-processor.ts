@@ -26,7 +26,8 @@ export function processChartData(
 
   // Convert to TradingView format
   const candlestickData = sortedData.map(item => ({
-    time: new Date(item.date).getTime() / 1000, // TradingView expects Unix timestamp in seconds
+    // Use business-day strings so the chart compresses to tradable days only (no weekend/holiday gaps).
+    time: item.date,
     open: Number(item.open) || 0,
     high: Number(item.high) || 0,
     low: Number(item.low) || 0,
@@ -38,7 +39,7 @@ export function processChartData(
     // Determine color based on price change (green for up, red for down)
     const isUp = index === 0 ? true : item.close >= sortedData[index - 1].close
     return {
-      time: new Date(item.date).getTime() / 1000,
+      time: item.date,
       value: Number(item.volume) || 0,
       color: isUp ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)', // Green/Red with opacity
     }

@@ -150,12 +150,6 @@ export function EnhancedOperationCard({
       return false
     }
 
-    const daysDiff = Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24))
-    if (daysDiff > DATE_VALIDATION.MAX_DAYS_RANGE) {
-      setError(`Date range cannot exceed ${DATE_VALIDATION.MAX_DAYS_RANGE} days`)
-      return false
-    }
-
     setError(null)
     return true
   }, [fromDate, toDate, requiresDates])

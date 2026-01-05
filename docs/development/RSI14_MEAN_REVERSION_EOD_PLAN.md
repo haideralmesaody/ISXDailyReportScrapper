@@ -47,7 +47,9 @@ No mock data is allowed anywhere in the strategy or backtesting path.
 ## Current Implementation Status (high level)
 
 ### Frontend (`web/`)
-- `/analysis` is removed; `/strategy` is the home for new strategies going forward.
+- `/analysis` is available for charting and supports strategy deep-linking via query params:
+  - `/analysis?ticker=<SYMBOL>`
+  - `/analysis?ticker=<SYMBOL>&strategy_id=<STRATEGY_ID>&run_id=<RUN_ID>`
 - Reports and Operations UIs compile after removing now-unused analysis/alerts-related pieces.
 
 ### Backend (`api/`)

@@ -134,12 +134,6 @@ func (vs *ValidationService) validateDateRange(fromDate, toDate string) error {
 		return fmt.Errorf("from_date (%s) cannot be after to_date (%s)", fromDate, toDate)
 	}
 
-	// Check if date range is reasonable (not more than 5 years)
-	duration := to.Sub(from)
-	if duration > 5*365*24*time.Hour {
-		return fmt.Errorf("date range is too large (maximum 5 years). From: %s, To: %s", fromDate, toDate)
-	}
-
 	return nil
 }
 

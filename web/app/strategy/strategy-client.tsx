@@ -33,9 +33,22 @@ import type {
   StrategyRunInfo,
 } from '@/types/index'
 import { format } from 'date-fns'
-import { ChevronDown, ChevronRight, Target } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight, Target } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { Fragment, useEffect, useMemo, useState } from 'react'
+
+type SignalSortKey =
+  | 'symbol'
+  | 'action'
+  | 'net_profit_pct'
+  | 'gross_profit_pct'
+  | 'completed_trades'
+  | 'winning_trades'
+  | 'losing_trades'
+  | 'price'
+  | 'rsi'
+  | 'prev_rsi'
+  | 'date'
 
 export default function StrategyClient() {
   const searchParams = useSearchParams()
@@ -53,23 +66,18 @@ export default function StrategyClient() {
   const [lastRun, setLastRun] = useState<ExecuteBatchResponse | null>(null)
   const [showHold, setShowHold] = useState(false)
   const [includeBacktest, setIncludeBacktest] = useState(false)
-  const [backtestStartDate, setBacktestStartDate] = useState<Date | null>(() => {
-    const d = new Date()
-    d.setHours(0, 0, 0, 0)
-    d.setDate(d.getDate() - 90)
-    return d
-  })
-  const [backtestEndDate, setBacktestEndDate] = useState<Date | null>(() => {
-    const d = new Date()
-    d.setHours(0, 0, 0, 0)
-    return d
-  })
+  const [backtestStartDate, setBacktestStartDate] = useState<Date | null>(null)
+  const [backtestEndDate, setBacktestEndDate] = useState<Date | null>(null)
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null)
   const [backtestDetailsBySymbol, setBacktestDetailsBySymbol] = useState<Record<string, BacktestTickerDetails>>({})
   const [loadingBacktestSymbol, setLoadingBacktestSymbol] = useState<string | null>(null)
   const [runs, setRuns] = useState<StrategyRunInfo[]>([])
   const [loadingRuns, setLoadingRuns] = useState(false)
   const [loadingRunId, setLoadingRunId] = useState<string | null>(null)
+  const [signalSort, setSignalSort] = useState<{ key: SignalSortKey; dir: 'asc' | 'desc' }>(() => ({
+    key: 'net_profit_pct',
+    dir: 'desc',
+  }))
 
   useEffect(() => {
     let cancelled = false
@@ -140,6 +148,20 @@ export default function StrategyClient() {
 
   const hasBacktest = Boolean(lastRun?.backtest)
 
+  useEffect(() => {
+    if (hasBacktest) return
+    const backtestKeys: SignalSortKey[] = [
+      'net_profit_pct',
+      'gross_profit_pct',
+      'completed_trades',
+      'winning_trades',
+      'losing_trades',
+    ]
+    if (backtestKeys.includes(signalSort.key)) {
+      setSignalSort({ key: 'action', dir: 'asc' })
+    }
+  }, [hasBacktest, signalSort.key])
+
   const signalsToDisplay = useMemo(() => {
     const signals = lastRun?.signals || []
     const filtered = signals.filter(sig => {
@@ -148,24 +170,97 @@ export default function StrategyClient() {
       return true
     })
 
-    return filtered.slice().sort((a, b) => {
-      const aBt = backtestSummaryBySymbol.get(a.symbol)
-      const bBt = backtestSummaryBySymbol.get(b.symbol)
-      if (aBt || bBt) {
-        const aNet = aBt?.net_profit_pct ?? -Infinity
-        const bNet = bBt?.net_profit_pct ?? -Infinity
-        if (aNet !== bNet) return bNet - aNet
+    const metaNumeric = (sig: StrategySignal, key: string): number | null => {
+      const raw = (sig.metadata || ({} as any))[key] as unknown
+      if (typeof raw === 'number' && Number.isFinite(raw)) return raw
+      if (typeof raw === 'string') {
+        const parsed = Number(raw)
+        return Number.isFinite(parsed) ? parsed : null
       }
+      return null
+    }
+
+    const numberOrNull = (value: unknown): number | null => {
+      if (typeof value === 'number' && Number.isFinite(value)) return value
+      if (typeof value === 'string') {
+        const parsed = Number(value)
+        if (Number.isFinite(parsed)) return parsed
+      }
+      return null
+    }
+
+    const sortValue = (sig: StrategySignal, key: SignalSortKey): string | number | null => {
+      const bt = backtestSummaryBySymbol.get(sig.symbol)
+      switch (key) {
+        case 'symbol':
+          return sig.symbol || ''
+        case 'action':
+          return sig.action || ''
+        case 'net_profit_pct':
+          return bt?.error ? null : (bt?.net_profit_pct ?? null)
+        case 'gross_profit_pct':
+          return bt?.error ? null : (bt?.gross_profit_pct ?? null)
+        case 'completed_trades':
+          return bt?.error ? null : (bt?.completed_trades ?? null)
+        case 'winning_trades':
+          return bt?.error ? null : (bt?.winning_trades ?? null)
+        case 'losing_trades':
+          return bt?.error ? null : (bt?.losing_trades ?? null)
+        case 'price':
+          return numberOrNull(sig.price)
+        case 'rsi':
+          return metaNumeric(sig, 'rsi')
+        case 'prev_rsi':
+          return metaNumeric(sig, 'prev_rsi')
+        case 'date': {
+          if (!sig.timestamp) return null
+          const t = new Date(sig.timestamp).getTime()
+          return Number.isFinite(t) ? t : null
+        }
+        default:
+          return null
+      }
+    }
+
+    const compare = (a: StrategySignal, b: StrategySignal): number => {
+      const aVal = sortValue(a, signalSort.key)
+      const bVal = sortValue(b, signalSort.key)
+      const dirMul = signalSort.dir === 'asc' ? 1 : -1
+
+      if (aVal == null && bVal == null) return 0
+      if (aVal == null) return 1
+      if (bVal == null) return -1
+
+      if (typeof aVal === 'number' || typeof bVal === 'number') {
+        const an = typeof aVal === 'number' ? aVal : Number(aVal)
+        const bn = typeof bVal === 'number' ? bVal : Number(bVal)
+        if (an !== bn) return (an < bn ? -1 : 1) * dirMul
+      } else {
+        const as = String(aVal)
+        const bs = String(bVal)
+        const cmp = as.localeCompare(bs)
+        if (cmp !== 0) return cmp * dirMul
+      }
+
       if (a.action !== b.action) return a.action.localeCompare(b.action)
       return a.symbol.localeCompare(b.symbol)
-    })
-  }, [lastRun, showHold, tickerParam, backtestSummaryBySymbol])
+    }
+
+    return filtered.slice().sort(compare)
+  }, [lastRun, showHold, tickerParam, backtestSummaryBySymbol, signalSort])
 
   const alerts = useMemo(() => {
     const signals = lastRun?.signals || []
     const filtered = signals.filter(sig => sig.action === 'BUY' || sig.action === 'SELL')
     return tickerParam ? filtered.filter(sig => sig.symbol === tickerParam) : filtered
   }, [lastRun, tickerParam])
+
+  const openAnalysis = (symbol: string) => {
+    const params = new URLSearchParams({ ticker: symbol })
+    if (selectedStrategyId) params.set('strategy_id', selectedStrategyId)
+    if (lastRun?.run_id) params.set('run_id', lastRun.run_id)
+    window.location.href = `/analysis?${params.toString()}`
+  }
 
   function metaNumber(signal: StrategySignal, key: string): string {
     const value = (signal.metadata || ({} as any))[key] as unknown
@@ -180,6 +275,34 @@ export default function StrategyClient() {
     return `${value.toFixed(2)}%`
   }
 
+  function toLocalDate(dateStr: string): Date | null {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr.trim())
+    if (!match) return null
+    const year = Number(match[1])
+    const month = Number(match[2])
+    const day = Number(match[3])
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null
+    return new Date(year, month - 1, day)
+  }
+
+  function toggleSignalSort(key: SignalSortKey) {
+    setSignalSort(prev => {
+      if (prev.key === key) return { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+      const defaultDir: 'asc' | 'desc' =
+        key === 'symbol' || key === 'action' ? 'asc' : 'desc'
+      return { key, dir: defaultDir }
+    })
+  }
+
+  function SortIcon({ k }: { k: SignalSortKey }) {
+    if (signalSort.key !== k) return <ArrowUpDown className="h-4 w-4 opacity-50" />
+    return signalSort.dir === 'asc' ? (
+      <ArrowUp className="h-4 w-4" />
+    ) : (
+      <ArrowDown className="h-4 w-4" />
+    )
+  }
+
   async function runBatch() {
     setRunning(true)
     try {
@@ -189,23 +312,24 @@ export default function StrategyClient() {
       if (tickerParam) req.symbols = [tickerParam]
 
       if (includeBacktest) {
-        if (!backtestStartDate || !backtestEndDate) {
-          toast({
-            title: 'Backtest dates required',
-            description: 'Please select a valid start and end date.',
-            variant: 'destructive',
-          })
-          return
-        }
-
         req.include_backtest = true
-        req.backtest_start_date = format(backtestStartDate, 'yyyy-MM-dd')
-        req.backtest_end_date = format(backtestEndDate, 'yyyy-MM-dd')
+        if (backtestStartDate) req.backtest_start_date = format(backtestStartDate, 'yyyy-MM-dd')
+        if (backtestEndDate) req.backtest_end_date = format(backtestEndDate, 'yyyy-MM-dd')
         req.transaction_fee = 0.006
       }
 
       const resp = await apiClient.executeStrategyBatch(selectedStrategyId, req)
       setLastRun(resp)
+      if (includeBacktest && resp.backtest) {
+        if (!backtestStartDate) {
+          const resolved = toLocalDate(resp.backtest.start_date)
+          if (resolved) setBacktestStartDate(resolved)
+        }
+        if (!backtestEndDate) {
+          const resolved = toLocalDate(resp.backtest.end_date)
+          if (resolved) setBacktestEndDate(resolved)
+        }
+      }
       setExpandedSymbol(null)
       setBacktestDetailsBySymbol({})
       setLoadingBacktestSymbol(null)
@@ -238,6 +362,12 @@ export default function StrategyClient() {
     try {
       const resp = await apiClient.getStrategyRun(selectedStrategyId, runId)
       setLastRun(resp)
+      if (resp.backtest) {
+        const resolvedStart = toLocalDate(resp.backtest.start_date)
+        const resolvedEnd = toLocalDate(resp.backtest.end_date)
+        if (resolvedStart) setBacktestStartDate(resolvedStart)
+        if (resolvedEnd) setBacktestEndDate(resolvedEnd)
+      }
       setExpandedSymbol(null)
       setBacktestDetailsBySymbol({})
       setLoadingBacktestSymbol(null)
@@ -376,7 +506,7 @@ export default function StrategyClient() {
                       disabled={running}
                     />
                     <div className="md:col-span-2 text-xs text-muted-foreground">
-                      Default last 90 days. Fee: 0.006 per transaction (0.6% on BUY and 0.6% on SELL).
+                      Defaults to full available data range when dates are left empty. Fee: 0.006 per transaction (0.6% on BUY and 0.6% on SELL).
                     </div>
                   </div>
                 ) : null}
@@ -540,6 +670,14 @@ export default function StrategyClient() {
                       <span className="text-muted-foreground">Median net:</span>{' '}
                       <span className="font-medium">{pct(lastRun.backtest.aggregate.median_net_profit_pct)}</span>
                     </div>
+                    <div>
+                      <span className="text-muted-foreground">Avg gross:</span>{' '}
+                      <span className="font-medium">{pct(lastRun.backtest.aggregate.avg_gross_profit_pct)}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Median gross:</span>{' '}
+                      <span className="font-medium">{pct(lastRun.backtest.aggregate.median_gross_profit_pct)}</span>
+                    </div>
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
@@ -585,21 +723,119 @@ export default function StrategyClient() {
                   <TableHeader>
                     <TableRow>
                       {hasBacktest ? <TableHead className="w-10"></TableHead> : null}
-                      <TableHead>Symbol</TableHead>
-                      <TableHead>Action</TableHead>
+                      <TableHead>
+                        <Button variant="ghost" className="h-auto p-0" onClick={() => toggleSignalSort('symbol')}>
+                          <span className="flex items-center gap-1">
+                            Symbol <SortIcon k="symbol" />
+                          </span>
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button variant="ghost" className="h-auto p-0" onClick={() => toggleSignalSort('action')}>
+                          <span className="flex items-center gap-1">
+                            Action <SortIcon k="action" />
+                          </span>
+                        </Button>
+                      </TableHead>
                       {hasBacktest ? (
                         <>
-                          <TableHead className="text-right">Net P&amp;L</TableHead>
-                          <TableHead className="text-right">Gross P&amp;L</TableHead>
-                          <TableHead className="text-right">Trades</TableHead>
-                          <TableHead className="text-right">Wins</TableHead>
-                          <TableHead className="text-right">Losses</TableHead>
+                          <TableHead className="text-right">
+                            <Button
+                              variant="ghost"
+                              className="h-auto w-full justify-end p-0"
+                              onClick={() => toggleSignalSort('net_profit_pct')}
+                            >
+                              <span className="flex items-center gap-1">
+                                Net P&amp;L <SortIcon k="net_profit_pct" />
+                              </span>
+                            </Button>
+                          </TableHead>
+                          <TableHead className="text-right">
+                            <Button
+                              variant="ghost"
+                              className="h-auto w-full justify-end p-0"
+                              onClick={() => toggleSignalSort('gross_profit_pct')}
+                            >
+                              <span className="flex items-center gap-1">
+                                Gross P&amp;L <SortIcon k="gross_profit_pct" />
+                              </span>
+                            </Button>
+                          </TableHead>
+                          <TableHead className="text-right">
+                            <Button
+                              variant="ghost"
+                              className="h-auto w-full justify-end p-0"
+                              onClick={() => toggleSignalSort('completed_trades')}
+                            >
+                              <span className="flex items-center gap-1">
+                                Trades <SortIcon k="completed_trades" />
+                              </span>
+                            </Button>
+                          </TableHead>
+                          <TableHead className="text-right">
+                            <Button
+                              variant="ghost"
+                              className="h-auto w-full justify-end p-0"
+                              onClick={() => toggleSignalSort('winning_trades')}
+                            >
+                              <span className="flex items-center gap-1">
+                                Wins <SortIcon k="winning_trades" />
+                              </span>
+                            </Button>
+                          </TableHead>
+                          <TableHead className="text-right">
+                            <Button
+                              variant="ghost"
+                              className="h-auto w-full justify-end p-0"
+                              onClick={() => toggleSignalSort('losing_trades')}
+                            >
+                              <span className="flex items-center gap-1">
+                                Losses <SortIcon k="losing_trades" />
+                              </span>
+                            </Button>
+                          </TableHead>
                         </>
                       ) : null}
-                      <TableHead className="text-right">Price</TableHead>
-                      <TableHead className="text-right">RSI</TableHead>
-                      <TableHead className="text-right">Prev</TableHead>
-                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">
+                        <Button
+                          variant="ghost"
+                          className="h-auto w-full justify-end p-0"
+                          onClick={() => toggleSignalSort('price')}
+                        >
+                          <span className="flex items-center gap-1">
+                            Price <SortIcon k="price" />
+                          </span>
+                        </Button>
+                      </TableHead>
+                      <TableHead className="text-right">
+                        <Button
+                          variant="ghost"
+                          className="h-auto w-full justify-end p-0"
+                          onClick={() => toggleSignalSort('rsi')}
+                        >
+                          <span className="flex items-center gap-1">
+                            RSI <SortIcon k="rsi" />
+                          </span>
+                        </Button>
+                      </TableHead>
+                      <TableHead className="text-right">
+                        <Button
+                          variant="ghost"
+                          className="h-auto w-full justify-end p-0"
+                          onClick={() => toggleSignalSort('prev_rsi')}
+                        >
+                          <span className="flex items-center gap-1">
+                            Prev <SortIcon k="prev_rsi" />
+                          </span>
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button variant="ghost" className="h-auto p-0" onClick={() => toggleSignalSort('date')}>
+                          <span className="flex items-center gap-1">
+                            Date <SortIcon k="date" />
+                          </span>
+                        </Button>
+                      </TableHead>
                       <TableHead>Reason</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -631,7 +867,15 @@ export default function StrategyClient() {
                                 </Button>
                               </TableCell>
                             ) : null}
-                            <TableCell className="font-mono">{sig.symbol}</TableCell>
+                            <TableCell className="font-mono">
+                              <button
+                                type="button"
+                                className="underline underline-offset-2 hover:no-underline"
+                                onClick={() => openAnalysis(sig.symbol)}
+                              >
+                                {sig.symbol}
+                              </button>
+                            </TableCell>
                           <TableCell>
                             <Badge
                               variant="outline"

@@ -816,6 +816,20 @@ export interface StrategyRunInfo {
   has_backtest: boolean
 }
 
+export interface StrategyChartPresetMomentum {
+  rsi_period: number
+  rsi_overbought: number
+  rsi_oversold: number
+}
+
+export interface StrategyChartPreset {
+  strategy_id: string
+  chart_type: string
+  timeframe: string
+  enabled_indicators: string[]
+  momentum?: StrategyChartPresetMomentum
+}
+
 export interface BatchBacktestSummary {
   start_date: string
   end_date: string
@@ -834,6 +848,8 @@ export interface BatchBacktestAggregate {
   total_losing_trades: number
   avg_net_profit_pct: number
   median_net_profit_pct: number
+  avg_gross_profit_pct: number
+  median_gross_profit_pct: number
   top_tickers?: BacktestAggregateTicker[]
   bottom_tickers?: BacktestAggregateTicker[]
 }

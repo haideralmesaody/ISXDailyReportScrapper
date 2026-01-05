@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	apierrors "github.com/isxcli/isxcli/internal/errors"
 	"github.com/isxcli/isxcli/internal/liquidity"
 	"github.com/isxcli/isxcli/internal/strategy"
 )
@@ -70,6 +71,27 @@ func (s *StrategyService) GetStrategy(ctx context.Context, strategyID string) (s
 	}
 
 	return info, nil
+}
+
+func (s *StrategyService) GetStrategyChartPreset(ctx context.Context, strategyID string) (strategy.ChartPreset, error) {
+	s.logger.InfoContext(ctx, "getting strategy chart preset", "strategy_id", strategyID)
+
+	strat, err := s.manager.GetStrategy(ctx, strategyID)
+	if err != nil {
+		return strategy.ChartPreset{}, fmt.Errorf("get strategy: %w", err)
+	}
+
+	provider, ok := strat.(strategy.ChartPresetProvider)
+	if !ok {
+		return strategy.ChartPreset{}, apierrors.NotFoundError("chart preset")
+	}
+
+	preset := provider.ChartPreset()
+	if preset.StrategyID == "" {
+		preset.StrategyID = strategyID
+	}
+
+	return preset, nil
 }
 
 // ExecuteStrategy runs a strategy against symbol data
@@ -267,13 +289,50 @@ func (s *StrategyService) runBatchBacktest(
 	symbols []string,
 	req ExecuteBatchRequest,
 ) (*BatchBacktestSummary, map[string]BacktestTickerDetails, error) {
-	start, end, fee, err := parseBacktestOptions(req)
+	if s.dataService == nil || s.dataService.paths == nil {
+		return nil, nil, fmt.Errorf("data service paths not configured")
+	}
+
+	opts, err := s.resolveBatchBacktestOptions(ctx, req)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	start := opts.Start
+	end := opts.End
+	fee := opts.Fee
+
 	byTicker := make([]BacktestTickerSummary, 0, len(symbols))
 	detailsBySymbol := make(map[string]BacktestTickerDetails, len(symbols))
+
+	cacheDir := backtestCacheDir(s.dataService.paths.DataDir, strategyID)
+	meta, metaOk, err := loadBacktestCacheMeta(cacheDir)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cacheCompatible := metaOk && meta.isCompatible(strategyID, start, fee, opts.Snap)
+	var cacheEnd time.Time
+	if cacheCompatible {
+		parsedEnd, err := parseCacheDate(meta.EndDate)
+		if err != nil {
+			cacheCompatible = false
+		} else {
+			cacheEnd = parsedEnd
+		}
+	}
+
+	// When the cached start differs, drop the cache and rebuild (does not touch persisted run snapshots).
+	if metaOk && !cacheCompatible {
+		if err := clearBacktestCache(cacheDir); err != nil {
+			return nil, nil, err
+		}
+		metaOk = false
+	}
+
+	useCacheOnly := cacheCompatible && end.Equal(cacheEnd)
+	extendCache := cacheCompatible && end.After(cacheEnd)
+	writeCache := (!useCacheOnly && end.After(cacheEnd)) || !metaOk
 
 	// Load extra warmup data before start so RSI is initialized more realistically.
 	startLoad := start.AddDate(0, 0, -60)
@@ -285,6 +344,34 @@ func (s *StrategyService) runBatchBacktest(
 		default:
 		}
 
+		symbol = strings.TrimSpace(symbol)
+		if symbol == "" {
+			continue
+		}
+
+		var cacheTicker backtestCacheTicker
+		var haveCacheTicker bool
+		if cacheCompatible || useCacheOnly || extendCache {
+			t, ok, err := loadBacktestCacheTicker(cacheDir, symbol)
+			if err != nil {
+				return nil, nil, err
+			}
+			if ok && t.CachedEndDate == meta.EndDate && t.Error == "" {
+				cacheTicker = t
+				haveCacheTicker = true
+			}
+		}
+
+		if useCacheOnly && haveCacheTicker {
+			details, err := backtestCacheTickerToDetails(cacheTicker, start, end, fee)
+			if err != nil {
+				return nil, nil, err
+			}
+			byTicker = append(byTicker, details.Summary)
+			detailsBySymbol[symbol] = details
+			continue
+		}
+
 		series, err := s.dataService.LoadTickerTradingHistoryRange(ctx, symbol, startLoad, end)
 		if err != nil {
 			summary := BacktestTickerSummary{Symbol: symbol, Error: err.Error()}
@@ -293,16 +380,57 @@ func (s *StrategyService) runBatchBacktest(
 			continue
 		}
 
-		details, err := s.backtestTradesForSeries(ctx, strategyID, symbol, series, start, end, fee)
+		var computed backtestCacheTicker
+		if extendCache && haveCacheTicker {
+			part, err := s.runBacktestWindow(ctx, strategyID, symbol, series, start, end, fee, cacheTicker.State, &cacheEnd)
+			if err != nil {
+				summary := BacktestTickerSummary{Symbol: symbol, Error: err.Error()}
+				byTicker = append(byTicker, summary)
+				detailsBySymbol[symbol] = BacktestTickerDetails{Symbol: symbol, Summary: summary, Trades: []BacktestTrade{}}
+				continue
+			}
+			part.ClosedTrades = append(append([]BacktestTrade{}, cacheTicker.ClosedTrades...), part.ClosedTrades...)
+			computed = part
+		} else {
+			full, err := s.runBacktestWindow(ctx, strategyID, symbol, series, start, end, fee, defaultBacktestState(), nil)
+			if err != nil {
+				summary := BacktestTickerSummary{Symbol: symbol, Error: err.Error()}
+				byTicker = append(byTicker, summary)
+				detailsBySymbol[symbol] = BacktestTickerDetails{Symbol: symbol, Summary: summary, Trades: []BacktestTrade{}}
+				continue
+			}
+			computed = full
+		}
+
+		details, err := backtestCacheTickerToDetails(computed, start, end, fee)
 		if err != nil {
-			summary := BacktestTickerSummary{Symbol: symbol, Error: err.Error()}
-			byTicker = append(byTicker, summary)
-			detailsBySymbol[symbol] = BacktestTickerDetails{Symbol: symbol, Summary: summary, Trades: []BacktestTrade{}}
-			continue
+			return nil, nil, err
 		}
 
 		byTicker = append(byTicker, details.Summary)
 		detailsBySymbol[symbol] = details
+
+		if (writeCache || useCacheOnly) && computed.Error == "" {
+			computed.CachedEndDate = end.Format("2006-01-02")
+			if err := saveBacktestCacheTicker(cacheDir, computed); err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+
+	if writeCache {
+		newMeta := backtestCacheMeta{
+			Version:        backtestCacheVersion,
+			StrategyID:     strategyID,
+			StartDate:      start.Format("2006-01-02"),
+			EndDate:        end.Format("2006-01-02"),
+			TransactionFee: fee,
+			CombinedCSV:    opts.Snap,
+			UpdatedAt:      time.Now().UTC().Format(time.RFC3339),
+		}
+		if err := saveBacktestCacheMeta(cacheDir, newMeta); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	summary := &BatchBacktestSummary{
@@ -314,43 +442,6 @@ func (s *StrategyService) runBatchBacktest(
 	}
 
 	return summary, detailsBySymbol, nil
-}
-
-func parseBacktestOptions(req ExecuteBatchRequest) (time.Time, time.Time, float64, error) {
-	now := time.Now().UTC()
-	endDefault := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-	startDefault := endDefault.AddDate(0, 0, -90)
-
-	start := startDefault
-	end := endDefault
-
-	if strings.TrimSpace(req.BacktestStartDate) != "" {
-		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(req.BacktestStartDate))
-		if err != nil {
-			return time.Time{}, time.Time{}, 0, fmt.Errorf("invalid backtest_start_date: %w", err)
-		}
-		start = parsed.UTC()
-	}
-	if strings.TrimSpace(req.BacktestEndDate) != "" {
-		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(req.BacktestEndDate))
-		if err != nil {
-			return time.Time{}, time.Time{}, 0, fmt.Errorf("invalid backtest_end_date: %w", err)
-		}
-		end = parsed.UTC()
-	}
-	if end.Before(start) {
-		return time.Time{}, time.Time{}, 0, fmt.Errorf("backtest_end_date must be after backtest_start_date")
-	}
-
-	fee := req.TransactionFee
-	if fee == 0 {
-		fee = 0.006
-	}
-	if fee < 0 || fee > 0.05 {
-		return time.Time{}, time.Time{}, 0, fmt.Errorf("transaction_fee must be between 0 and 0.05")
-	}
-
-	return start, end, fee, nil
 }
 
 // backtestTradesForSeries runs a per-ticker backtest:

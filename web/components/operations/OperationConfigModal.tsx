@@ -70,13 +70,6 @@ export function OperationConfigModal({
         setError('From date must be before or equal to to date')
         return
       }
-      
-      // Check if date range is too large (using constant)
-      const daysDiff = Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24))
-      if (daysDiff > DATE_VALIDATION.MAX_DAYS_RANGE) {
-        setError(`Date range cannot exceed ${DATE_VALIDATION.MAX_DAYS_RANGE} days`)
-        return
-      }
     }
     
     // Build the correct structure for backend

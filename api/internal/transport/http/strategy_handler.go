@@ -37,6 +37,7 @@ func (h *StrategyHandler) RegisterRoutes(r chi.Router) {
 	r.Route("/v1/strategies", func(r chi.Router) {
 		r.Get("/", h.ListStrategies)
 		r.Get("/{strategyID}", h.GetStrategy)
+		r.Get("/{strategyID}/chart-preset", h.GetStrategyChartPreset)
 		r.Post("/{strategyID}/execute", h.ExecuteStrategy)
 		r.Post("/{strategyID}/execute-batch", h.ExecuteStrategyBatch)
 		r.Get("/{strategyID}/runs", h.ListStrategyRuns)
@@ -47,6 +48,22 @@ func (h *StrategyHandler) RegisterRoutes(r chi.Router) {
 		r.Get("/{strategyID}/signals", h.GetSignals)
 		r.Post("/execute-multiple", h.ExecuteMultipleStrategies)
 	})
+}
+
+// GetStrategyChartPreset handles GET /api/v1/strategies/{strategyID}/chart-preset
+func (h *StrategyHandler) GetStrategyChartPreset(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	strategyID := chi.URLParam(r, "strategyID")
+
+	h.logger.InfoContext(ctx, "getting strategy chart preset", "strategy_id", strategyID)
+
+	preset, err := h.strategyService.GetStrategyChartPreset(ctx, strategyID)
+	if err != nil {
+		h.errorHandler.HandleError(w, r, err)
+		return
+	}
+
+	h.respondJSON(w, http.StatusOK, preset)
 }
 
 // ListStrategies handles GET /api/v1/strategies

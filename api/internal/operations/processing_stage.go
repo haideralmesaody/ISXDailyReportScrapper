@@ -16,6 +16,8 @@ import (
 	"time"
 )
 
+const processingISODate = "2006-01-02"
+
 func parseFileInfoModTime(modTime string) (time.Time, bool) {
 	if modTime == "" {
 		return time.Time{}, false
@@ -147,7 +149,9 @@ func (p *ProcessingStage) Execute(ctx context.Context, state *OperationState) (e
 	// Phase: Preparing
 	p.updateSimpleProgress(stepState, 0, "Initializing data processor...", "running", ProcessingPhasePreparing, 0, 0, 0, "", 0, 0, 0, nil)
 
-	analysis := p.detectUnprocessedFiles(downloadsDir, reportsDir)
+	fromDate := p.getConfigString(state, ContextKeyFromDate)
+	toDate := p.getConfigString(state, ContextKeyToDate)
+	analysis := p.detectUnprocessedFiles(downloadsDir, reportsDir, fromDate, toDate)
 	totalFiles := analysis.FilesToProcessCount
 	if totalFiles < 0 {
 		totalFiles = 0
@@ -216,7 +220,7 @@ func (p *ProcessingStage) Execute(ctx context.Context, state *OperationState) (e
 		return fmt.Errorf("processor.exe not found: %w", err)
 	}
 
-	args := p.buildProcessorArgs(state)
+	args := p.buildProcessorArgs(state, analysis.RangeFromDate, analysis.RangeToDate)
 
 	if p.logger != nil {
 		p.logger.Info("Starting processor",
@@ -969,11 +973,19 @@ func (p *ProcessingStage) metadataSnapshot(stepState *StepState) map[string]inte
 	return cloneMetadata(stepState.Metadata)
 }
 
-func (p *ProcessingStage) buildProcessorArgs(state *OperationState) []string {
+func (p *ProcessingStage) buildProcessorArgs(state *OperationState, fromDate, toDate string) []string {
 	args := []string{}
 	args = append(args, "--in", relativeDownloadsRoot())
 	// Use absolute reports path to avoid double-prefixing by the CSV writer.
 	args = append(args, "--out", p.absolutePath(relativeReportsRoot()))
+	// IMPORTANT: processor.exe defaults `-from` to Jan 1 of the current year.
+	// If we don't pass an explicit range, older downloaded files are silently ignored.
+	if strings.TrimSpace(fromDate) != "" {
+		args = append(args, "--from", strings.TrimSpace(fromDate))
+	}
+	if strings.TrimSpace(toDate) != "" {
+		args = append(args, "--to", strings.TrimSpace(toDate))
+	}
 	return args
 }
 
@@ -981,8 +993,20 @@ func (p *ProcessingStage) absolutePath(rel string) string {
 	return AbsolutePath(p.executableDir, rel)
 }
 
+func (p *ProcessingStage) getConfigString(state *OperationState, key string) string {
+	if state == nil {
+		return ""
+	}
+	if value, ok := state.GetConfig(key); ok {
+		if str, ok := value.(string); ok {
+			return strings.TrimSpace(str)
+		}
+	}
+	return ""
+}
+
 // detectUnprocessedFiles analyzes downloaded Excel files vs existing CSV outputs.
-func (p *ProcessingStage) detectUnprocessedFiles(downloadsDir, reportsDir string) ProcessingAnalysis {
+func (p *ProcessingStage) detectUnprocessedFiles(downloadsDir, reportsDir, fromDate, toDate string) ProcessingAnalysis {
 	analysis := ProcessingAnalysis{
 		FilesToProcess:   make([]FileInfo, 0),
 		AlreadyProcessed: make([]FileInfo, 0),
@@ -1017,7 +1041,99 @@ func (p *ProcessingStage) detectUnprocessedFiles(downloadsDir, reportsDir string
 			slog.String("error", err.Error()))
 	}
 
-	analysis.TotalExcelFiles = len(excelFiles)
+	// Extract date from Excel filename using regex: "YYYY MM DD ..." -> "YYYY_MM_DD"
+	excelDateRegex := regexp.MustCompile(`^(\d{4}) (\d{2}) (\d{2})`)
+
+	// Determine effective date range.
+	// - Prefer the operation's requested range (from/to) so analysis matches processor.exe behavior.
+	// - If absent, fall back to min/max dates present in downloads to avoid processor.exe's current-year default.
+	var requestedFrom time.Time
+	var requestedTo time.Time
+	var hasRequested bool
+	if strings.TrimSpace(fromDate) != "" {
+		if parsed, err := time.Parse(processingISODate, strings.TrimSpace(fromDate)); err == nil {
+			requestedFrom = parsed.UTC()
+			requestedFrom = time.Date(requestedFrom.Year(), requestedFrom.Month(), requestedFrom.Day(), 0, 0, 0, 0, time.UTC)
+			hasRequested = true
+		}
+	}
+	if strings.TrimSpace(toDate) != "" {
+		if parsed, err := time.Parse(processingISODate, strings.TrimSpace(toDate)); err == nil {
+			requestedTo = parsed.UTC()
+			requestedTo = time.Date(requestedTo.Year(), requestedTo.Month(), requestedTo.Day(), 0, 0, 0, 0, time.UTC)
+			hasRequested = true
+		}
+	}
+
+	var minSeen time.Time
+	var maxSeen time.Time
+	var seenAny bool
+
+	for _, excelFile := range excelFiles {
+		matches := excelDateRegex.FindStringSubmatch(excelFile.Name)
+		if len(matches) != 4 {
+			continue
+		}
+		fileDate, err := time.Parse("2006 01 02", fmt.Sprintf("%s %s %s", matches[1], matches[2], matches[3]))
+		if err != nil {
+			continue
+		}
+		fileDate = fileDate.UTC()
+		fileDate = time.Date(fileDate.Year(), fileDate.Month(), fileDate.Day(), 0, 0, 0, 0, time.UTC)
+		if !seenAny {
+			minSeen = fileDate
+			maxSeen = fileDate
+			seenAny = true
+		} else {
+			if fileDate.Before(minSeen) {
+				minSeen = fileDate
+			}
+			if fileDate.After(maxSeen) {
+				maxSeen = fileDate
+			}
+		}
+	}
+
+	effectiveFrom := requestedFrom
+	effectiveTo := requestedTo
+	if !hasRequested && seenAny {
+		effectiveFrom = minSeen
+		effectiveTo = maxSeen
+	}
+	if !effectiveFrom.IsZero() {
+		analysis.RangeFromDate = effectiveFrom.Format(processingISODate)
+	}
+	if !effectiveTo.IsZero() {
+		analysis.RangeToDate = effectiveTo.Format(processingISODate)
+	}
+
+	// Filter excel files to the effective range (so UI + processor agree on what “should run”).
+	filteredExcelFiles := make([]FileInfo, 0, len(excelFiles))
+	for _, excelFile := range excelFiles {
+		matches := excelDateRegex.FindStringSubmatch(excelFile.Name)
+		if len(matches) != 4 {
+			// Non-standard filename: keep it so the user can see/diagnose it.
+			filteredExcelFiles = append(filteredExcelFiles, excelFile)
+			continue
+		}
+		fileDate, err := time.Parse("2006 01 02", fmt.Sprintf("%s %s %s", matches[1], matches[2], matches[3]))
+		if err != nil {
+			filteredExcelFiles = append(filteredExcelFiles, excelFile)
+			continue
+		}
+		fileDate = fileDate.UTC()
+		fileDate = time.Date(fileDate.Year(), fileDate.Month(), fileDate.Day(), 0, 0, 0, 0, time.UTC)
+
+		if !effectiveFrom.IsZero() && fileDate.Before(effectiveFrom) {
+			continue
+		}
+		if !effectiveTo.IsZero() && fileDate.After(effectiveTo) {
+			continue
+		}
+		filteredExcelFiles = append(filteredExcelFiles, excelFile)
+	}
+
+	analysis.TotalExcelFiles = len(filteredExcelFiles)
 
 	// Use filepath.Walk to find existing daily CSVs - exactly like processor.exe does
 	existingDates := make(map[string]bool)
@@ -1054,10 +1170,7 @@ func (p *ProcessingStage) detectUnprocessedFiles(downloadsDir, reportsDir string
 			slog.Bool("walk_succeeded", walkError == nil))
 	}
 
-	// Extract date from Excel filename using regex: "YYYY MM DD ..." -> "YYYY_MM_DD"
-	excelDateRegex := regexp.MustCompile(`^(\d{4}) (\d{2}) (\d{2})`)
-
-	for _, excelFile := range excelFiles {
+	for _, excelFile := range filteredExcelFiles {
 		matches := excelDateRegex.FindStringSubmatch(excelFile.Name)
 		if len(matches) != 4 {
 			// Malformed filename, treat as needing processing
@@ -1139,6 +1252,10 @@ type ProcessingAnalysis struct {
 	FilesToProcessCount int        // Count of files needing processing
 	Reason              string     // Reason for any exclusions
 	HasWork             bool       // Whether there are files to process
+
+	// Effective range passed to processor.exe (YYYY-MM-DD).
+	RangeFromDate string
+	RangeToDate   string
 }
 
 // ID returns the stage identifier.

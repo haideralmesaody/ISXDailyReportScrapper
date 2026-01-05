@@ -339,6 +339,13 @@ function parseTickerSummaryCSV(csvContent: string): TickerSummary[] {
     for (let k = 0; k < parts.length; k++) {
       parts[k] = parts[k].replace(/^"|"$/g, '')
     }
+
+    // Defensive: skip repeated header rows that can appear in generated CSVs.
+    // Example bad row: "Code,Company Name,0.000,..."
+    const symbol = (parts[0] || '').trim()
+    if (!symbol) continue
+    const normalizedSymbol = symbol.toLowerCase()
+    if (normalizedSymbol === 'code' || normalizedSymbol === 'ticker' || normalizedSymbol === 'symbol') continue
     
     // Create ticker object with available data
     // CSV Format: Ticker,CompanyName,LastPrice,LastDate,TradingDays,Last10Days,
@@ -377,10 +384,34 @@ function parseTickerHistoryCSV(csvContent: string): TickerHistoricalData[] {
   
   const headers = lines[0].split(',').map(h => h.trim())
   const history: TickerHistoricalData[] = []
+
+  // Indices used for filtering out non-trading / forward-filled rows.
+  const symbolIdx = headers.findIndex(h => h === 'Symbol' || h === 'Ticker')
+  const tradesIdx = headers.findIndex(h => h === 'NumTrades' || h === 'Trades')
+  const volumeIdx = headers.findIndex(h => h === 'Volume')
+  const valueIdx = headers.findIndex(h => h === 'Value')
+  const tradingStatusIdx = headers.findIndex(h => h === 'TradingStatus')
   
   for (let i = 1; i < lines.length; i++) {
     const values = lines[i].split(',').map(v => v.trim())
     if (values.length !== headers.length) continue
+
+    // Defensive: skip repeated header rows that can appear in generated CSVs.
+    if (symbolIdx >= 0) {
+      const maybeSymbol = (values[symbolIdx] || '').trim().toLowerCase()
+      if (maybeSymbol === 'symbol' || maybeSymbol === 'ticker' || maybeSymbol === 'code') continue
+    }
+
+    // Keep only tradable days: skip non-trading / forward-filled rows.
+    const trades = tradesIdx >= 0 ? (parseInt(values[tradesIdx]) || 0) : 0
+    const volume = volumeIdx >= 0 ? (parseFloat(values[volumeIdx]) || 0) : 0
+    const value = valueIdx >= 0 ? (parseFloat(values[valueIdx]) || 0) : 0
+    const tradingStatusRaw = tradingStatusIdx >= 0 ? (values[tradingStatusIdx] || '').toLowerCase() : ''
+    const tradingStatusFalsey = tradingStatusRaw === 'false' || tradingStatusRaw === '0' || tradingStatusRaw === 'no'
+
+    if (trades === 0 && volume === 0 && value === 0 && (tradingStatusIdx === -1 || tradingStatusFalsey)) {
+      continue
+    }
     
     const data: any = {}
     headers.forEach((header, index) => {
@@ -441,6 +472,10 @@ function extractTickerFromDaily(csvContent: string, ticker: string): TickerHisto
   
   const headers = lines[0].split(',').map(h => h.trim())
   const tickerIndex = headers.findIndex(h => h === 'Symbol' || h === 'Ticker')
+  const tradesIdx = headers.findIndex(h => h === 'NumTrades' || h === 'Trades')
+  const volumeIdx = headers.findIndex(h => h === 'Volume')
+  const valueIdx = headers.findIndex(h => h === 'Value')
+  const tradingStatusIdx = headers.findIndex(h => h === 'TradingStatus')
   
   if (tickerIndex === -1) return null
   
@@ -448,6 +483,17 @@ function extractTickerFromDaily(csvContent: string, ticker: string): TickerHisto
     const values = lines[i].split(',').map(v => v.trim())
     
     if (values[tickerIndex] === ticker) {
+      // Keep only tradable days: skip non-trading / forward-filled rows.
+      const trades = tradesIdx >= 0 ? (parseInt(values[tradesIdx]) || 0) : 0
+      const volume = volumeIdx >= 0 ? (parseFloat(values[volumeIdx]) || 0) : 0
+      const value = valueIdx >= 0 ? (parseFloat(values[valueIdx]) || 0) : 0
+      const tradingStatusRaw = tradingStatusIdx >= 0 ? (values[tradingStatusIdx] || '').toLowerCase() : ''
+      const tradingStatusFalsey = tradingStatusRaw === 'false' || tradingStatusRaw === '0' || tradingStatusRaw === 'no'
+
+      if (trades === 0 && volume === 0 && value === 0 && (tradingStatusIdx === -1 || tradingStatusFalsey)) {
+        return null
+      }
+
       const data: any = {}
       
       headers.forEach((header, index) => {
@@ -511,6 +557,10 @@ function parseCombinedDataCSV(csvContent: string): Map<string, TickerHistoricalD
   // Find column indices
   const symbolIdx = headers.findIndex(h => h === 'Symbol' || h === 'Ticker')
   const dateIdx = headers.findIndex(h => h === 'Date')
+  const tradesIdx = headers.findIndex(h => h === 'NumTrades' || h === 'Trades')
+  const volumeIdx = headers.findIndex(h => h === 'Volume')
+  const valueIdx = headers.findIndex(h => h === 'Value')
+  const tradingStatusIdx = headers.findIndex(h => h === 'TradingStatus')
   
   if (symbolIdx === -1 || dateIdx === -1) {
     console.error('Combined CSV missing required columns')
@@ -524,6 +574,21 @@ function parseCombinedDataCSV(csvContent: string): Map<string, TickerHistoricalD
     
     const ticker = values[symbolIdx]
     if (!ticker) continue
+
+    // Defensive: skip repeated header rows that can appear in generated CSVs.
+    const normalizedTicker = ticker.trim().toLowerCase()
+    if (normalizedTicker === 'symbol' || normalizedTicker === 'ticker' || normalizedTicker === 'code') continue
+
+    // Keep only tradable days: skip non-trading / forward-filled rows.
+    const trades = tradesIdx >= 0 ? (parseInt(values[tradesIdx]) || 0) : 0
+    const volume = volumeIdx >= 0 ? (parseFloat(values[volumeIdx]) || 0) : 0
+    const value = valueIdx >= 0 ? (parseFloat(values[valueIdx]) || 0) : 0
+    const tradingStatusRaw = tradingStatusIdx >= 0 ? (values[tradingStatusIdx] || '').toLowerCase() : ''
+    const tradingStatusFalsey = tradingStatusRaw === 'false' || tradingStatusRaw === '0' || tradingStatusRaw === 'no'
+
+    if (trades === 0 && volume === 0 && value === 0 && (tradingStatusIdx === -1 || tradingStatusFalsey)) {
+      continue
+    }
     
     const data: any = {}
     headers.forEach((header, index) => {

@@ -12,7 +12,7 @@
 'use client'
 
 import { createContext, useContext, type ReactNode, type RefObject } from 'react'
-import type { IChartApi, ISeriesApi } from 'lightweight-charts'
+import type { IChartApi, ISeriesApi, Time } from 'lightweight-charts'
 import type { ChartType, Timeframe } from '@/lib/hooks/use-chart-state'
 
 // Theme colors interface - matches LightweightStockChart
@@ -29,14 +29,14 @@ export interface ThemeColors {
 // Processed chart data structure
 export interface ProcessedChartData {
   candlestickData: Array<{
-    time: number
+    time: Time
     open: number
     high: number
     low: number
     close: number
   }>
   volumeData: Array<{
-    time: number
+    time: Time
     value: number
     color: string
   }>
