@@ -197,9 +197,21 @@ func (h *DataHandler) GetTickers(w http.ResponseWriter, r *http.Request) {
 	count := 0
 	if arr, ok := tickers.([]interface{}); ok {
 		count = len(arr)
-	} else if _, ok := tickers.(map[string]interface{}); ok {
-		// If it's a map, we can't easily count items
-		count = 1
+	} else if obj, ok := tickers.(map[string]interface{}); ok {
+		// Common shape: { tickers: [...] , count: N, ... }
+		if arr, ok := obj["tickers"].([]interface{}); ok {
+			count = len(arr)
+		} else if v, ok := obj["count"]; ok {
+			switch n := v.(type) {
+			case float64:
+				count = int(n)
+			case int:
+				count = n
+			}
+		}
+		if count == 0 {
+			count = 1
+		}
 	}
 	
 	render.JSON(w, r, map[string]interface{}{
