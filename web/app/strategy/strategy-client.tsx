@@ -50,6 +50,15 @@ type SignalSortKey =
   | 'prev_rsi'
   | 'date'
 
+const numberOrNull = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
 export default function StrategyClient() {
   const searchParams = useSearchParams()
   const tickerParam = useMemo(() => {
@@ -199,15 +208,6 @@ export default function StrategyClient() {
       if (typeof raw === 'string') {
         const parsed = Number(raw)
         return Number.isFinite(parsed) ? parsed : null
-      }
-      return null
-    }
-
-    const numberOrNull = (value: unknown): number | null => {
-      if (typeof value === 'number' && Number.isFinite(value)) return value
-      if (typeof value === 'string') {
-        const parsed = Number(value)
-        if (Number.isFinite(parsed)) return parsed
       }
       return null
     }
