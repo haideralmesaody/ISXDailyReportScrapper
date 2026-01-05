@@ -115,3 +115,78 @@ func TestRunBacktestWindow_ExtendMatchesFull(t *testing.T) {
 		t.Fatalf("open position mismatch: got %v want %v", mergedDetails.Summary.OpenPosition, fullDetails.Summary.OpenPosition)
 	}
 }
+
+func TestBacktestTickerSummary_LastAction(t *testing.T) {
+	t.Parallel()
+
+	manager := strategy.NewManager()
+	if err := manager.RegisterStrategy(mockSignalStrategy{}); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	svc := &StrategyService{manager: manager}
+
+	base := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	all := []liquidity.TradingDay{
+		{Date: base.AddDate(0, 0, 0), Symbol: "AAA", Close: 10},
+		{Date: base.AddDate(0, 0, 1), Symbol: "AAA", Close: 1},   // BUY signal, exec day2
+		{Date: base.AddDate(0, 0, 2), Symbol: "AAA", Close: 100}, // BUY exec price
+		{Date: base.AddDate(0, 0, 3), Symbol: "AAA", Close: 2},   // SELL signal, exec day4
+		{Date: base.AddDate(0, 0, 4), Symbol: "AAA", Close: 110}, // SELL exec price
+		{Date: base.AddDate(0, 0, 5), Symbol: "AAA", Close: 1},   // BUY signal, exec day6
+		{Date: base.AddDate(0, 0, 6), Symbol: "AAA", Close: 50},  // BUY exec price
+		{Date: base.AddDate(0, 0, 7), Symbol: "AAA", Close: 10},  // no SELL yet
+	}
+
+	start := base.AddDate(0, 0, 2) // first exec day
+	fee := 0.006
+
+	t.Run("closed-last-action-is-sell", func(t *testing.T) {
+		t.Parallel()
+
+		end := base.AddDate(0, 0, 4) // includes first SELL exec day
+		cached, err := svc.runBacktestWindow(context.Background(), "mock_v1", "AAA", all[:6], start, end, fee, defaultBacktestState(), nil)
+		if err != nil {
+			t.Fatalf("runBacktestWindow: %v", err)
+		}
+
+		details, err := backtestCacheTickerToDetails(cached, start, end, fee)
+		if err != nil {
+			t.Fatalf("toDetails: %v", err)
+		}
+
+		if details.Summary.LastAction != "SELL" {
+			t.Fatalf("last action: got %q want %q", details.Summary.LastAction, "SELL")
+		}
+		if details.Summary.LastActionDate != "2025-01-05" {
+			t.Fatalf("last action date: got %q want %q", details.Summary.LastActionDate, "2025-01-05")
+		}
+		if details.Summary.LastActionPrice != 110 {
+			t.Fatalf("last action price: got %v want %v", details.Summary.LastActionPrice, 110.0)
+		}
+	})
+
+	t.Run("open-last-action-is-buy", func(t *testing.T) {
+		t.Parallel()
+
+		end := base.AddDate(0, 0, 7) // ends while in position after second BUY
+		cached, err := svc.runBacktestWindow(context.Background(), "mock_v1", "AAA", all, start, end, fee, defaultBacktestState(), nil)
+		if err != nil {
+			t.Fatalf("runBacktestWindow: %v", err)
+		}
+
+		details, err := backtestCacheTickerToDetails(cached, start, end, fee)
+		if err != nil {
+			t.Fatalf("toDetails: %v", err)
+		}
+
+		if details.Summary.LastAction != "BUY" {
+			t.Fatalf("last action: got %q want %q", details.Summary.LastAction, "BUY")
+		}
+		if details.Summary.LastActionDate != "2025-01-07" {
+			t.Fatalf("last action date: got %q want %q", details.Summary.LastActionDate, "2025-01-07")
+		}
+		if details.Summary.LastActionPrice != 50 {
+			t.Fatalf("last action price: got %v want %v", details.Summary.LastActionPrice, 50.0)
+		}
+	})
+}

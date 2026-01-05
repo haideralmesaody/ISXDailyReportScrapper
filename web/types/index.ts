@@ -872,6 +872,9 @@ export interface BacktestTickerSummary {
   gross_profit_pct: number
   net_profit_pct: number
   open_position: boolean
+  last_action?: 'BUY' | 'SELL' | null
+  last_action_date?: string | null
+  last_action_price?: number | null
   error?: string
 }
 

@@ -148,6 +148,29 @@ export default function StrategyClient() {
 
   const hasBacktest = Boolean(lastRun?.backtest)
 
+  const computeBetterOpportunity = useCallback((bt: BacktestTickerSummary | undefined, currentPrice: number | null) => {
+    if (!bt || bt.error) return null
+    if (!bt.last_action || !bt.last_action_price) return null
+    if (!currentPrice || !Number.isFinite(currentPrice)) return null
+
+    const lastPrice = Number(bt.last_action_price)
+    if (!Number.isFinite(lastPrice) || lastPrice <= 0) return null
+
+    const lastAction = bt.last_action
+
+    if (lastAction === 'SELL' && currentPrice > lastPrice) {
+      const deltaPct = ((currentPrice - lastPrice) / lastPrice) * 100
+      return { kind: 'BETTER_SELL' as const, deltaPct }
+    }
+
+    if (lastAction === 'BUY' && currentPrice < lastPrice) {
+      const deltaPct = ((currentPrice - lastPrice) / lastPrice) * 100
+      return { kind: 'BETTER_BUY' as const, deltaPct }
+    }
+
+    return null
+  }, [])
+
   useEffect(() => {
     if (hasBacktest) return
     const backtestKeys: SignalSortKey[] = [
@@ -847,7 +870,12 @@ export default function StrategyClient() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      signalsToDisplay.map(sig => (
+                      signalsToDisplay.map(sig => {
+                        const bt = hasBacktest ? backtestSummaryBySymbol.get(sig.symbol) : undefined
+                        const currentPrice = numberOrNull(sig.price)
+                        const better = computeBetterOpportunity(bt, currentPrice)
+
+                        return (
                         <Fragment key={sig.id}>
                           <TableRow>
                             {hasBacktest ? (
@@ -877,22 +905,38 @@ export default function StrategyClient() {
                               </button>
                             </TableCell>
                           <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={
-                                sig.action === 'BUY'
-                                  ? 'border-green-600 text-green-700'
-                                  : sig.action === 'SELL'
-                                    ? 'border-red-600 text-red-700'
-                                    : ''
-                              }
-                            >
-                              {sig.action}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  sig.action === 'BUY'
+                                    ? 'border-green-600 text-green-700'
+                                    : sig.action === 'SELL'
+                                      ? 'border-red-600 text-red-700'
+                                      : ''
+                                }
+                              >
+                                {sig.action}
+                              </Badge>
+                              {better ? (
+                                <Badge
+                                  className={
+                                    better.kind === 'BETTER_BUY'
+                                      ? 'bg-green-600 text-white hover:bg-green-600/90'
+                                      : 'bg-red-600 text-white hover:bg-red-600/90'
+                                  }
+                                >
+                                  {better.kind === 'BETTER_BUY' ? 'Better Buy' : 'Better Sell'}{' '}
+                                  <span className="opacity-90">
+                                    ({better.deltaPct >= 0 ? '+' : ''}
+                                    {better.deltaPct.toFixed(2)}%)
+                                  </span>
+                                </Badge>
+                              ) : null}
+                            </div>
                           </TableCell>
                             {hasBacktest ? (
                               (() => {
-                                const bt = backtestSummaryBySymbol.get(sig.symbol)
                                 const isError = Boolean(bt?.error)
                                 return (
                                   <>
@@ -1009,7 +1053,8 @@ export default function StrategyClient() {
                             </TableRow>
                           ) : null}
                         </Fragment>
-                      ))
+                        )
+                      })
                     )}
                   </TableBody>
                 </Table>

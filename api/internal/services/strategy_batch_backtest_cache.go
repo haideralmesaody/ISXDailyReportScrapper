@@ -279,6 +279,26 @@ func backtestCacheTickerToDetails(t backtestCacheTicker, start, end time.Time, f
 		OpenPosition:    openPosition,
 	}
 
+	// Last action is derived from the last trade:
+	// - OPEN trade => last action BUY (entry)
+	// - CLOSED trade => last action SELL
+	if len(trades) > 0 {
+		last := trades[len(trades)-1]
+		if strings.EqualFold(last.Status, "OPEN") {
+			if last.BuyPrice > 0 {
+				summary.LastAction = "BUY"
+				summary.LastActionDate = last.BuyDate
+				summary.LastActionPrice = last.BuyPrice
+			}
+		} else if strings.EqualFold(last.Status, "CLOSED") {
+			if last.SellPrice > 0 {
+				summary.LastAction = "SELL"
+				summary.LastActionDate = last.SellDate
+				summary.LastActionPrice = last.SellPrice
+			}
+		}
+	}
+
 	return BacktestTickerDetails{
 		Symbol:  t.Symbol,
 		Summary: summary,

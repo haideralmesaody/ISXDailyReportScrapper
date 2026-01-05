@@ -21,6 +21,12 @@ No mock data is allowed anywhere in the strategy or backtesting path.
 - End-of-range: **mark-to-market** open position (affects profit %, does not count as completed trade).
 - Fees: `transaction_fee = 0.006` per transaction (apply on BUY and SELL).
 
+**UI annotation (Better Buy / Better Sell):**
+- The `/strategy` signals table keeps the strategy `action` as `BUY|SELL|HOLD`.
+- When backtest summary is available, the UI derives an additional “opportunity” badge from the **last backtest action**:
+  - **Better Sell:** last action was `SELL` and the current price is **higher** than the last sell price.
+  - **Better Buy:** last action was `BUY` (open position) and the current price is **lower** than the last buy price.
+
 ---
 
 ## Progress / Current State

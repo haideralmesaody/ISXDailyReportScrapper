@@ -586,6 +586,26 @@ func (s *StrategyService) backtestTradesForSeries(
 		OpenPosition:    openPosition,
 	}
 
+	// Last action is derived from the last trade:
+	// - OPEN trade => last action BUY (entry)
+	// - CLOSED trade => last action SELL
+	if len(trades) > 0 {
+		last := trades[len(trades)-1]
+		if strings.EqualFold(last.Status, "OPEN") {
+			if last.BuyPrice > 0 {
+				summary.LastAction = "BUY"
+				summary.LastActionDate = last.BuyDate
+				summary.LastActionPrice = last.BuyPrice
+			}
+		} else if strings.EqualFold(last.Status, "CLOSED") {
+			if last.SellPrice > 0 {
+				summary.LastAction = "SELL"
+				summary.LastActionDate = last.SellDate
+				summary.LastActionPrice = last.SellPrice
+			}
+		}
+	}
+
 	return BacktestTickerDetails{
 		Symbol:  symbol,
 		Summary: summary,
@@ -971,6 +991,9 @@ type BacktestTickerSummary struct {
 	GrossProfitPct  float64 `json:"gross_profit_pct"`
 	NetProfitPct    float64 `json:"net_profit_pct"`
 	OpenPosition    bool    `json:"open_position"`
+	LastAction      string  `json:"last_action,omitempty"`      // "BUY" or "SELL" (derived from last backtest trade)
+	LastActionDate  string  `json:"last_action_date,omitempty"` // YYYY-MM-DD (buy_date or sell_date)
+	LastActionPrice float64 `json:"last_action_price,omitempty"`
 	Error           string  `json:"error,omitempty"`
 }
 
