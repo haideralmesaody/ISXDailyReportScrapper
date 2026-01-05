@@ -35,7 +35,7 @@ import type {
 import { format } from 'date-fns'
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight, Target } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 
 type SignalSortKey =
   | 'symbol'
