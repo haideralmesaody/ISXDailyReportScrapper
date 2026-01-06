@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { toast } from '@/lib/hooks/use-toast'
 import apiClient from '@/lib/api'
 import type {
@@ -288,6 +289,22 @@ export default function StrategyClient() {
     return `${value.toFixed(2)}%`
   }
 
+  const formatBetterTooltip = (bt: BacktestTickerSummary | undefined, currentPrice: number | null) => {
+    if (!bt || bt.error) return null
+    if (!bt.last_action || !bt.last_action_price) return null
+    if (!currentPrice || !Number.isFinite(currentPrice)) return null
+
+    const lastAction = bt.last_action
+    const lastDate = bt.last_action_date || ''
+    const lastPrice = Number(bt.last_action_price)
+    if (!Number.isFinite(lastPrice) || lastPrice <= 0) return null
+
+    const deltaPct = ((currentPrice - lastPrice) / lastPrice) * 100
+    const direction = lastAction === 'BUY' ? 'Last BUY' : 'Last SELL'
+
+    return { direction, lastDate, lastPrice, currentPrice, deltaPct }
+  }
+
   const selectedStrategy = useMemo(() => {
     return strategies.find((s) => s.id === selectedStrategyId) || null
   }, [strategies, selectedStrategyId])
@@ -428,19 +445,20 @@ export default function StrategyClient() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Strategies</h1>
-          <p className="text-muted-foreground">
-            Run real-data strategies across all tickers and view BUY/SELL alerts (no mock data).
-          </p>
+    <TooltipProvider delayDuration={250}>
+      <div className="space-y-6 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Strategies</h1>
+            <p className="text-muted-foreground">
+              Run real-data strategies across all tickers and view BUY/SELL alerts (no mock data).
+            </p>
+          </div>
+          <Badge variant="secondary" className="flex items-center gap-2">
+            <Target className="h-4 w-4" />
+            Real Data
+          </Badge>
         </div>
-        <Badge variant="secondary" className="flex items-center gap-2">
-          <Target className="h-4 w-4" />
-          Real Data
-        </Badge>
-      </div>
 
       <Card>
         <CardHeader>
@@ -634,7 +652,7 @@ export default function StrategyClient() {
                     <div className="text-sm text-muted-foreground">No BUY/SELL alerts for this run.</div>
                   ) : (
                     <div className="space-y-1">
-                      {latestRunView.alerts.slice(0, 12).map(({ sig, better }) => (
+                      {latestRunView.alerts.slice(0, 12).map(({ sig, bt, price, better }) => (
                         <div key={sig.id} className="flex items-center justify-between gap-3 text-sm">
                           <span className="font-mono">{sig.symbol}</span>
                           <div className="flex items-center gap-2">
@@ -648,19 +666,47 @@ export default function StrategyClient() {
                               {sig.action}
                             </Badge>
                             {better ? (
-                              <Badge
-                                className={
-                                  better.kind === 'BETTER_BUY'
-                                    ? 'bg-green-700 text-white hover:bg-green-700'
-                                    : 'bg-red-700 text-white hover:bg-red-700'
-                                }
-                              >
-                                {better.kind === 'BETTER_BUY' ? 'Better Buy' : 'Better Sell'}{' '}
-                                <span className="opacity-90">
-                                  ({better.deltaPct >= 0 ? '+' : ''}
-                                  {better.deltaPct.toFixed(2)}%)
-                                </span>
-                              </Badge>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge
+                                    className={
+                                      better.kind === 'BETTER_BUY'
+                                        ? 'bg-green-700 text-white hover:bg-green-700'
+                                        : 'bg-red-700 text-white hover:bg-red-700'
+                                    }
+                                  >
+                                    {better.kind === 'BETTER_BUY' ? 'Better Buy' : 'Better Sell'}{' '}
+                                    <span className="opacity-90">
+                                      ({better.deltaPct >= 0 ? '+' : ''}
+                                      {better.deltaPct.toFixed(2)}%)
+                                    </span>
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent side="left" className="max-w-xs text-xs">
+                                  {(() => {
+                                    const meta = formatBetterTooltip(bt, price)
+                                    if (!meta) return <div>Compared vs last trade for this symbol.</div>
+                                    return (
+                                      <div className="space-y-1">
+                                        <div className="font-medium">Better vs last trade</div>
+                                        <div>
+                                          {meta.direction}:{' '}
+                                          <span className="font-mono">
+                                            {meta.lastDate || 'n/a'} @ {meta.lastPrice.toFixed(4)}
+                                          </span>
+                                        </div>
+                                        <div>
+                                          Current:{' '}
+                                          <span className="font-mono">
+                                            {meta.currentPrice.toFixed(4)} ({meta.deltaPct >= 0 ? '+' : ''}
+                                            {meta.deltaPct.toFixed(2)}%)
+                                          </span>
+                                        </div>
+                                      </div>
+                                    )
+                                  })()}
+                                </TooltipContent>
+                              </Tooltip>
                             ) : null}
                           </div>
                         </div>
@@ -683,7 +729,7 @@ export default function StrategyClient() {
                       </div>
                     ) : (
                       <div className="space-y-1">
-                        {latestRunView.opportunities.slice(0, 12).map(({ sig, better }) => (
+                        {latestRunView.opportunities.slice(0, 12).map(({ sig, bt, price, better }) => (
                           <div key={`${sig.id}-better`} className="flex items-center justify-between gap-3 text-sm">
                             <button
                               type="button"
@@ -693,19 +739,47 @@ export default function StrategyClient() {
                               {sig.symbol}
                             </button>
                             {better ? (
-                              <Badge
-                                className={
-                                  better.kind === 'BETTER_BUY'
-                                    ? 'bg-green-700 text-white hover:bg-green-700'
-                                    : 'bg-red-700 text-white hover:bg-red-700'
-                                }
-                              >
-                                {better.kind === 'BETTER_BUY' ? 'Better Buy' : 'Better Sell'}{' '}
-                                <span className="opacity-90">
-                                  ({better.deltaPct >= 0 ? '+' : ''}
-                                  {better.deltaPct.toFixed(2)}%)
-                                </span>
-                              </Badge>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge
+                                    className={
+                                      better.kind === 'BETTER_BUY'
+                                        ? 'bg-green-700 text-white hover:bg-green-700'
+                                        : 'bg-red-700 text-white hover:bg-red-700'
+                                    }
+                                  >
+                                    {better.kind === 'BETTER_BUY' ? 'Better Buy' : 'Better Sell'}{' '}
+                                    <span className="opacity-90">
+                                      ({better.deltaPct >= 0 ? '+' : ''}
+                                      {better.deltaPct.toFixed(2)}%)
+                                    </span>
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent side="left" className="max-w-xs text-xs">
+                                  {(() => {
+                                    const meta = formatBetterTooltip(bt, price)
+                                    if (!meta) return <div>Compared vs last trade for this symbol.</div>
+                                    return (
+                                      <div className="space-y-1">
+                                        <div className="font-medium">Better vs last trade</div>
+                                        <div>
+                                          {meta.direction}:{' '}
+                                          <span className="font-mono">
+                                            {meta.lastDate || 'n/a'} @ {meta.lastPrice.toFixed(4)}
+                                          </span>
+                                        </div>
+                                        <div>
+                                          Current:{' '}
+                                          <span className="font-mono">
+                                            {meta.currentPrice.toFixed(4)} ({meta.deltaPct >= 0 ? '+' : ''}
+                                            {meta.deltaPct.toFixed(2)}%)
+                                          </span>
+                                        </div>
+                                      </div>
+                                    )
+                                  })()}
+                                </TooltipContent>
+                              </Tooltip>
                             ) : null}
                           </div>
                         ))}
@@ -997,19 +1071,47 @@ export default function StrategyClient() {
                                 {sig.action}
                               </Badge>
                               {better ? (
-                                <Badge
-                                  className={
-                                    better.kind === 'BETTER_BUY'
-                                      ? 'bg-green-600 text-white hover:bg-green-600/90'
-                                      : 'bg-red-600 text-white hover:bg-red-600/90'
-                                  }
-                                >
-                                  {better.kind === 'BETTER_BUY' ? 'Better Buy' : 'Better Sell'}{' '}
-                                  <span className="opacity-90">
-                                    ({better.deltaPct >= 0 ? '+' : ''}
-                                    {better.deltaPct.toFixed(2)}%)
-                                  </span>
-                                </Badge>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge
+                                      className={
+                                        better.kind === 'BETTER_BUY'
+                                          ? 'bg-green-600 text-white hover:bg-green-600/90'
+                                          : 'bg-red-600 text-white hover:bg-red-600/90'
+                                      }
+                                    >
+                                      {better.kind === 'BETTER_BUY' ? 'Better Buy' : 'Better Sell'}{' '}
+                                      <span className="opacity-90">
+                                        ({better.deltaPct >= 0 ? '+' : ''}
+                                        {better.deltaPct.toFixed(2)}%)
+                                      </span>
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left" className="max-w-xs text-xs">
+                                    {(() => {
+                                      const meta = formatBetterTooltip(bt, currentPrice)
+                                      if (!meta) return <div>Compared vs last trade for this symbol.</div>
+                                      return (
+                                        <div className="space-y-1">
+                                          <div className="font-medium">Better vs last trade</div>
+                                          <div>
+                                            {meta.direction}:{' '}
+                                            <span className="font-mono">
+                                              {meta.lastDate || 'n/a'} @ {meta.lastPrice.toFixed(4)}
+                                            </span>
+                                          </div>
+                                          <div>
+                                            Current:{' '}
+                                            <span className="font-mono">
+                                              {meta.currentPrice.toFixed(4)} ({meta.deltaPct >= 0 ? '+' : ''}
+                                              {meta.deltaPct.toFixed(2)}%)
+                                            </span>
+                                          </div>
+                                        </div>
+                                      )
+                                    })()}
+                                  </TooltipContent>
+                                </Tooltip>
                               ) : null}
                             </div>
                           </TableCell>
@@ -1141,7 +1243,8 @@ export default function StrategyClient() {
           </Card>
         </div>
       )}
-    </div>
+      </div>
+    </TooltipProvider>
   )
 }
 

@@ -10,9 +10,9 @@
 
 'use client'
 
-import { useMemo, useCallback, useRef } from 'react'
+import { useMemo, useCallback, useEffect, useRef } from 'react'
 import { LineSeries, LineStyle } from 'lightweight-charts'
-import type { ISeriesApi } from 'lightweight-charts'
+import type { IPriceLine, ISeriesApi } from 'lightweight-charts'
 import { useSeries } from '@/lib/hooks/use-series'
 import { useChart } from '../ChartContext'
 import { useMomentumSettings } from '@/lib/hooks/use-indicator-settings'
@@ -27,8 +27,8 @@ export function RSIPane({ paneIndex }: RSIPaneProps) {
   const { chartData, chart, containerHeight, indicatorData } = useChart()
   const { settings, updateSettings } = useMomentumSettings()
 
-  // Track reference line series for cleanup
-  const refLineSeriesRef = useRef<ISeriesApi<any>[]>([])
+  const priceLinesRef = useRef<IPriceLine[]>([])
+  const rsiSeriesRef = useRef<ISeriesApi<any> | null>(null)
 
   // Use locally calculated RSI data from context
   const rsiData = useMemo(() => {
@@ -80,24 +80,68 @@ export function RSIPane({ paneIndex }: RSIPaneProps) {
     return data
   }, [chartData.candlestickData, indicatorData.rsiData]) // Simplified dependencies
 
-  // Reference lines (horizontal lines at 30, 50, 70)
-  // Use the same time range as RSI data for perfect alignment
-  const refLineData = useMemo(() => {
-    // Always use chart data time range for reference lines
-    if (chartData.candlestickData.length > 0) {
-      return chartData.candlestickData.map((d) => ({ time: d.time, value: 0 }))
+  const clearPriceLines = useCallback(() => {
+    const series = rsiSeriesRef.current
+    if (!series) {
+      priceLinesRef.current = []
+      return
     }
 
-    // Fallback: return empty array
-    return []
-  }, [chartData.candlestickData])
+    for (const line of priceLinesRef.current) {
+      try {
+        series.removePriceLine(line)
+      } catch {
+        // ignore
+      }
+    }
+    priceLinesRef.current = []
+  }, [])
 
-  // Callback when RSI main series is created - add reference lines immediately
+  const applyGuidelinePriceLines = useCallback(() => {
+    const series = rsiSeriesRef.current
+    if (!series) return
+
+    clearPriceLines()
+
+    const buy = Number(settings.rsiOversold)
+    const sell = Number(settings.rsiOverbought)
+
+    // Show strategy guideline levels (derived from momentum settings / preset).
+    if (Number.isFinite(buy)) {
+      priceLinesRef.current.push(
+        series.createPriceLine({
+          price: buy,
+          color: '#10B981',
+          lineWidth: 1,
+          lineStyle: LineStyle.Dashed,
+          axisLabelVisible: true,
+          title: `BUY ${buy}`,
+        })
+      )
+    }
+
+    if (Number.isFinite(sell)) {
+      priceLinesRef.current.push(
+        series.createPriceLine({
+          price: sell,
+          color: '#EF4444',
+          lineWidth: 1,
+          lineStyle: LineStyle.Dashed,
+          axisLabelVisible: true,
+          title: `SELL ${sell}`,
+        })
+      )
+    }
+  }, [clearPriceLines, settings.rsiOverbought, settings.rsiOversold])
+
+  // Callback when RSI main series is created - set pane height and add guideline lines immediately.
   const handleRSISeriesCreated = useCallback(
     (rsiSeries: ISeriesApi<any>) => {
       if (!chart) return
 
       try {
+        rsiSeriesRef.current = rsiSeries
+
         // 1. Set pane height using paneIndex prop
         const panes = chart.panes()
         const rsiPane = panes[paneIndex]
@@ -108,81 +152,26 @@ export function RSIPane({ paneIndex }: RSIPaneProps) {
 
         console.log('[RSI] ✅ Pane configured: height =', constrainedHeight, 'px')
 
-        // 2. Add reference lines immediately using paneIndex prop
-        // All use the same paneIndex and priceScaleId as the main RSI line
-
-        // Overbought line (custom value from settings - Red)
-        const rsiOverbought = chart.addSeries(
-          LineSeries,
-          {
-            color: '#EF4444',
-            lineWidth: 1,
-            lineStyle: LineStyle.Dashed,
-            priceScaleId: 'rsi',
-          },
-          paneIndex
-        )
-        refLineSeriesRef.current.push(rsiOverbought)
-
-        // Set data immediately - no need for requestAnimationFrame with local data
-        rsiOverbought.setData(refLineData.map((d) => ({ ...d, value: settings.rsiOverbought })))
-
-        // 50 line (Neutral - Gray) - skip if it would duplicate one of the custom thresholds
-        if (settings.rsiOverbought !== 50 && settings.rsiOversold !== 50) {
-          const rsi50 = chart.addSeries(
-            LineSeries,
-            {
-              color: '#6B7280',
-              lineWidth: 1,
-              lineStyle: LineStyle.Dashed,
-              priceScaleId: 'rsi',
-            },
-            paneIndex
-          )
-          refLineSeriesRef.current.push(rsi50)
-
-          // Set data immediately
-          rsi50.setData(refLineData.map((d) => ({ ...d, value: 50 })))
-        }
-
-        // Oversold line (custom value from settings - Green)
-        const rsiOversold = chart.addSeries(
-          LineSeries,
-          {
-            color: '#10B981',
-            lineWidth: 1,
-            lineStyle: LineStyle.Dashed,
-            priceScaleId: 'rsi',
-          },
-          paneIndex
-        )
-        refLineSeriesRef.current.push(rsiOversold)
-
-        // Set data immediately
-        rsiOversold.setData(refLineData.map((d) => ({ ...d, value: settings.rsiOversold })))
-
-        console.log('[RSI] ✅ Added 3 reference lines immediately (pane', paneIndex, ')')
+        // 2. Add guideline price lines (BUY/SELL levels) on the RSI series.
+        applyGuidelinePriceLines()
       } catch (error) {
-        console.error('[RSI] Error creating reference lines:', error)
+        console.error('[RSI] Error creating guideline lines:', error)
       }
     },
-    [chart, paneIndex, containerHeight, refLineData, settings.rsiOverbought, settings.rsiOversold]
+    [chart, paneIndex, containerHeight, applyGuidelinePriceLines]
   )
 
-  // Cleanup reference lines when component unmounts
-  const handleRSISeriesDestroyed = useCallback(() => {
-    if (!chart) return
+  // Keep guideline lines in sync when thresholds change (e.g. preset applied or user edits).
+  useEffect(() => {
+    applyGuidelinePriceLines()
+  }, [applyGuidelinePriceLines])
 
-    refLineSeriesRef.current.forEach((series) => {
-      try {
-        chart.removeSeries(series)
-      } catch (error) {
-        console.error('[RSI] Error removing reference line:', error)
-      }
-    })
-    refLineSeriesRef.current = []
-    console.log('[RSI] 🗑️  Cleaned up reference lines')
-  }, [chart])
+  // Cleanup guideline lines when component unmounts
+  const handleRSISeriesDestroyed = useCallback(() => {
+    clearPriceLines()
+    rsiSeriesRef.current = null
+    console.log('[RSI] 🗑️  Cleaned up guideline lines')
+  }, [clearPriceLines])
 
   // Memoize seriesOptions so PHASE 3 effect in use-series can detect changes
   const seriesOptions = useMemo(() => {

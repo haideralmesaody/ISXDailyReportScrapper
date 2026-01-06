@@ -17,10 +17,15 @@ Implementation:
 - Frontend computes the derived badge via `web/lib/utils/better-opportunity.ts` and uses it in:
   - Latest Run summary (alerts + opportunities)
   - Signals table rows
+  - Tooltips explain the reference price/date used for the percentage.
+
+## RSI guideline levels (Analysis)
+When a strategy deep-link enables RSI on `/analysis`, the RSI pane draws labeled guideline lines derived from the strategy preset / momentum settings:
+- `BUY <level>` (green)
+- `SELL <level>` (red)
 
 ## Rendering model
 The Strategy page builds a view-model for the selected run:
 - merge `signals[]` with `backtest.by_ticker[]` summary for the same symbol
 - compute derived fields (better opportunity, deltas, formatted values)
 This avoids divergent rendering paths (e.g. showing a badge in one list but not another).
-
