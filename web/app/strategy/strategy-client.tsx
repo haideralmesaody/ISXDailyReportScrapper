@@ -35,7 +35,8 @@ import type {
 import { format } from 'date-fns'
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight, Target } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
+import { computeBetterOpportunity, numberOrNull } from '@/lib/utils/better-opportunity'
 
 type SignalSortKey =
   | 'symbol'
@@ -49,15 +50,6 @@ type SignalSortKey =
   | 'rsi'
   | 'prev_rsi'
   | 'date'
-
-const numberOrNull = (value: unknown): number | null => {
-  if (typeof value === 'number' && Number.isFinite(value)) return value
-  if (typeof value === 'string') {
-    const parsed = Number(value)
-    return Number.isFinite(parsed) ? parsed : null
-  }
-  return null
-}
 
 export default function StrategyClient() {
   const searchParams = useSearchParams()
@@ -157,29 +149,6 @@ export default function StrategyClient() {
 
   const hasBacktest = Boolean(lastRun?.backtest)
 
-  const computeBetterOpportunity = useCallback((bt: BacktestTickerSummary | undefined, currentPrice: number | null) => {
-    if (!bt || bt.error) return null
-    if (!bt.last_action || !bt.last_action_price) return null
-    if (!currentPrice || !Number.isFinite(currentPrice)) return null
-
-    const lastPrice = Number(bt.last_action_price)
-    if (!Number.isFinite(lastPrice) || lastPrice <= 0) return null
-
-    const lastAction = bt.last_action
-
-    if (lastAction === 'SELL' && currentPrice > lastPrice) {
-      const deltaPct = ((currentPrice - lastPrice) / lastPrice) * 100
-      return { kind: 'BETTER_SELL' as const, deltaPct }
-    }
-
-    if (lastAction === 'BUY' && currentPrice < lastPrice) {
-      const deltaPct = ((currentPrice - lastPrice) / lastPrice) * 100
-      return { kind: 'BETTER_BUY' as const, deltaPct }
-    }
-
-    return null
-  }, [])
-
   useEffect(() => {
     if (hasBacktest) return
     const backtestKeys: SignalSortKey[] = [
@@ -272,11 +241,32 @@ export default function StrategyClient() {
     return filtered.slice().sort(compare)
   }, [lastRun, showHold, tickerParam, backtestSummaryBySymbol, signalSort])
 
-  const alerts = useMemo(() => {
+  const latestRunView = useMemo(() => {
     const signals = lastRun?.signals || []
-    const filtered = signals.filter(sig => sig.action === 'BUY' || sig.action === 'SELL')
-    return tickerParam ? filtered.filter(sig => sig.symbol === tickerParam) : filtered
-  }, [lastRun, tickerParam])
+    const filtered = signals.filter((sig) => {
+      if (tickerParam && sig.symbol !== tickerParam) return false
+      return true
+    })
+
+    const rows = filtered.map((sig) => {
+      const bt = backtestSummaryBySymbol.get(sig.symbol)
+      const price = numberOrNull(sig.price)
+      const better = computeBetterOpportunity(bt, price)
+      return { sig, bt, price, better }
+    })
+
+    const alerts = rows.filter((r) => r.sig.action === 'BUY' || r.sig.action === 'SELL')
+    const opportunities = rows.filter((r) => Boolean(r.better)).sort((a, b) => {
+      const ad = Math.abs(a.better?.deltaPct ?? 0)
+      const bd = Math.abs(b.better?.deltaPct ?? 0)
+      return bd - ad
+    })
+
+    const betterBuyCount = opportunities.filter((r) => r.better?.kind === 'BETTER_BUY').length
+    const betterSellCount = opportunities.filter((r) => r.better?.kind === 'BETTER_SELL').length
+
+    return { rows, alerts, opportunities, betterBuyCount, betterSellCount }
+  }, [lastRun, tickerParam, backtestSummaryBySymbol])
 
   const openAnalysis = (symbol: string) => {
     const params = new URLSearchParams({ ticker: symbol })
@@ -297,6 +287,10 @@ export default function StrategyClient() {
     if (value == null || Number.isNaN(value)) return ''
     return `${value.toFixed(2)}%`
   }
+
+  const selectedStrategy = useMemo(() => {
+    return strategies.find((s) => s.id === selectedStrategyId) || null
+  }, [strategies, selectedStrategyId])
 
   function toLocalDate(dateStr: string): Date | null {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr.trim())
@@ -607,7 +601,13 @@ export default function StrategyClient() {
               <CardContent className="space-y-3">
                 <div className="text-sm text-muted-foreground">
                   <div>Run ID: <span className="font-mono text-foreground">{lastRun.run_id}</span></div>
-                  <div>Strategy: <span className="font-mono text-foreground">{lastRun.strategy_id}</span></div>
+                  <div>
+                    Strategy:{' '}
+                    <span className="font-mono text-foreground">{lastRun.strategy_id}</span>
+                    {selectedStrategy?.name ? (
+                      <span className="text-muted-foreground"> ({selectedStrategy.name})</span>
+                    ) : null}
+                  </div>
                   <div>Total: <span className="text-foreground">{lastRun.total}</span></div>
                 </div>
 
@@ -615,31 +615,109 @@ export default function StrategyClient() {
                   <Badge className="bg-green-600 text-white hover:bg-green-600">BUY {lastRun.buy_count}</Badge>
                   <Badge className="bg-red-600 text-white hover:bg-red-600">SELL {lastRun.sell_count}</Badge>
                   <Badge variant="secondary">HOLD {lastRun.hold_count}</Badge>
+                  {hasBacktest ? (
+                    <>
+                      <Badge className="bg-green-700 text-white hover:bg-green-700">
+                        Better Buy {latestRunView.betterBuyCount}
+                      </Badge>
+                      <Badge className="bg-red-700 text-white hover:bg-red-700">
+                        Better Sell {latestRunView.betterSellCount}
+                      </Badge>
+                    </>
+                  ) : null}
                   {lastRun.errors?.length ? <Badge variant="destructive">Errors {lastRun.errors.length}</Badge> : null}
                 </div>
 
                 <div className="space-y-2">
                   <div className="text-sm font-medium">Alerts (BUY/SELL)</div>
-                  {alerts.length === 0 ? (
+                  {latestRunView.alerts.length === 0 ? (
                     <div className="text-sm text-muted-foreground">No BUY/SELL alerts for this run.</div>
                   ) : (
                     <div className="space-y-1">
-                      {alerts.slice(0, 12).map(sig => (
-                        <div key={sig.id} className="flex items-center justify-between text-sm">
+                      {latestRunView.alerts.slice(0, 12).map(({ sig, better }) => (
+                        <div key={sig.id} className="flex items-center justify-between gap-3 text-sm">
                           <span className="font-mono">{sig.symbol}</span>
-                          <Badge
-                            className={sig.action === 'BUY' ? 'bg-green-600 text-white hover:bg-green-600' : 'bg-red-600 text-white hover:bg-red-600'}
-                          >
-                            {sig.action}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              className={
+                                sig.action === 'BUY'
+                                  ? 'bg-green-600 text-white hover:bg-green-600'
+                                  : 'bg-red-600 text-white hover:bg-red-600'
+                              }
+                            >
+                              {sig.action}
+                            </Badge>
+                            {better ? (
+                              <Badge
+                                className={
+                                  better.kind === 'BETTER_BUY'
+                                    ? 'bg-green-700 text-white hover:bg-green-700'
+                                    : 'bg-red-700 text-white hover:bg-red-700'
+                                }
+                              >
+                                {better.kind === 'BETTER_BUY' ? 'Better Buy' : 'Better Sell'}{' '}
+                                <span className="opacity-90">
+                                  ({better.deltaPct >= 0 ? '+' : ''}
+                                  {better.deltaPct.toFixed(2)}%)
+                                </span>
+                              </Badge>
+                            ) : null}
+                          </div>
                         </div>
                       ))}
-                      {alerts.length > 12 ? (
-                        <div className="text-xs text-muted-foreground">Showing first 12 of {alerts.length}.</div>
+                      {latestRunView.alerts.length > 12 ? (
+                        <div className="text-xs text-muted-foreground">
+                          Showing first 12 of {latestRunView.alerts.length}.
+                        </div>
                       ) : null}
                     </div>
                   )}
                 </div>
+
+                {hasBacktest ? (
+                  <div className="space-y-2 pt-2">
+                    <div className="text-sm font-medium">Better Opportunities (vs last trade)</div>
+                    {latestRunView.opportunities.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">
+                        No Better Buy/Sell opportunities detected for this run.
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        {latestRunView.opportunities.slice(0, 12).map(({ sig, better }) => (
+                          <div key={`${sig.id}-better`} className="flex items-center justify-between gap-3 text-sm">
+                            <button
+                              type="button"
+                              className="font-mono underline underline-offset-2 hover:no-underline"
+                              onClick={() => openAnalysis(sig.symbol)}
+                            >
+                              {sig.symbol}
+                            </button>
+                            {better ? (
+                              <Badge
+                                className={
+                                  better.kind === 'BETTER_BUY'
+                                    ? 'bg-green-700 text-white hover:bg-green-700'
+                                    : 'bg-red-700 text-white hover:bg-red-700'
+                                }
+                              >
+                                {better.kind === 'BETTER_BUY' ? 'Better Buy' : 'Better Sell'}{' '}
+                                <span className="opacity-90">
+                                  ({better.deltaPct >= 0 ? '+' : ''}
+                                  {better.deltaPct.toFixed(2)}%)
+                                </span>
+                              </Badge>
+                            ) : null}
+                          </div>
+                        ))}
+                        {latestRunView.opportunities.length > 12 ? (
+                          <div className="text-xs text-muted-foreground">
+                            Showing first 12 of {latestRunView.opportunities.length}.
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
 

@@ -26,6 +26,7 @@ No mock data is allowed anywhere in the strategy or backtesting path.
 - When backtest summary is available, the UI derives an additional “opportunity” badge from the **last backtest action**:
   - **Better Sell:** last action was `SELL` and the current price is **higher** than the last sell price.
   - **Better Buy:** last action was `BUY` (open position) and the current price is **lower** than the last buy price.
+- The Latest Run panel displays these tags both in the Alerts list (when applicable) and in a dedicated “Better Opportunities” list.
 
 ---
 
